@@ -1,0 +1,7 @@
+boreas_dataset/*
+
+raw_fomo_rosbags/*
+
+*.png
+
+*csv

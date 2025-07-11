@@ -24,3 +24,8 @@ This script:
 - Ensure that all dependencies for the scripts are installed and configured correctly.
 - If you encounter any issues, verify that your environment matches the requirements.
 - Future work should process the output of Inertial Explorer into the format of `gps_post_processed.csv` from the Boreas Dataset
+
+
+### The Boreas format 
+
+Task on hand need to covert the rosbag from fomo dataset to the boreas format
