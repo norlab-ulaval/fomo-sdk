@@ -47,8 +47,12 @@ class BagToDir(Node):
 
         # self.gt_file = os.path.join(output_dir, 'gps_cartesian.txt')
         # I actually have two imus as well lol
-        # self.imu_file = open(os.path.join(output_dir, 'ouster_imu.csv'), 'w')
-        # self.imu_file.write("timestamp,ang_vel_z,ang_vel_y,ang_vel_x,lin_acc_z,lin_acc_y,lin_acc_x\n")
+        self.vn100_imu_file = open(os.path.join(output_dir, 'vn100_imu.csv'), 'w')
+        self.vn100_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
+
+        self.mti30_imu_file = open(os.path.join(output_dir, 'mti30_imu.csv'), 'w')
+        self.mti30_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
+
         self.init_x = 0
         self.init_y = 0
         self.init_z = 0
@@ -100,11 +104,19 @@ class BagToDir(Node):
                         elif topic_name.startswith('/rslidar128/points'):
                             self.save_lidar_bins(msg,self.rs_lidar_bin_dir)
 
-                    # if isinstance(msg, Imu):
-                    #     ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
-                    #     ang_vel = msg.angular_velocity
-                    #     lin_acc = msg.linear_acceleration
-                    #     self.imu_file.write(f"{ts},{ang_vel.z},{ang_vel.y},{ang_vel.x},{lin_acc.z},{lin_acc.y},{lin_acc.x}\n")
+                    if isinstance(msg, Imu):
+                        print(f"Processing IMU data from topic: {topic_name}")
+                        if topic_name.startswith('/vn100/data_raw'):
+                            ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
+                            ang_vel = msg.angular_velocity
+                            lin_acc = msg.linear_acceleration
+                            self.vn100_imu_file.write(f"{ts},{ang_vel.x},{ang_vel.y},{ang_vel.z},{lin_acc.x},{lin_acc.y},{lin_acc.z}\n")
+
+                        elif topic_name.startswith('/mti30/data_raw'):
+                            ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
+                            ang_vel = msg.angular_velocity
+                            lin_acc = msg.linear_acceleration
+                            self.mti30_imu_file.write(f"{ts},{ang_vel.x},{ang_vel.y},{ang_vel.z},{lin_acc.x},{lin_acc.y},{lin_acc.z}\n")
 
                         
                 except Exception as e:
@@ -152,22 +164,27 @@ class BagToDir(Node):
     def save_lidar_bins(self, msg, lidar_bin_dir):
         try:
             timestamp = msg.header.stamp.sec * 1e9 + msg.header.stamp.nanosec
-            for field in msg.fields:
-                print(f"Field name: {field.name}, offset: {field.offset}, datatype: {field.datatype}")
+            # for field in msg.fields:
+            #     print(f"Field name: {field.name}, offset: {field.offset}, datatype: {field.datatype}")
 
             cloud_points = list(point_cloud2.read_points(
                 msg, field_names=('x', 'y', 'z', 'intensity','ring','timestamp'), skip_nans=True))
-            print("cloud points length: ", len(cloud_points))
+            # print("cloud points length: ", len(cloud_points))
             points = np.array(cloud_points, dtype=[
-                ('x', np.float32), ('y', np.float32), ('z', np.float32),
-                ('intensity', np.float32), ('ring', np.float32), ('timestamp', np.float32)])
+                                                    ('x', np.float32),
+                                                    ('y', np.float32),
+                                                    ('z', np.float32),
+                                                    ('intensity', np.float32),
+                                                    ('ring', np.uint16),
+                                                    ('timestamp', np.float64)
+                                             ])
             timestamp = int(timestamp / 1000)
             points.tofile(lidar_bin_dir + '/{}.bin'.format(timestamp))
         except Exception as e:
             self.get_logger().error(f'Error saving lidar bins: {str(e)}')
 
-    def save_imu_csv(self, msg, imu_csv_dir):
-        pass
+    # def save_rectified_camera_imgs(self, msg, camera_dir):
+    #     pass
                      
 
 
@@ -178,8 +195,8 @@ def main(args=None):
     output_dir = '/home/samqiao/ASRL/fomo-public-sdk/output'
     
     try:
-        radar_to_image = BagToDir(bag_file, output_dir)
-        rclpy.spin(radar_to_image)
+        MCAP2IJRR = BagToDir(bag_file, output_dir)
+        rclpy.spin(MCAP2IJRR)
     except Exception as e:
         print(f'Error: {str(e)}')
     finally:
