@@ -7,10 +7,6 @@ This directory contains tools and scripts for post-processing data collected fro
 - **ROS 2 Humble**: Ensure that ROS 2 Humble is installed and properly sourced before using these tools.
 - **Bag Format**: Some scripts in this directory assume that the recorded bag files are in `.mcap` format. Please convert your bag files to `.mcap` if necessary.
 
-This script:
-1. Extracts the Aeva and Ouster pointclouds into .bin files named by timestamp
-
-
 ## Notes
 - Ensure that all dependencies for the scripts are installed and configured correctly.
 - If you encounter any issues, verify that your environment matches the requirements.
