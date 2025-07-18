@@ -7,23 +7,13 @@ This directory contains tools and scripts for post-processing data collected fro
 - **ROS 2 Humble**: Ensure that ROS 2 Humble is installed and properly sourced before using these tools.
 - **Bag Format**: Some scripts in this directory assume that the recorded bag files are in `.mcap` format. Please convert your bag files to `.mcap` if necessary.
 
-## Usage
-
-In the `/post_processing` directory, run the `extract.sh` file to extract Aeva and Ouster pointclouds in the same format as the Boreas dataset. For example, run:
-    ```
-    source /opt/ros/humble/setup.bash
-    bash extract.sh /path/to/ros2bag/
-    ```
-
 This script:
 1. Extracts the Aeva and Ouster pointclouds into .bin files named by timestamp
-2. Converts the Novatel GPS data to a .log file. Use this .log within Inertial Explorer to obtain the groundtruth file.
+
 
 ## Notes
-
 - Ensure that all dependencies for the scripts are installed and configured correctly.
 - If you encounter any issues, verify that your environment matches the requirements.
-- Future work should process the output of Inertial Explorer into the format of `gps_post_processed.csv` from the Boreas Dataset
 
 
 ### The Boreas format 
