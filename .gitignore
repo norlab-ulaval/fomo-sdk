@@ -4,4 +4,6 @@ raw_fomo_rosbags/*
 
 *.png
 
-*csv
+*.csv
+
+*.bin

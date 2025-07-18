@@ -39,18 +39,20 @@ class BagToDir(Node):
         self.radar_image_dir = os.path.join(output_dir, 'radar')
         os.makedirs(self.radar_image_dir, exist_ok=True)
 
-        self.lidar_bin_dir = os.path.join(output_dir, 'lidar')
-        os.makedirs(self.lidar_bin_dir, exist_ok=True)
+        self.ls_lidar_bin_dir = os.path.join(output_dir, 'ls_lidar') # one for ls_lidar
+        os.makedirs(self.ls_lidar_bin_dir, exist_ok=True)
+
+        self.rs_lidar_bin_dir = os.path.join(output_dir, 'rs_lidar') # one for rs_lidar
+        os.makedirs(self.rs_lidar_bin_dir, exist_ok=True)
+
         # self.gt_file = os.path.join(output_dir, 'gps_cartesian.txt')
+        # I actually have two imus as well lol
         # self.imu_file = open(os.path.join(output_dir, 'ouster_imu.csv'), 'w')
-        # self.outfile = open(self.gt_file, 'w')
-        # self.outfile.write("timestamp,latitude,longitude,altitude,x,y,z\n")
         # self.imu_file.write("timestamp,ang_vel_z,ang_vel_y,ang_vel_x,lin_acc_z,lin_acc_y,lin_acc_x\n")
         self.init_x = 0
         self.init_y = 0
         self.init_z = 0
         self.first_msg = True
-        self.reading_cnt = 0
         self.read_bag()
 
     def read_bag(self):
@@ -77,13 +79,14 @@ class BagToDir(Node):
 
         while reader.has_next():
             # temporarily limit the number of messages read for testing
-            if self.reading_cnt == 5:
-                break
-            self.reading_cnt += 1
+            # if self.reading_cnt == 5:
+            #     break
+            # self.reading_cnt += 1
 
             topic_name, data, t = reader.read_next()
             if topic_name in msg_type_map:
                 try:
+                    # print(f"Processing topic: {topic_name} with type: {msg_type_map[topic_name]}")
                     msg_type = msg_type_map[topic_name]
                     msg = deserialize_message(data, msg_type)
                     
@@ -91,8 +94,11 @@ class BagToDir(Node):
                         self.save_radar_image(msg)
 
                     if isinstance(msg, point_cloud2.PointCloud2): # but there are two lidar topics
-                        self.save_lidar_bins(msg)
-
+                        print(f"Processing point cloud from topic: {topic_name}")
+                        if topic_name.startswith('/lslidar128/points'):
+                            self.save_lidar_bins(msg,self.ls_lidar_bin_dir)
+                        elif topic_name.startswith('/rslidar128/points'):
+                            self.save_lidar_bins(msg,self.rs_lidar_bin_dir)
 
                     # if isinstance(msg, Imu):
                     #     ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
@@ -103,8 +109,10 @@ class BagToDir(Node):
                         
                 except Exception as e:
                     self.get_logger().error(f'Error processing message: {str(e)}')
+                
+    
 
-        self.outfile.close()
+        # self.outfile.close()
 
     def save_radar_image(self, msg):
         try:
@@ -141,18 +149,26 @@ class BagToDir(Node):
         except Exception as e:
             self.get_logger().error(f'Error saving radar image: {str(e)}')
 
-    def save_lidar_bins(self, msg):
+    def save_lidar_bins(self, msg, lidar_bin_dir):
         try:
+            timestamp = msg.header.stamp.sec * 1e9 + msg.header.stamp.nanosec
+            for field in msg.fields:
+                print(f"Field name: {field.name}, offset: {field.offset}, datatype: {field.datatype}")
+
             cloud_points = list(point_cloud2.read_points(
-                msg, field_names=('x', 'y', 'z', 'intensity', 't', 'reflectivity', 'ring', 'ambient', 'range'), skip_nans=True))
+                msg, field_names=('x', 'y', 'z', 'intensity','ring','timestamp'), skip_nans=True))
+            print("cloud points length: ", len(cloud_points))
             points = np.array(cloud_points, dtype=[
                 ('x', np.float32), ('y', np.float32), ('z', np.float32),
-                ('intensity', np.float32), ('t', np.float32), ('reflectivity', np.float32),
-                ('ring', np.float32), ('ambient', np.float32), ('range', np.float32)])
+                ('intensity', np.float32), ('ring', np.float32), ('timestamp', np.float32)])
             timestamp = int(timestamp / 1000)
-            points.tofile(self.lidar_bin_dir + 'ouster/{}.bin'.format(timestamp))
+            points.tofile(lidar_bin_dir + '/{}.bin'.format(timestamp))
         except Exception as e:
             self.get_logger().error(f'Error saving lidar bins: {str(e)}')
+
+    def save_imu_csv(self, msg, imu_csv_dir):
+        pass
+                     
 
 
 def main(args=None):
