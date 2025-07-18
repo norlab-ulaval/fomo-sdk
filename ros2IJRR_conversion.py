@@ -7,7 +7,7 @@ from rosbag2_py import SequentialReader, StorageOptions, ConverterOptions
 from datetime import datetime
 from navtech_msgs.msg import RadarBScanMsg
 import numpy as np
-import math
+# import math
 import cv2
 from sensor_msgs.msg import Imu
 from sensor_msgs_py import point_cloud2
@@ -53,9 +53,15 @@ class BagToDir(Node):
         self.mti30_imu_file = open(os.path.join(output_dir, 'mti30_imu.csv'), 'w')
         self.mti30_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
 
-        self.init_x = 0
-        self.init_y = 0
-        self.init_z = 0
+        # also two cameras one is the stereo camera ZED X and the other one is the camera basler ace2 + fisheye lens TODO
+
+
+        # I need to do the audio file which is a lossless wav file TODO
+
+
+        # self.init_x = 0
+        # self.init_y = 0
+        # self.init_z = 0
         self.first_msg = True
         self.read_bag()
 
