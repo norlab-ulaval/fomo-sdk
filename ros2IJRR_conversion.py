@@ -9,9 +9,9 @@ from navtech_msgs.msg import RadarBScanMsg
 import numpy as np
 import math
 import cv2
-from sensor_msgs.msg import NavSatFix, Imu
-
+from sensor_msgs.msg import Imu
 from sensor_msgs_py import point_cloud2
+import argparse
 
 changeovertime = 1627387200 * 1e9
 def get_num_times(bag, topics):
@@ -98,14 +98,14 @@ class BagToDir(Node):
                         self.save_radar_image(msg)
 
                     if isinstance(msg, point_cloud2.PointCloud2): # but there are two lidar topics
-                        print(f"Processing point cloud from topic: {topic_name}")
+                        # print(f"Processing point cloud from topic: {topic_name}")
                         if topic_name.startswith('/lslidar128/points'):
                             self.save_lidar_bins(msg,self.ls_lidar_bin_dir)
                         elif topic_name.startswith('/rslidar128/points'):
                             self.save_lidar_bins(msg,self.rs_lidar_bin_dir)
 
                     if isinstance(msg, Imu):
-                        print(f"Processing IMU data from topic: {topic_name}")
+                        # print(f"Processing IMU data from topic: {topic_name}")
                         if topic_name.startswith('/vn100/data_raw'):
                             ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
                             ang_vel = msg.angular_velocity
@@ -180,6 +180,7 @@ class BagToDir(Node):
                                              ])
             timestamp = int(timestamp / 1000)
             points.tofile(lidar_bin_dir + '/{}.bin'.format(timestamp))
+            self.get_logger().info(f'Saved bin: {lidar_bin_dir + "/{}.bin".format(timestamp)}')
         except Exception as e:
             self.get_logger().error(f'Error saving lidar bins: {str(e)}')
 
@@ -189,13 +190,30 @@ class BagToDir(Node):
 
 
 def main(args=None):
-    rclpy.init(args=args)
-    
-    bag_file = '/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/deployment4/red/red.mcap'
-    output_dir = '/home/samqiao/ASRL/fomo-public-sdk/output'
+      # Argument parser setup
+    parser = argparse.ArgumentParser(description='Convert MCAP ROS2 bag to radar/lidar images and data.')
+    parser.add_argument(
+        '--bag_file',
+        type=str,
+        default='/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/deployment4/red/red.mcap',
+        help='Path to the MCAP or DB3 bag file'
+    )
+    parser.add_argument(
+        '--output_dir',
+        type=str,
+        default='/home/samqiao/ASRL/fomo-public-sdk/output',
+        help='Directory to store the output files'
+    )
+    args = parser.parse_args()
+
+    # Create output directory if it doesn't exist
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    # Start ROS node
+    rclpy.init()
     
     try:
-        MCAP2IJRR = BagToDir(bag_file, output_dir)
+        MCAP2IJRR = BagToDir(args.bag_file, args.output_dir)
         rclpy.spin(MCAP2IJRR)
     except Exception as e:
         print(f'Error: {str(e)}')
