@@ -4,40 +4,33 @@ from rclpy.node import Node
 from rclpy.serialization import deserialize_message
 from rosidl_runtime_py.utilities import get_message
 from rosbag2_py import SequentialReader, StorageOptions, ConverterOptions
+from datetime import datetime
 from navtech_msgs.msg import RadarBScanMsg
 import numpy as np
 import math
 import cv2
 from sensor_msgs.msg import NavSatFix, Imu
 
-def gnss_to_cartesian(lat, lon, alt=0):
-    """
-    Convert geodetic coordinates (latitude, longitude, altitude) 
-    to ECEF (Earth-Centered, Earth-Fixed) Cartesian coordinates.
-    
-    :param lat: Latitude in decimal degrees
-    :param lon: Longitude in decimal degrees
-    :param alt: Altitude in meters (default 0)
-    :return: x, y, z coordinates in meters
-    """
-    # WGS84 ellipsoid constants
-    a = 6378137.0  # semi-major axis in meters
-    f = 1 / 298.257223563  # flattening
-    e2 = 2 * f - f * f  # square of first eccentricity
-    
-    # Convert latitude and longitude to radians
-    lat_rad = math.radians(lat)
-    lon_rad = math.radians(lon)
-    
-    # Calculate prime vertical radius of curvature
-    N = a / math.sqrt(1 - e2 * math.sin(lat_rad)**2)
-    
-    # Calculate ECEF coordinates
-    x = (N + alt) * math.cos(lat_rad) * math.cos(lon_rad)
-    y = (N + alt) * math.cos(lat_rad) * math.sin(lon_rad)
-    z = ((1 - e2) * N + alt) * math.sin(lat_rad)
-    
-    return x, y, z
+from sensor_msgs_py import point_cloud2
+
+changeovertime = 1627387200 * 1e9
+def get_num_times(bag, topics):
+    times = [t for topic, msg, t in bag.read_messages(topics)]
+    return len(times)
+
+def get_start_week(rostime, gpstime):
+    start_epoch = rostime * 1e-9
+    dt = datetime.fromtimestamp(start_epoch)
+    weekday = dt.isoweekday()
+    if weekday == 7:
+        weekday = 0  # Sunday
+    g2 = weekday * 24 * 3600 + dt.hour * 3600 + dt.minute * 60 + dt.second + dt.microsecond * 1e-6
+    start_week = round(start_epoch - g2)
+    hour_offset = round((gpstime - g2) / 3600)
+    time_zone_offset = hour_offset * 3600.0        # Toronto time is GMT-4 or GMT-5 depending on time of year
+    print('START WEEK: {} TIME ZONE OFFSET: {}'.format(start_week, time_zone_offset))
+    return start_week, time_zone_offset
+
 
 class BagToDir(Node):
     def __init__(self, bag_file, output_dir):
@@ -45,19 +38,23 @@ class BagToDir(Node):
         self.bag_file = bag_file
         self.radar_image_dir = os.path.join(output_dir, 'radar')
         os.makedirs(self.radar_image_dir, exist_ok=True)
-        self.gt_file = os.path.join(output_dir, 'gps_cartesian.txt')
-        self.imu_file = open(os.path.join(output_dir, 'ouster_imu.csv'), 'w')
-        self.outfile = open(self.gt_file, 'w')
-        self.outfile.write("timestamp,latitude,longitude,altitude,x,y,z\n")
-        self.imu_file.write("timestamp,ang_vel_z,ang_vel_y,ang_vel_x,lin_acc_z,lin_acc_y,lin_acc_x\n")
+
+        self.lidar_bin_dir = os.path.join(output_dir, 'lidar')
+        os.makedirs(self.lidar_bin_dir, exist_ok=True)
+        # self.gt_file = os.path.join(output_dir, 'gps_cartesian.txt')
+        # self.imu_file = open(os.path.join(output_dir, 'ouster_imu.csv'), 'w')
+        # self.outfile = open(self.gt_file, 'w')
+        # self.outfile.write("timestamp,latitude,longitude,altitude,x,y,z\n")
+        # self.imu_file.write("timestamp,ang_vel_z,ang_vel_y,ang_vel_x,lin_acc_z,lin_acc_y,lin_acc_x\n")
         self.init_x = 0
         self.init_y = 0
         self.init_z = 0
         self.first_msg = True
+        self.reading_cnt = 0
         self.read_bag()
 
     def read_bag(self):
-        storage_options = StorageOptions(uri=self.bag_file, storage_id='sqlite3')
+        storage_options = StorageOptions(uri=self.bag_file, storage_id='mcap')
         converter_options = ConverterOptions(
             input_serialization_format='cdr',
             output_serialization_format='cdr'
@@ -67,13 +64,23 @@ class BagToDir(Node):
         reader.open(storage_options, converter_options)
         
         topic_types = reader.get_all_topics_and_types()
+        print(f"Found {len(topic_types)} topics in the bag file.")
         type_map = {topic.name: topic.type for topic in topic_types}
         msg_type_map = {}
         
         for topic_name, topic_type in type_map.items():
-            msg_type_map[topic_name] = get_message(topic_type)
+           try:
+                msg_type_map[topic_name] = get_message(topic_type)
+           except (ModuleNotFoundError, AttributeError) as e:
+                self.get_logger().warn(f"Skipping topic '{topic_name}' with unknown type '{topic_type}': {e}")
+                continue
 
         while reader.has_next():
+            # temporarily limit the number of messages read for testing
+            if self.reading_cnt == 5:
+                break
+            self.reading_cnt += 1
+
             topic_name, data, t = reader.read_next()
             if topic_name in msg_type_map:
                 try:
@@ -83,31 +90,15 @@ class BagToDir(Node):
                     if isinstance(msg, RadarBScanMsg):
                         self.save_radar_image(msg)
 
-                    if isinstance(msg, NavSatFix):
-                        if msg.status.status >= msg.status.STATUS_NO_FIX:
-                            x, y, z = gnss_to_cartesian(
-                                msg.latitude, 
-                                msg.longitude, 
-                                msg.altitude
-                            )
-                            if self.first_msg:
-                                self.init_x = x
-                                self.init_y = y
-                                self.init_z = z
-                                self.first_msg = False
-                            x = x - self.init_x
-                            y = y - self.init_y
-                            z = z - self.init_z
-                            self.outfile.write(
-                                f"{t},{msg.latitude},{msg.longitude},{msg.altitude},{x},{y},{z}\n"
-                            )
-                            print(f"{t},{msg.latitude},{msg.longitude},{msg.altitude},{x},{y},{z}")
+                    if isinstance(msg, point_cloud2.PointCloud2): # but there are two lidar topics
+                        self.save_lidar_bins(msg)
 
-                    if isinstance(msg, Imu):
-                        ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
-                        ang_vel = msg.angular_velocity
-                        lin_acc = msg.linear_acceleration
-                        self.imu_file.write(f"{ts},{ang_vel.z},{ang_vel.y},{ang_vel.x},{lin_acc.z},{lin_acc.y},{lin_acc.x}\n")
+
+                    # if isinstance(msg, Imu):
+                    #     ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
+                    #     ang_vel = msg.angular_velocity
+                    #     lin_acc = msg.linear_acceleration
+                    #     self.imu_file.write(f"{ts},{ang_vel.z},{ang_vel.y},{ang_vel.x},{lin_acc.z},{lin_acc.y},{lin_acc.x}\n")
 
                         
                 except Exception as e:
@@ -150,11 +141,25 @@ class BagToDir(Node):
         except Exception as e:
             self.get_logger().error(f'Error saving radar image: {str(e)}')
 
+    def save_lidar_bins(self, msg):
+        try:
+            cloud_points = list(point_cloud2.read_points(
+                msg, field_names=('x', 'y', 'z', 'intensity', 't', 'reflectivity', 'ring', 'ambient', 'range'), skip_nans=True))
+            points = np.array(cloud_points, dtype=[
+                ('x', np.float32), ('y', np.float32), ('z', np.float32),
+                ('intensity', np.float32), ('t', np.float32), ('reflectivity', np.float32),
+                ('ring', np.float32), ('ambient', np.float32), ('range', np.float32)])
+            timestamp = int(timestamp / 1000)
+            points.tofile(self.lidar_bin_dir + 'ouster/{}.bin'.format(timestamp))
+        except Exception as e:
+            self.get_logger().error(f'Error saving lidar bins: {str(e)}')
+
+
 def main(args=None):
     rclpy.init(args=args)
     
-    bag_file = 'mars_t1_0-001.db3'
-    output_dir = 'mars_t1_0-001'
+    bag_file = '/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/deployment4/red/red.mcap'
+    output_dir = '/home/samqiao/ASRL/fomo-public-sdk/output'
     
     try:
         radar_to_image = BagToDir(bag_file, output_dir)
