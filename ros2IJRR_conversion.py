@@ -472,8 +472,8 @@ class BagToDir():
                     # print("connection.msgtype:", connection.msgtype)
 
 
-                    # if topic_name.startswith('/radar/b_scan_msg'):
-                    #     self.save_radar_image(msg)
+                    if topic_name.startswith('/radar/b_scan_msg'):
+                        self.save_radar_image(msg)
 
                     if topic_name.startswith('/lslidar128/points'):
                         print("Saving LS Lidar bins")
@@ -484,16 +484,16 @@ class BagToDir():
                         self.save_lidar_bins(msg, self.rs_lidar_bin_dir)
 
               
-                    # if topic_name.startswith('/vn100/data_raw'):
-                    #     ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
-                    #     ang_vel = msg.angular_velocity
-                    #     lin_acc = msg.linear_acceleration
-                    #     self.vn100_imu_file.write(f"{ts},{ang_vel.x},{ang_vel.y},{ang_vel.z},{lin_acc.x},{lin_acc.y},{lin_acc.z}\n")
-                    # elif topic_name.startswith('/mti30/data_raw'):
-                    #     ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
-                    #     ang_vel = msg.angular_velocity
-                    #     lin_acc = msg.linear_acceleration
-                    #     self.mti30_imu_file.write(f"{ts},{ang_vel.x},{ang_vel.y},{ang_vel.z},{lin_acc.x},{lin_acc.y},{lin_acc.z}\n")
+                    if topic_name.startswith('/vn100/data_raw'):
+                        ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
+                        ang_vel = msg.angular_velocity
+                        lin_acc = msg.linear_acceleration
+                        self.vn100_imu_file.write(f"{ts},{ang_vel.x},{ang_vel.y},{ang_vel.z},{lin_acc.x},{lin_acc.y},{lin_acc.z}\n")
+                    elif topic_name.startswith('/mti30/data_raw'):
+                        ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
+                        ang_vel = msg.angular_velocity
+                        lin_acc = msg.linear_acceleration
+                        self.mti30_imu_file.write(f"{ts},{ang_vel.x},{ang_vel.y},{ang_vel.z},{lin_acc.x},{lin_acc.y},{lin_acc.z}\n")
 
                 except Exception as e:
                     print(f'Error processing message: {str(e)}')
