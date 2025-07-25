@@ -560,7 +560,9 @@ class BagToDir():
 
             radar_data = np.frombuffer(img_msg.data, dtype=np.uint8).reshape(img_msg.height, img_msg.width)
             timestamp = img_msg.header.stamp
-            image_filename = os.path.join(self.radar_image_dir, f'{timestamp.sec}{int(timestamp.nanosec/1e3):06d}.png')
+            nano_sec = img_msg.header.stamp.nanosec
+            stamp = timestamp.sec + nano_sec/1e9
+            image_filename = os.path.join(self.radar_image_dir, f'{str(stamp*1000)}.png')
 
             timestamp_bytes = np.frombuffer(timestamp_row.tobytes(), dtype=np.uint8).reshape(-1, 8)
             encoder_bytes = np.frombuffer(encoder_values.tobytes(), dtype=np.uint8).reshape(-1, 2)
