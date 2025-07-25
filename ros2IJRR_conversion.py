@@ -389,6 +389,7 @@ def get_fomo_typestore():
     )
     return typestore
 
+# this is to convert Cloud msg to Pointcloud2 msg 
 def to_ros_pointcloud2(msg):
     from sensor_msgs.msg import PointCloud2, PointField
     from std_msgs.msg import Header
@@ -479,20 +480,21 @@ class BagToDir():
                 try:
                     topic_name = connection.topic
                     
-                    # if topic_name.startswith('/radar/b_scan_msg'):
-                    #     self.save_radar_image(connection, rawdata, typestore)
-                    # elif topic_name.startswith('/lslidar128/points'):
-                    #     self.save_lidar_bins(connection, rawdata, typestore, self.ls_lidar_bin_dir)
-                    # if topic_name.startswith('/rslidar128/points'):
-                    #     self.save_lidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
-                    # elif topic_name.startswith('/vn100/data_raw'):
-                    #     self.save_imu_data(connection, rawdata, typestore, self.vn100_imu_file)
-                    # elif topic_name.startswith('/mti30/data_raw'):
-                    #     self.save_imu_data(connection, rawdata, typestore, self.mti30_imu_file)
-                    # elif topic_name in ['/zed_node/right_raw/image_raw_color', '/zed_node/left_raw/image_raw_color']:
-                    #     self.save_camera_image(connection, rawdata, typestore)
                     if topic_name.startswith('/radar/b_scan_msg'):
-                        
+                        self.save_radar_image(connection, rawdata, typestore)
+                    elif topic_name.startswith('/lslidar128/points'):
+                        self.save_lidar_bins(connection, rawdata, typestore, self.ls_lidar_bin_dir)
+                    if topic_name.startswith('/rslidar128/points'):
+                        self.save_lidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
+                    elif topic_name.startswith('/vn100/data_raw'):
+                        self.save_imu_data(connection, rawdata, typestore, self.vn100_imu_file)
+                    elif topic_name.startswith('/mti30/data_raw'):
+                        self.save_imu_data(connection, rawdata, typestore, self.mti30_imu_file)
+                    elif topic_name in ['/zed_node/right_raw/image_raw_color', '/zed_node/left_raw/image_raw_color']:
+                        self.save_camera_image(connection, rawdata, typestore)
+                    elif topic_name in ["/audio/left_mic", "/audio/right_mic"]:
+                        self.save_audio_data(connection, rawdata, typestore)
+
                 except Exception as e:
                     print(f'Error processing message: {str(e)}')
 
@@ -531,7 +533,7 @@ class BagToDir():
         print("image size is:", image_size)
         
         R = np.eye(3)
-        t = np.array([0.1, 0, 0], dtype=np.float64)  # Small translation along x-axis
+        t = np.array([0.12, 0, 0], dtype=np.float64)  # Small translation along x-axis read from tf tree
         
         R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
             self.K_left, self.D_left, self.K_right, self.D_right,
@@ -662,16 +664,25 @@ class BagToDir():
     def save_audio_data(self, connection, rawdata, typestore):
         msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
 
+        audio_stereo = autils.Stereo()
+
+        output_dir = os.path.join(self.output_dir, 'audio')
+        os.makedirs(output_dir, exist_ok=True)
+
         try:
             ts = msg.header.stamp
             timestamp = ts.sec + ts.nanosec/1e9
-            audio_data = msg.data
 
-            # Save audio data
-            audio_filename = os.path.join(self.audio_dir, f'{timestamp*1000}.wav')
-            with open(audio_filename, 'wb') as f:
-                f.write(audio_data)
-            print(f'Saved audio data: {audio_filename}')
+            if audio_stereo.is_mic_topic(connection.topic):
+                print(f"Processing audio data from topic: {connection.topic}")
+                audio_stereo.add_message(connection, timestamp, rawdata, typestore)
+            
+            # print("sam left:", len(audio_stereo.left))
+            # print("sam right:", len(audio_stereo.right))
+
+            # audio_stereo.postprocess_audio_data()
+            audio_stereo.save_audio(f"{output_dir}/{timestamp}.wav", True)
+
 
         except Exception as e:
             print(f'Error saving audio data: {str(e)}')
@@ -683,12 +694,12 @@ def main():
     parser.add_argument('--overwrite', action='store_true', help='Overwrite existing output directory')
     args = parser.parse_args()
 
-    # if os.path.exists(args.output):
-    #     if args.overwrite:
-    #         import shutil
-    #         shutil.rmtree(args.output)
-    #     else:
-    #         raise FileExistsError(f"Output directory {args.output} already exists. Use --overwrite to replace.")
+    if os.path.exists(args.output):
+        if args.overwrite:
+            import shutil
+            shutil.rmtree(args.output)
+        else:
+            raise FileExistsError(f"Output directory {args.output} already exists. Use --overwrite to replace.")
     
     os.makedirs(args.output, exist_ok=True)
     

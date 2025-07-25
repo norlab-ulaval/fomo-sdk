@@ -134,21 +134,24 @@ class Stereo:
                 return
             # Write the audio data to a WAV file
             filename = Path(output).stem
-            wavfile.write(
-                output.replace(filename, f"{filename}_left"),
-                self.sample_rate,
-                self.left,
-            )
-            wavfile.write(
-                output.replace(filename, f"{filename}_right"),
-                self.sample_rate,
-                self.right,
-            )
-            wavfile.write(
-                output.replace(filename, f"{filename}_stereo"),
-                self.sample_rate,
-                self.stereo,
-            )
+            # print("filename", filename)
+            if len(self.left) > 0:
+                wavfile.write(
+                    output.replace(filename, f"{filename}_left"),
+                    self.sample_rate,
+                    self.left,
+                )   
+            if len(self.right) > 0:
+                wavfile.write(
+                    output.replace(filename, f"{filename}_right"),
+                    self.sample_rate,
+                    self.right,
+                )
+            # wavfile.write(
+            #     output.replace(filename, f"{filename}_stereo"),
+            #     self.sample_rate,
+            #     self.stereo,
+            # )
         except Exception as e:
             print(f"Error saving WAV file: {e}")
             return
