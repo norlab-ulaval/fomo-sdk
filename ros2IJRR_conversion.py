@@ -1,22 +1,13 @@
 import os
-
-from attrs import field
-import rclpy
-from rclpy.node import Node
+from pathlib import Path
 import numpy as np
 import cv2
 import argparse
-from pathlib import Path
-
+import rclpy
 from rosbags.rosbag2 import Reader
+from rosbags.typesys import get_typestore, Stores, get_types_from_msg
 from rosbags.serde import deserialize_cdr
-from rosbags.typesys import get_typestore, Stores,get_types_from_msg, register_types
-
 from sensor_msgs_py import point_cloud2
-from sensor_msgs.msg import *
-from rosbags.typesys.types import sensor_msgs__msg__PointCloud2 as PointCloud2Msg
-
-
 import tqdm
 
 import audio_utils as autils
@@ -396,8 +387,6 @@ def get_fomo_typestore():
             AUDIO_DATA_STAMPED_MSG, "audio_common_msgs/msg/AudioDataStamped"
         )
     )
-
-
     return typestore
 
 def to_ros_pointcloud2(msg):
@@ -416,7 +405,7 @@ def to_ros_pointcloud2(msg):
     ros_msg.point_step = msg.point_step
     ros_msg.row_step = msg.row_step
     ros_msg.is_dense = msg.is_dense
-    ros_msg.data = list(bytearray(msg.data))  # ✅ FIXED: convert bytes to list[int]
+    ros_msg.data = list(bytearray(msg.data)) 
 
     ros_msg.fields = []
     for f in msg.fields:
@@ -429,79 +418,139 @@ def to_ros_pointcloud2(msg):
 
     return ros_msg
 
+
 class BagToDir():
     def __init__(self, bag_file, output_dir):
         self.bag_file = bag_file
-        # radar
-        self.radar_image_dir = os.path.join(output_dir, 'radar')
-        os.makedirs(self.radar_image_dir, exist_ok=True)
-
-        # lidar
-        self.ls_lidar_bin_dir = os.path.join(output_dir, 'lslidar')
-        os.makedirs(self.ls_lidar_bin_dir, exist_ok=True)
-
-        self.rs_lidar_bin_dir = os.path.join(output_dir, 'rslidar')
-        os.makedirs(self.rs_lidar_bin_dir, exist_ok=True)
+        self.output_dir = output_dir
         
-        # imu
+        # Create output directories
+        self.radar_image_dir = os.path.join(output_dir, 'radar')
+        self.ls_lidar_bin_dir = os.path.join(output_dir, 'lslidar')
+        self.rs_lidar_bin_dir = os.path.join(output_dir, 'rslidar')
+        self.zed_node_right_dir = os.path.join(output_dir, 'zednode_right')
+        self.zed_node_left_dir = os.path.join(output_dir, 'zednode_left')
+        
+        os.makedirs(self.radar_image_dir, exist_ok=True)
+        os.makedirs(self.ls_lidar_bin_dir, exist_ok=True)
+        os.makedirs(self.rs_lidar_bin_dir, exist_ok=True)
+        os.makedirs(self.zed_node_right_dir, exist_ok=True)
+        os.makedirs(self.zed_node_left_dir, exist_ok=True)
+        
+        # Initialize camera parameters
+        self.K_left = self.D_left = self.R_left = self.P_left = None
+        self.K_right = self.D_right = self.R_right = self.P_right = None
+        
+        # Initialize rectification maps
+        self.map1_left = self.map2_left = None
+        self.map1_right = self.map2_right = None
+        
+        # Open IMU files
         self.vn100_imu_file = open(os.path.join(output_dir, 'vn100.csv'), 'w')
         self.vn100_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
-
         self.mti30_imu_file = open(os.path.join(output_dir, 'mti30.csv'), 'w')
         self.mti30_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
-        
-        # camera
 
-        # audio
-        self.first_msg = True
-        self.read_bag()
+        # Image map constructed
+        self.zed_map_processed = False
 
     def read_bag(self):
         bag_path = Path(self.bag_file)
         typestore = get_fomo_typestore()
 
-
         with Reader(bag_path) as reader:
-            reader.open()
+            print("haha")
+            reader.typestore = typestore
+            connections = list(reader.connections)
+            
+            # First pass: Process camera info to set rectification maps
+            for connection, timestamp, rawdata in tqdm.tqdm(reader.messages(), total=reader.message_count, desc="Processing camera info"):
+                if connection.topic in ['/zed_node/right_raw/camera_info', '/zed_node/left_raw/camera_info']:
+                    self.process_camera_info(connection, rawdata, typestore)
 
-            for connection, timestamp, rawdata in reader.messages():
+                    if self.zed_map_processed:
+                        # If both camera infos are processed, break the loop
+                        break
+
+            print("Camera info processed, rectification maps set.")
+                    
+            # Second pass: Process all data
+            for connection, timestamp, rawdata in tqdm.tqdm(reader.messages(), total=reader.message_count, desc="Processing data"):
                 try:
-                    msg = deserialize_cdr(rawdata, connection.msgtype, typestore=typestore)
                     topic_name = connection.topic
-
-                    # print("connection.msgtype:", connection.msgtype)
-
-
+                    
+                    # if topic_name.startswith('/radar/b_scan_msg'):
+                    #     self.save_radar_image(connection, rawdata, typestore)
+                    # elif topic_name.startswith('/lslidar128/points'):
+                    #     self.save_lidar_bins(connection, rawdata, typestore, self.ls_lidar_bin_dir)
+                    # if topic_name.startswith('/rslidar128/points'):
+                    #     self.save_lidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
+                    # elif topic_name.startswith('/vn100/data_raw'):
+                    #     self.save_imu_data(connection, rawdata, typestore, self.vn100_imu_file)
+                    # elif topic_name.startswith('/mti30/data_raw'):
+                    #     self.save_imu_data(connection, rawdata, typestore, self.mti30_imu_file)
+                    # elif topic_name in ['/zed_node/right_raw/image_raw_color', '/zed_node/left_raw/image_raw_color']:
+                    #     self.save_camera_image(connection, rawdata, typestore)
                     if topic_name.startswith('/radar/b_scan_msg'):
-                        self.save_radar_image(msg)
-
-                    if topic_name.startswith('/lslidar128/points'):
-                        print("Saving LS Lidar bins")
-        
-                        self.save_lidar_bins(msg, self.ls_lidar_bin_dir)
-                    elif topic_name.startswith('/rslidar128/points'):
-                        print("Saving RS Lidar bins")
-                        self.save_lidar_bins(msg, self.rs_lidar_bin_dir)
-
-              
-                    if topic_name.startswith('/vn100/data_raw'):
-                        ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
-                        ang_vel = msg.angular_velocity
-                        lin_acc = msg.linear_acceleration
-                        self.vn100_imu_file.write(f"{ts},{ang_vel.x},{ang_vel.y},{ang_vel.z},{lin_acc.x},{lin_acc.y},{lin_acc.z}\n")
-                    elif topic_name.startswith('/mti30/data_raw'):
-                        ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
-                        ang_vel = msg.angular_velocity
-                        lin_acc = msg.linear_acceleration
-                        self.mti30_imu_file.write(f"{ts},{ang_vel.x},{ang_vel.y},{ang_vel.z},{lin_acc.x},{lin_acc.y},{lin_acc.z}\n")
-
+                        
                 except Exception as e:
                     print(f'Error processing message: {str(e)}')
 
+        # Close files
         self.vn100_imu_file.close()
         self.mti30_imu_file.close()
 
-    def save_radar_image(self, msg):
+    def process_camera_info(self, connection, rawdata, typestore):
+        msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
+        
+        if connection.topic == '/zed_node/left_raw/camera_info':
+            self.K_left = np.array(msg.k).reshape(3, 3)
+            self.D_left = np.array(msg.d)
+            self.R_left = np.array(msg.r).reshape(3, 3)
+            self.P_left = np.array(msg.p).reshape(3, 4)
+            print("Processed left camera info")
+            
+        elif connection.topic == '/zed_node/right_raw/camera_info':
+            self.K_right = np.array(msg.k).reshape(3, 3)
+            self.D_right = np.array(msg.d)
+            self.R_right = np.array(msg.r).reshape(3, 3)
+            self.P_right = np.array(msg.p).reshape(3, 4)
+            print("Processed right camera info")
+            
+        # Compute rectification maps if both camera infos are available
+        if self.K_left is not None and self.K_right is not None and self.map1_left is None:
+            self.compute_rectification_maps()
+            
+            self.zed_map_processed = True
+
+    def compute_rectification_maps(self):
+        """Compute rectification maps once for both cameras"""
+        # Use the image size from left camera (assuming both are same)
+        image_size = (1920,1200) # width, height
+
+        print("image size is:", image_size)
+        
+        R = np.eye(3)
+        t = np.array([0.1, 0, 0], dtype=np.float64)  # Small translation along x-axis
+        
+        R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
+            self.K_left, self.D_left, self.K_right, self.D_right,
+            image_size, R, t, flags=cv2.CALIB_ZERO_DISPARITY, alpha=0
+        )
+        
+        self.map1_left, self.map2_left = cv2.initUndistortRectifyMap(
+            self.K_left, self.D_left, R1, P1, image_size, cv2.CV_32FC1
+        )
+        
+        self.map1_right, self.map2_right = cv2.initUndistortRectifyMap(
+            self.K_right, self.D_right, R2, P2, image_size, cv2.CV_32FC1
+        )
+        
+        print("Computed rectification maps")
+
+
+    def save_radar_image(self, msg, rawdata, typestore):
+        msg = deserialize_cdr(rawdata, msg.msgtype, typestore=typestore)
         try:
             img_msg = msg.b_scan_img
             timestamp_row = np.array(msg.timestamps, dtype=np.uint64)
@@ -525,55 +574,27 @@ class BagToDir():
         except Exception as e:
             print(f'Error saving radar image: {str(e)}')
 
-    def save_lidar_bins(self, msg, lidar_bin_dir):
-        from sensor_msgs.msg import PointCloud2, PointField
-        from std_msgs.msg import Header
-        from builtin_interfaces.msg import Time
 
-        def convert_to_ros2_pointcloud2(msg):
-            # Reconstruct ROS2 Time object manually
-            stamp = Time()
-            stamp.sec = msg.header.stamp.sec
-            stamp.nanosec = msg.header.stamp.nanosec
+    def save_lidar_bins(self, connection, rawdata, typestore, output_dir):
+        # converted_msg = deserialize_cdr(rawdata, connection.msgtype, typestore=typestore)
 
-            header = Header()
-            header.stamp = stamp
-            header.frame_id = msg.header.frame_id
+        # msg = to_ros_pointcloud2(converted_msg)
+        cloud_msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
+        msg = to_ros_pointcloud2(cloud_msg)
 
-            fields = []
-            for f in msg.fields:
-                pf = PointField()
-                pf.name = f.name
-                pf.offset = f.offset
-                pf.datatype = f.datatype
-                pf.count = f.count
-                fields.append(pf)
-
-            return PointCloud2(
-                header=header,
-                height=msg.height,
-                width=msg.width,
-                fields=fields,
-                is_bigendian=msg.is_bigendian,
-                point_step=msg.point_step,
-                row_step=msg.row_step,
-                data=bytes(msg.data),
-                is_dense=msg.is_dense,
-            )
         try:
-            timestamp = msg.header.stamp.sec * 1e9 + msg.header.stamp.nanosec
-
-            print("timestamp:", timestamp/1e9)
-
-            # Convert rosbags dynamic msg to true PointCloud2
-            pc2_msg = convert_to_ros2_pointcloud2(msg)  
-      
-            cloud_points = list(point_cloud2.read_points(
-                pc2_msg,
+            timestamp = msg.header.stamp
+            ns_timestamp = timestamp.sec + timestamp.nanosec/1e9
+            
+            # Read point cloud data
+            points = point_cloud2.read_points(
+                msg,
                 field_names=('x', 'y', 'z', 'intensity', 'ring', 'timestamp'),
-                skip_nans=True))
-
-            points = np.array(cloud_points, dtype=[
+                skip_nans=True
+            )
+            
+            # Convert to structured array
+            point_array = np.array(list(points), dtype=[
                 ('x', np.float32),
                 ('y', np.float32),
                 ('z', np.float32),
@@ -581,87 +602,99 @@ class BagToDir():
                 ('ring', np.uint16),
                 ('timestamp', np.uint64),
             ])
-
-            # print one of the points
-            if len(points) > 0:
-                print(f'Point: {points[0:50]}')
-
-            timestamp = int(timestamp / 1000)
-            points.tofile(os.path.join(lidar_bin_dir, f'{timestamp}.bin'))
-            print(f'Saved bin: {lidar_bin_dir}/{timestamp}.bin')
+            
+            # Save to binary file
+            bin_filename = os.path.join(output_dir, f'{ns_timestamp*1000}.bin')
+            point_array.tofile(bin_filename)
+            print(f'Saved lidar bin: {bin_filename}')
 
         except Exception as e:
             print(f'Error saving lidar bins: {str(e)}')
-    
 
-    def save_rectified_camera_imgs(self, msg, camera_dir):
-        # camera info topic 
-        # /zed_node/right_raw/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 3662 | Serialization Format: cdr
-        # /zed_node/left_raw/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 3662 | Serialization Format: cdr
-        # stereo camera ZED X
-        # /zed_node/right_raw/image_raw_color | Type: sensor_msgs/msg/Image | Count: 3662 | Serialization Format: cdr
-        # /zed_node/left_raw/image_raw_color | Type: sensor_msgs/msg/Image | Count: 3662 | Serialization Format: cdr
+    def save_imu_data(self, connection, rawdata, typestore, imu_file):
+        msg = deserialize_cdr(rawdata, connection.msgtype, typestore=typestore)
+        
+        try:
+            ts = msg.header.stamp
+            timestamp = ts.sec + ts.nanosec * 1e-9
+            ang_vel = msg.angular_velocity
+            lin_acc = msg.linear_acceleration
+            
+            imu_file.write(
+                f"{timestamp},{ang_vel.x},{ang_vel.y},{ang_vel.z},"
+                f"{lin_acc.x},{lin_acc.y},{lin_acc.z}\n"
+            )
+            
+        except Exception as e:
+            print(f'Error saving IMU data: {str(e)}')
 
-        # so I need two folders one for the left and one for the right camera
+    def save_camera_image(self, connection, rawdata, typestore):
+        msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
+        
+        try:
+            ts = msg.header.stamp
+            timestamp = ts.sec + ts.nanosec/1e9
+            
+            # Decode image
+            from cv_bridge import CvBridge
+            bridge = CvBridge()
+            img = bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+                
+            # Rectify image
+            if connection.topic == '/zed_node/left_raw/image_raw_color' and self.map1_left is not None:
+                img = cv2.remap(img, self.map1_left, self.map2_left, cv2.INTER_LINEAR)
+                output_dir = self.zed_node_left_dir
+            elif connection.topic == '/zed_node/right_raw/image_raw_color' and self.map1_right is not None:
+                img = cv2.remap(img, self.map1_right, self.map2_right, cv2.INTER_LINEAR)
+                output_dir = self.zed_node_right_dir
+            else:
+                print("Rectification maps not available, saving raw image")
+                output_dir = self.zed_node_left_dir if 'left' in connection.topic else self.zed_node_right_dir
+                
+            # Save image
+            img_filename = os.path.join(output_dir, f'{timestamp*1000}.png')
+            cv2.imwrite(img_filename, img)
+            print(f'Saved camera image: {img_filename}')
+            
+        except Exception as e:
+            print(f'Error saving camera image: {str(e)}')
 
-        # I also wanna save a video in the end
+    def save_audio_data(self, connection, rawdata, typestore):
+        msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
 
-        # np_arr = np.fromstring(msg.data, np.uint8)
-        #         img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-        #         img = undistort(img, K, dist, roi, P[:3, :3])
-        #         cv2.imwrite(root + "camera/" + str(timestamp) + ".png", img)
-        pass
+        try:
+            ts = msg.header.stamp
+            timestamp = ts.sec + ts.nanosec/1e9
+            audio_data = msg.data
 
+            # Save audio data
+            audio_filename = os.path.join(self.audio_dir, f'{timestamp*1000}.wav')
+            with open(audio_filename, 'wb') as f:
+                f.write(audio_data)
+            print(f'Saved audio data: {audio_filename}')
 
+        except Exception as e:
+            print(f'Error saving audio data: {str(e)}')
 
-    # def get_audio_data(input: str) -> autils.Stereo:
-    #     typestore = get_fomo_typestore()
-    #     audio_stereo = autils.Stereo()
-
-    #     with Reader(input) as reader:
-    #         total_messages = reader.message_count
-    #         for connection, timestamp, rawdata in tqdm(
-    #             reader.messages(connections=reader.connections),
-    #             total=total_messages,
-    #             desc=f"Exporting audio data from {input}",
-    #         ):
-    #             if audio_stereo.is_mic_topic(connection.topic):
-    #                 audio_stereo.add_message(connection, timestamp, rawdata, typestore)
-
-    #     audio_stereo.postprocess_audio_data()
-    #     return audio_stereo
-
-
-    def undistort(self, img, K, dist, roi=None, P=None):
-        dst = cv2.undistort(img, K, dist, None, P)
-        if roi is not None and P is not None:
-            h, w, _ = img.shape
-            x, y, w2, h2 = roi
-            dst = dst[y:y+h2, x:x+w2]
-            dst = cv2.resize(dst, (w, h))
-        return dst
-
-
-def main(args=None):
-    parser = argparse.ArgumentParser(description='Convert MCAP ROS2 bag to radar/lidar images and data.')
-    parser.add_argument('--input', type=str, default='/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/deployment4/red/', help='Path to the MCAP or DB3 bag file')
-    parser.add_argument('--output', type=str,  default='/home/samqiao/ASRL/fomo-public-sdk/output',help='Directory to store the output files')
-    parser.add_argument('--overwrite', action='store_true', help='Overwrite the output directory if it exists')
+def main():
+    parser = argparse.ArgumentParser(description='Convert ROS2 bag to sensor data files.')
+    parser.add_argument('--input', type=str, default='/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/deployment4/red/', help='Path to input bag file')
+    parser.add_argument('--output', type=str, default='/home/samqiao/ASRL/fomo-public-sdk/output', help='Output directory')
+    parser.add_argument('--overwrite', action='store_true', help='Overwrite existing output directory')
     args = parser.parse_args()
 
-    if os.path.exists(args.output) and args.overwrite:
-        import shutil
-        shutil.rmtree(args.output)
+    # if os.path.exists(args.output):
+    #     if args.overwrite:
+    #         import shutil
+    #         shutil.rmtree(args.output)
+    #     else:
+    #         raise FileExistsError(f"Output directory {args.output} already exists. Use --overwrite to replace.")
+    
     os.makedirs(args.output, exist_ok=True)
-
-    try:
-        converter = BagToDir(args.input, args.output)
-        converter.read_bag()
-    except Exception as e:
-        print(f'Error: {str(e)}')
-    finally:
-
-        print("Conversion Done!")
+    
+    converter = BagToDir(args.input, args.output)
+    converter.read_bag()
+    print("Conversion completed successfully!")
 
 if __name__ == '__main__':
     main()

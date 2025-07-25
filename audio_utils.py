@@ -42,7 +42,7 @@ class Stereo:
     def add_message(self, connection, timestamp, rawdata, typestore):
         if connection.topic == MIC_LEFT_TOPIC or connection.topic == MIC_RIGHT_TOPIC:
             msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
-            timestamp = utils.ros_timestamp_to_seconds(msg.header.stamp)
+            timestamp = ros_timestamp_to_seconds(msg.header.stamp)
             if self.first_timestamp == 0:
                 self.first_timestamp = timestamp
             timestamp -= self.first_timestamp
@@ -207,7 +207,7 @@ class Stereo:
         image = self.create_spectogram()
         image_flat = image.astype(np.uint8).flatten()
         height, width, colors = image.shape
-        sec, nsec = utils.seconds_to_ros_timestamp(timestamp / 1e9)
+        sec, nsec = seconds_to_ros_timestamp(timestamp / 1e9)
         header = Header(Time(sec, nsec), "audio")
         image_msg = Image(
             header,
