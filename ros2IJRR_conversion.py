@@ -1,4 +1,6 @@
 import os
+
+from attrs import field
 import rclpy
 from rclpy.node import Node
 import numpy as np
@@ -8,10 +10,11 @@ from pathlib import Path
 
 from rosbags.rosbag2 import Reader
 from rosbags.serde import deserialize_cdr
-from rosbags.typesys import get_typestore, Stores,get_types_from_msg
+from rosbags.typesys import get_typestore, Stores,get_types_from_msg, register_types
 
 from sensor_msgs_py import point_cloud2
 from sensor_msgs.msg import *
+from rosbags.typesys.types import sensor_msgs__msg__PointCloud2 as PointCloud2Msg
 
 
 import tqdm
@@ -334,6 +337,17 @@ AUDIO_DATA_STAMPED_MSG = """
 std_msgs/Header header
 audio_common_msgs/AudioData audio
 """
+POINT_CLOUD2_MSG= """
+std_msgs/Header header
+uint32 height
+uint32 width
+sensor_msgs/PointField[] fields
+bool is_bigendian
+uint32 point_step
+uint32 row_step
+uint8[] data
+bool is_dense
+"""
 
 
 def get_fomo_typestore():
@@ -382,6 +396,7 @@ def get_fomo_typestore():
             AUDIO_DATA_STAMPED_MSG, "audio_common_msgs/msg/AudioDataStamped"
         )
     )
+
 
     return typestore
 
@@ -447,6 +462,8 @@ class BagToDir():
 
 
         with Reader(bag_path) as reader:
+            reader.open()
+
             for connection, timestamp, rawdata in reader.messages():
                 try:
                     msg = deserialize_cdr(rawdata, connection.msgtype, typestore=typestore)
@@ -455,27 +472,28 @@ class BagToDir():
                     # print("connection.msgtype:", connection.msgtype)
 
 
-                    if topic_name.startswith('/radar/b_scan_msg'):
-                        self.save_radar_image(msg)
+                    # if topic_name.startswith('/radar/b_scan_msg'):
+                    #     self.save_radar_image(msg)
 
                     if topic_name.startswith('/lslidar128/points'):
                         print("Saving LS Lidar bins")
+        
                         self.save_lidar_bins(msg, self.ls_lidar_bin_dir)
                     elif topic_name.startswith('/rslidar128/points'):
                         print("Saving RS Lidar bins")
                         self.save_lidar_bins(msg, self.rs_lidar_bin_dir)
 
               
-                    if topic_name.startswith('/vn100/data_raw'):
-                        ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
-                        ang_vel = msg.angular_velocity
-                        lin_acc = msg.linear_acceleration
-                        self.vn100_imu_file.write(f"{ts},{ang_vel.x},{ang_vel.y},{ang_vel.z},{lin_acc.x},{lin_acc.y},{lin_acc.z}\n")
-                    elif topic_name.startswith('/mti30/data_raw'):
-                        ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
-                        ang_vel = msg.angular_velocity
-                        lin_acc = msg.linear_acceleration
-                        self.mti30_imu_file.write(f"{ts},{ang_vel.x},{ang_vel.y},{ang_vel.z},{lin_acc.x},{lin_acc.y},{lin_acc.z}\n")
+                    # if topic_name.startswith('/vn100/data_raw'):
+                    #     ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
+                    #     ang_vel = msg.angular_velocity
+                    #     lin_acc = msg.linear_acceleration
+                    #     self.vn100_imu_file.write(f"{ts},{ang_vel.x},{ang_vel.y},{ang_vel.z},{lin_acc.x},{lin_acc.y},{lin_acc.z}\n")
+                    # elif topic_name.startswith('/mti30/data_raw'):
+                    #     ts = float(msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9
+                    #     ang_vel = msg.angular_velocity
+                    #     lin_acc = msg.linear_acceleration
+                    #     self.mti30_imu_file.write(f"{ts},{ang_vel.x},{ang_vel.y},{ang_vel.z},{lin_acc.x},{lin_acc.y},{lin_acc.z}\n")
 
                 except Exception as e:
                     print(f'Error processing message: {str(e)}')
@@ -502,19 +520,54 @@ class BagToDir():
             final_data[:, 11:] = radar_data
 
             cv2.imwrite(image_filename, final_data)
-            self.get_logger().info(f'Saved image: {image_filename}')
+            print(f'Saved image: {image_filename}')
 
         except Exception as e:
             print(f'Error saving radar image: {str(e)}')
 
     def save_lidar_bins(self, msg, lidar_bin_dir):
+        from sensor_msgs.msg import PointCloud2, PointField
+        from std_msgs.msg import Header
+        from builtin_interfaces.msg import Time
+
+        def convert_to_ros2_pointcloud2(msg):
+            # Reconstruct ROS2 Time object manually
+            stamp = Time()
+            stamp.sec = msg.header.stamp.sec
+            stamp.nanosec = msg.header.stamp.nanosec
+
+            header = Header()
+            header.stamp = stamp
+            header.frame_id = msg.header.frame_id
+
+            fields = []
+            for f in msg.fields:
+                pf = PointField()
+                pf.name = f.name
+                pf.offset = f.offset
+                pf.datatype = f.datatype
+                pf.count = f.count
+                fields.append(pf)
+
+            return PointCloud2(
+                header=header,
+                height=msg.height,
+                width=msg.width,
+                fields=fields,
+                is_bigendian=msg.is_bigendian,
+                point_step=msg.point_step,
+                row_step=msg.row_step,
+                data=bytes(msg.data),
+                is_dense=msg.is_dense,
+            )
         try:
             timestamp = msg.header.stamp.sec * 1e9 + msg.header.stamp.nanosec
 
-            # Convert rosbags dynamic msg to true PointCloud2
-            pc2_msg = to_ros_pointcloud2(msg)
+            print("timestamp:", timestamp/1e9)
 
-            # Now your original logic works
+            # Convert rosbags dynamic msg to true PointCloud2
+            pc2_msg = convert_to_ros2_pointcloud2(msg)  
+      
             cloud_points = list(point_cloud2.read_points(
                 pc2_msg,
                 field_names=('x', 'y', 'z', 'intensity', 'ring', 'timestamp'),
@@ -531,17 +584,17 @@ class BagToDir():
 
             # print one of the points
             if len(points) > 0:
-                self.get_logger().info(f'Point: {points[0]}')
+                print(f'Point: {points[0:50]}')
 
             timestamp = int(timestamp / 1000)
             points.tofile(os.path.join(lidar_bin_dir, f'{timestamp}.bin'))
-            self.get_logger().info(f'Saved bin: {lidar_bin_dir}/{timestamp}.bin')
+            print(f'Saved bin: {lidar_bin_dir}/{timestamp}.bin')
 
         except Exception as e:
             print(f'Error saving lidar bins: {str(e)}')
     
 
-    # def save_rectified_camera_imgs(self, msg, camera_dir):
+    def save_rectified_camera_imgs(self, msg, camera_dir):
         # camera info topic 
         # /zed_node/right_raw/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 3662 | Serialization Format: cdr
         # /zed_node/left_raw/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 3662 | Serialization Format: cdr
@@ -552,6 +605,12 @@ class BagToDir():
         # so I need two folders one for the left and one for the right camera
 
         # I also wanna save a video in the end
+
+        # np_arr = np.fromstring(msg.data, np.uint8)
+        #         img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        #         img = undistort(img, K, dist, roi, P[:3, :3])
+        #         cv2.imwrite(root + "camera/" + str(timestamp) + ".png", img)
+        pass
 
 
 
@@ -573,6 +632,16 @@ class BagToDir():
     #     return audio_stereo
 
 
+    def undistort(self, img, K, dist, roi=None, P=None):
+        dst = cv2.undistort(img, K, dist, None, P)
+        if roi is not None and P is not None:
+            h, w, _ = img.shape
+            x, y, w2, h2 = roi
+            dst = dst[y:y+h2, x:x+w2]
+            dst = cv2.resize(dst, (w, h))
+        return dst
+
+
 def main(args=None):
     parser = argparse.ArgumentParser(description='Convert MCAP ROS2 bag to radar/lidar images and data.')
     parser.add_argument('--input', type=str, default='/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/deployment4/red/', help='Path to the MCAP or DB3 bag file')
@@ -586,8 +655,8 @@ def main(args=None):
     os.makedirs(args.output, exist_ok=True)
 
     try:
-        node = BagToDir(args.input, args.output)
-        node.read_bag()
+        converter = BagToDir(args.input, args.output)
+        converter.read_bag()
     except Exception as e:
         print(f'Error: {str(e)}')
     finally:

@@ -17,6 +17,13 @@ MIC_RIGHT_TOPIC = "/audio/right_mic"
 SAMPLE_RATE = 44100
 
 
+def ros_timestamp_to_seconds(stamp):
+    return stamp.sec + stamp.nanosec * 1e-9
+
+
+def seconds_to_ros_timestamp(seconds: float) -> tuple:
+    return int(seconds), int(seconds // 1e9)
+
 class Stereo:
     def __init__(self) -> None:
         self.left = []
