@@ -4,31 +4,12 @@ from rclpy.node import Node
 from rclpy.serialization import deserialize_message
 from rosidl_runtime_py.utilities import get_message
 from rosbag2_py import SequentialReader, StorageOptions, ConverterOptions
-from datetime import datetime
 from navtech_msgs.msg import RadarBScanMsg
 import numpy as np
 import cv2
 from sensor_msgs.msg import Imu
 from sensor_msgs_py import point_cloud2
 import argparse
-
-changeovertime = 1627387200 * 1e9
-def get_num_times(bag, topics):
-    times = [t for topic, msg, t in bag.read_messages(topics)]
-    return len(times)
-
-def get_start_week(rostime, gpstime):
-    start_epoch = rostime * 1e-9
-    dt = datetime.fromtimestamp(start_epoch)
-    weekday = dt.isoweekday()
-    if weekday == 7:
-        weekday = 0  # Sunday
-    g2 = weekday * 24 * 3600 + dt.hour * 3600 + dt.minute * 60 + dt.second + dt.microsecond * 1e-6
-    start_week = round(start_epoch - g2)
-    hour_offset = round((gpstime - g2) / 3600)
-    time_zone_offset = hour_offset * 3600.0        # Toronto time is GMT-4 or GMT-5 depending on time of year
-    print('START WEEK: {} TIME ZONE OFFSET: {}'.format(start_week, time_zone_offset))
-    return start_week, time_zone_offset
 
 
 class BagToDir(Node):
@@ -165,7 +146,7 @@ class BagToDir(Node):
                                                     ('z', np.float32),
                                                     ('intensity', np.float32),
                                                     ('ring', np.uint16),
-                                                    ('timestamp', np.float64)
+                                                    ('timestamp', np.uint64) # changed to be uint64
                                              ])
             timestamp = int(timestamp / 1000)
             points.tofile(lidar_bin_dir + '/{}.bin'.format(timestamp))
@@ -173,13 +154,19 @@ class BagToDir(Node):
         except Exception as e:
             self.get_logger().error(f'Error saving lidar bins: {str(e)}')
 
-    # def save_rectified_camera_imgs(self, msg, camera_dir):
-    #     pass
+    
+    def save_rectified_camera_imgs(self, msg, camera_dir):
+        # camera info topic 
+        # /zed_node/right_raw/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 3662 | Serialization Format: cdr
+        # /zed_node/left_raw/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 3662 | Serialization Format: cdr
+        # stereo camera ZED X
+        # /zed_node/right_raw/image_raw_color | Type: sensor_msgs/msg/Image | Count: 3662 | Serialization Format: cdr
+        # /zed_node/left_raw/image_raw_color | Type: sensor_msgs/msg/Image | Count: 3662 | Serialization Format: cdr
+        pass
 
     # input: distortion parameters are in the camera_info message but only for the z???? (start with the zed x camera)
     # for the basler ace2 camera I need to use the fisheye model, we need to do the calibration ourselves
 
-    # only dis
 
 
     # def save_microphone_audio(self, msg, audio_dir):
@@ -194,25 +181,32 @@ def main(args=None):
     parser.add_argument(
         '--input',
         type=str,
-        default='/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/deployment4/red/red.mcap',
+        default='/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/deployment4/red/red.mcap', # will remove default 
         help='Path to the MCAP or DB3 bag file'
     )
     parser.add_argument(
-        '--output_dir',
+        '--output',
         type=str,
-        default='/home/samqiao/ASRL/fomo-public-sdk/output',
+        default='/home/samqiao/ASRL/fomo-public-sdk/output', # will remove default
         help='Directory to store the output files'
     )
+
+    parser.add_argument(
+    '--overwrite',
+    action='store_true',
+    help='Overwrite the output directory if it exists'
+)
+
     args = parser.parse_args()
 
     # Create output directory if it doesn't exist
-    os.makedirs(args.output_dir, exist_ok=True)
+    os.makedirs(args.output, exist_ok=True)
 
     # Start ROS node
     rclpy.init()
     
     try:
-        MCAP2IJRR = BagToDir(args.input, args.output_dir)
+        MCAP2IJRR = BagToDir(args.input, args.output)
         rclpy.spin(MCAP2IJRR)
     except Exception as e:
         print(f'Error: {str(e)}')
