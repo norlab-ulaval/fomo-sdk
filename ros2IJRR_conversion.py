@@ -569,7 +569,7 @@ class BagToDir():
             ('z',         np.float32),
             ('intensity', np.float32),
             ('ring',      np.uint16),
-            ('timestamp', np.float32),
+            ('timestamp', np.float32), # float32 for lslidar
             ])
             # 2) Compute number of points
             point_step   = msg.point_step              # bytes per point
@@ -585,7 +585,7 @@ class BagToDir():
 
                # 3) View the buffer as that structured array
             data = np.frombuffer(msg.data, dtype=np.uint8).reshape(-1,msg.point_step)
-            print("sam: the shape of data is:", data.shape)
+            # print("sam: the shape of data is:", data.shape)
 
 
             for field in msg.fields:
@@ -760,12 +760,12 @@ def main():
     parser.add_argument('--overwrite', action='store_true', help='Overwrite existing output directory')
     args = parser.parse_args()
 
-    # if os.path.exists(args.output):
-    #     if args.overwrite:
-    #         import shutil
-    #         shutil.rmtree(args.output)
-    #     else:
-    #         raise FileExistsError(f"Output directory {args.output} already exists. Use --overwrite to replace.")
+    if os.path.exists(args.output):
+        if args.overwrite:
+            import shutil
+            shutil.rmtree(args.output)
+        else:
+            raise FileExistsError(f"Output directory {args.output} already exists. Use --overwrite to replace.")
     
     os.makedirs(args.output, exist_ok=True)
     
