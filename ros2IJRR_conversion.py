@@ -7,11 +7,10 @@ import rclpy
 from rosbags.rosbag2 import Reader
 from rosbags.typesys import get_typestore, Stores, get_types_from_msg
 from rosbags.serde import deserialize_cdr
-from sensor_msgs_py import point_cloud2
+# from sensor_msgs_py import point_cloud2
 import tqdm
 
 import audio_utils as autils
-
 
 # Define custom message types
 RADAR_SCAN_MSG = """
@@ -340,6 +339,17 @@ uint8[] data
 bool is_dense
 """
 
+DATA_TYPES = {
+    1: np.int8,
+    2: np.uint8,
+    3: np.int16,
+    4: np.uint16,
+    5: np.int32,
+    6: np.uint32,
+    7: np.float32,
+    8: np.float64,
+}
+
 
 def get_fomo_typestore():
     typestore = get_typestore(Stores.ROS2_HUMBLE)
@@ -388,36 +398,6 @@ def get_fomo_typestore():
         )
     )
     return typestore
-
-# this is to convert Cloud msg to Pointcloud2 msg 
-def to_ros_pointcloud2(msg):
-    from sensor_msgs.msg import PointCloud2, PointField
-    from std_msgs.msg import Header
-
-    ros_msg = PointCloud2()
-    ros_msg.header = Header()
-    ros_msg.header.stamp.sec = msg.header.stamp.sec
-    ros_msg.header.stamp.nanosec = msg.header.stamp.nanosec
-    ros_msg.header.frame_id = msg.header.frame_id
-
-    ros_msg.height = msg.height
-    ros_msg.width = msg.width
-    ros_msg.is_bigendian = msg.is_bigendian
-    ros_msg.point_step = msg.point_step
-    ros_msg.row_step = msg.row_step
-    ros_msg.is_dense = msg.is_dense
-    ros_msg.data = list(bytearray(msg.data)) 
-
-    ros_msg.fields = []
-    for f in msg.fields:
-        pf = PointField()
-        pf.name = f.name
-        pf.offset = f.offset
-        pf.datatype = f.datatype
-        pf.count = f.count
-        ros_msg.fields.append(pf)
-
-    return ros_msg
 
 
 class BagToDir():
@@ -483,9 +463,9 @@ class BagToDir():
                     if topic_name.startswith('/radar/b_scan_msg'):
                         self.save_radar_image(connection, rawdata, typestore)
                     elif topic_name.startswith('/lslidar128/points'):
-                        self.save_lidar_bins(connection, rawdata, typestore, self.ls_lidar_bin_dir)
-                    if topic_name.startswith('/rslidar128/points'):
-                        self.save_lidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
+                        self.save_lslidar_bins(connection, rawdata, typestore, self.ls_lidar_bin_dir)
+                    elif topic_name.startswith('/rslidar128/points'):
+                        self.save_rslidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
                     elif topic_name.startswith('/vn100/data_raw'):
                         self.save_imu_data(connection, rawdata, typestore, self.vn100_imu_file)
                     elif topic_name.startswith('/mti30/data_raw'):
@@ -578,38 +558,124 @@ class BagToDir():
         except Exception as e:
             print(f'Error saving radar image: {str(e)}')
 
+    def save_lslidar_bins(self, connection, rawdata, typestore, output_dir):
 
-    def save_lidar_bins(self, connection, rawdata, typestore, output_dir):
-        # converted_msg = deserialize_cdr(rawdata, connection.msgtype, typestore=typestore)
-
-        # msg = to_ros_pointcloud2(converted_msg)
-        cloud_msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
-        msg = to_ros_pointcloud2(cloud_msg)
+        msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
 
         try:
+            array_dtype =  np.dtype([
+            ('x',         np.float32),
+            ('y',         np.float32),
+            ('z',         np.float32),
+            ('intensity', np.float32),
+            ('ring',      np.uint16),
+            ('timestamp', np.float32),
+            ])
+            # 2) Compute number of points
+            point_step   = msg.point_step              # bytes per point
+
+            total_bytes  = len(msg.data)
+
+            num_points   = total_bytes // point_step
+
+            arr = np.zeros(num_points, dtype=array_dtype)
+
+            timestamp = msg.header.stamp
+            ns_timestamp = timestamp.sec*1e9 + timestamp.nanosec
+
+               # 3) View the buffer as that structured array
+            data = np.frombuffer(msg.data, dtype=np.uint8).reshape(-1,msg.point_step)
+            print("sam: the shape of data is:", data.shape)
+
+
+            for field in msg.fields:
+                print(field.datatype, field.name, field.offset, field.count)
+                name = field.name
+                offset = field.offset
+                type = DATA_TYPES[field.datatype] # this is the data type of the field
+                num_bytes = np.dtype(type).itemsize
+
+                raw = data[:, offset:offset + num_bytes].ravel()
+
+                col = np.frombuffer(raw, dtype=type)
+
+                if name == 'timestamp':
+                    arr[name] = col*1e9 + ns_timestamp  # Convert to nanoseconds
+                else:
+                    arr[name] = col
+
+             # get rid of invalid points (nan)
+            if not msg.is_dense:
+                mask = ~np.isnan(arr['x']) & ~np.isnan(arr['y']) & ~np.isnan(arr['z'])
+                arr = arr[mask]
+            # print("10 data:", arr[0:10])
+            # Save to binary file
+            bin_filename = os.path.join(output_dir, f'{ns_timestamp/1e3}.bin') # save in microseconds
+            arr.tofile(bin_filename)
+            print(f'Saved lidar bin: {bin_filename}')
+
+        except Exception as e:
+            print(f'Error saving lidar bins: {str(e)}')
+    
+    
+
+
+    def save_rslidar_bins(self, connection, rawdata, typestore, output_dir):
+
+        msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
+
+        try:
+            array_dtype =  np.dtype([
+            ('x',         np.float32),
+            ('y',         np.float32),
+            ('z',         np.float32),
+            ('intensity', np.float32),
+            ('ring',      np.uint16),
+            ('timestamp', np.float64), # floast64 for rslidar
+            ])
+            # 2) Compute number of points
+            point_step   = msg.point_step              # bytes per point
+ 
+            total_bytes  = len(msg.data)
+
+            num_points   = total_bytes // point_step
+
+            arr = np.zeros(num_points, dtype=array_dtype)
+
             timestamp = msg.header.stamp
             ns_timestamp = timestamp.sec + timestamp.nanosec/1e9
-            
-            # Read point cloud data
-            points = point_cloud2.read_points(
-                msg,
-                field_names=('x', 'y', 'z', 'intensity', 'ring', 'timestamp'),
-                skip_nans=True
-            )
-            
-            # Convert to structured array
-            point_array = np.array(list(points), dtype=[
-                ('x', np.float32),
-                ('y', np.float32),
-                ('z', np.float32),
-                ('intensity', np.float32),
-                ('ring', np.uint16),
-                ('timestamp', np.uint64),
-            ])
+
+               # 3) View the buffer as that structured array
+            data = np.frombuffer(msg.data, dtype=np.uint8).reshape(-1,msg.point_step)
+
+
+            for field in msg.fields:
+                print(field.datatype, field.name, field.offset, field.count)
+                name = field.name
+                offset = field.offset
+                type = DATA_TYPES[field.datatype] # this is the data type of the field
+                num_bytes = np.dtype(type).itemsize
+
+                raw = data[:, offset:offset + num_bytes].ravel()
+
+                col = np.frombuffer(raw, dtype=type)
+
+                if name == 'timestamp':
+                    arr[name] = col*1e9 # in nanoseconds
+                else:
+                    arr[name] = col
+
+            # get rid of invalid points (nans)
+            if not msg.is_dense:
+                mask = ~np.isnan(arr['x']) & ~np.isnan(arr['y']) & ~np.isnan(arr['z'])
+                arr = arr[mask]
+
+            # print("10 data:", arr[0:10])
+            export_timestamp = arr[0]['timestamp']/1e3 # microseconds
             
             # Save to binary file
-            bin_filename = os.path.join(output_dir, f'{ns_timestamp*1000}.bin')
-            point_array.tofile(bin_filename)
+            bin_filename = os.path.join(output_dir, f'{export_timestamp}.bin')
+            arr.tofile(bin_filename)
             print(f'Saved lidar bin: {bin_filename}')
 
         except Exception as e:
@@ -679,8 +745,6 @@ class BagToDir():
                 print(f"Processing audio data from topic: {connection.topic}")
                 audio_stereo.add_message(connection, timestamp, rawdata, typestore)
             
-            # print("sam left:", len(audio_stereo.left))
-            # print("sam right:", len(audio_stereo.right))
 
             # audio_stereo.postprocess_audio_data()
             audio_stereo.save_audio(f"{output_dir}/{timestamp}.wav", True)
@@ -696,12 +760,12 @@ def main():
     parser.add_argument('--overwrite', action='store_true', help='Overwrite existing output directory')
     args = parser.parse_args()
 
-    if os.path.exists(args.output):
-        if args.overwrite:
-            import shutil
-            shutil.rmtree(args.output)
-        else:
-            raise FileExistsError(f"Output directory {args.output} already exists. Use --overwrite to replace.")
+    # if os.path.exists(args.output):
+    #     if args.overwrite:
+    #         import shutil
+    #         shutil.rmtree(args.output)
+    #     else:
+    #         raise FileExistsError(f"Output directory {args.output} already exists. Use --overwrite to replace.")
     
     os.makedirs(args.output, exist_ok=True)
     
