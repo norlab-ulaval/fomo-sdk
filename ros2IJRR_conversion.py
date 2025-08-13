@@ -1,13 +1,14 @@
 import os
 from pathlib import Path
+from turtle import width
 import numpy as np
+import math
 import cv2
 import argparse
 import rclpy
 from rosbags.rosbag2 import Reader
 from rosbags.typesys import get_typestore, Stores, get_types_from_msg
 from rosbags.serde import deserialize_cdr
-# from sensor_msgs_py import point_cloud2
 import tqdm
 
 import audio_utils as autils
@@ -399,6 +400,19 @@ def get_fomo_typestore():
     )
     return typestore
 
+# rotation matrix helper
+def rot_x(a): 
+    ca, sa = np.cos(a), np.sin(a)
+    return np.array([[1,0,0],[0,ca,-sa],[0,sa,ca]], dtype=np.float64)
+
+def rot_y(a):
+    ca, sa = np.cos(a), np.sin(a)
+    return np.array([[ca,0,sa],[0,1,0],[-sa,0,ca]], dtype=np.float64)
+
+def rot_z(a):
+    ca, sa = np.cos(a), np.sin(a)
+    return np.array([[ca,-sa,0],[sa,ca,0],[0,0,1]], dtype=np.float64)
+
 
 class BagToDir():
     def __init__(self, bag_file, output_dir):
@@ -406,31 +420,23 @@ class BagToDir():
         self.output_dir = output_dir
         
         # Create output directories
-        self.radar_image_dir = os.path.join(output_dir, 'radar')
-        self.ls_lidar_bin_dir = os.path.join(output_dir, 'lslidar')
-        self.rs_lidar_bin_dir = os.path.join(output_dir, 'rslidar')
-        self.zed_node_right_dir = os.path.join(output_dir, 'zednode_right')
-        self.zed_node_left_dir = os.path.join(output_dir, 'zednode_left')
-        
-        os.makedirs(self.radar_image_dir, exist_ok=True)
-        os.makedirs(self.ls_lidar_bin_dir, exist_ok=True)
-        os.makedirs(self.rs_lidar_bin_dir, exist_ok=True)
-        os.makedirs(self.zed_node_right_dir, exist_ok=True)
-        os.makedirs(self.zed_node_left_dir, exist_ok=True)
-        
-        # Initialize camera parameters
-        self.K_left = self.D_left = self.R_left = self.P_left = None
-        self.K_right = self.D_right = self.R_right = self.P_right = None
+        self.radar_image_dir = os.path.join(output_dir, 'navtech')
+        self.ls_lidar_bin_dir = os.path.join(output_dir, 'lslidar128')
+        self.rs_lidar_bin_dir = os.path.join(output_dir, 'rslidar128')
+        self.zed_node_right_dir = os.path.join(output_dir, 'zedx_right')
+        self.zed_node_left_dir = os.path.join(output_dir, 'zedx_left')
+
+        self.audio_left_dir = os.path.join(output_dir, 'audio_left')
+        self.audio_right_dir = os.path.join(output_dir, 'audio_right')
+
+        # Boolean flags decides when to close the file
+        self.isvn100 = False
+        self.ismti30 = False
+   
         
         # Initialize rectification maps
-        self.map1_left = self.map2_left = None
-        self.map1_right = self.map2_right = None
-        
-        # Open IMU files
-        self.vn100_imu_file = open(os.path.join(output_dir, 'vn100.csv'), 'w')
-        self.vn100_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
-        self.mti30_imu_file = open(os.path.join(output_dir, 'mti30.csv'), 'w')
-        self.mti30_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
+        self.map1_L = self.map2_L = None
+        self.map1_R = self.map2_R = None
 
         # Image map constructed
         self.zed_map_processed = False
@@ -440,95 +446,155 @@ class BagToDir():
         typestore = get_fomo_typestore()
 
         with Reader(bag_path) as reader:
-            print("haha")
             reader.typestore = typestore
             connections = list(reader.connections)
-            
-            # First pass: Process camera info to set rectification maps
-            for connection, timestamp, rawdata in tqdm.tqdm(reader.messages(), total=reader.message_count, desc="Processing camera info"):
-                if connection.topic in ['/zed_node/right_raw/camera_info', '/zed_node/left_raw/camera_info']:
-                    self.process_camera_info(connection, rawdata, typestore)
-
-                    if self.zed_map_processed:
-                        # If both camera infos are processed, break the loop
-                        break
-
-            print("Camera info processed, rectification maps set.")
-                    
-            # Second pass: Process all data
+                 
+            # loop through all the connections
             for connection, timestamp, rawdata in tqdm.tqdm(reader.messages(), total=reader.message_count, desc="Processing data"):
                 try:
                     topic_name = connection.topic
                     
+                    # radar navtech topic
                     if topic_name.startswith('/radar/b_scan_msg'):
+                        if not os.path.exists(self.radar_image_dir):
+                            self.radar_image_dir = os.path.join(self.output_dir, 'navtech')
+                            os.makedirs(self.radar_image_dir, exist_ok=True)
                         self.save_radar_image(connection, rawdata, typestore)
-                    elif topic_name.startswith('/lslidar128/points'):
-                        self.save_lslidar_bins(connection, rawdata, typestore, self.ls_lidar_bin_dir)
-                    elif topic_name.startswith('/rslidar128/points'):
-                        self.save_rslidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
-                    elif topic_name.startswith('/vn100/data_raw'):
+                    # for lslidar128
+                    # elif topic_name.startswith('/lslidar128/points'):
+                    #     self.save_lslidar_bins(connection, rawdata, typestore, self.ls_lidar_bin_dir)
+                    # for rslidar128
+                    # if topic_name.startswith('/rslidar128/points'):
+                    #     if not os.path.exists(self.rs_lidar_bin_dir):
+                    #         os.makedirs(self.rs_lidar_bin_dir, exist_ok=True)
+                    #     self.save_rslidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
+                    ## for vn100 imu
+                    if topic_name.startswith('/vn100/data_raw'):
+                        if not os.path.exists(os.path.join(self.output_dir, 'vn100.csv')):
+                            self.vn100_imu_file = open(os.path.join(self.output_dir, 'vn100.csv'), 'w')
+                            self.vn100_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
+                            self.isvn100 = True
                         self.save_imu_data(connection, rawdata, typestore, self.vn100_imu_file)
-                    elif topic_name.startswith('/mti30/data_raw'):
+                    # for mti30 imu
+                    if topic_name.startswith('/mti30/data_raw'):
+                        if not os.path.exists(os.path.join(self.output_dir, 'mti30.csv')):
+                            self.mti30_imu_file = open(os.path.join(self.output_dir, 'mti30.csv'), 'w')
+                            self.mti30_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
+                            self.ismti30 = True
                         self.save_imu_data(connection, rawdata, typestore, self.mti30_imu_file)
-                    elif topic_name in ['/zed_node/right_raw/image_raw_color', '/zed_node/left_raw/image_raw_color']:
+                    # for zed node camera
+                    if topic_name in ['/zed_node/right_raw/image_raw_color', '/zed_node/left_raw/image_raw_color']:
+                        if not os.path.exists(self.zed_node_right_dir) or not os.path.exists(self.zed_node_left_dir):
+                            os.makedirs(self.zed_node_right_dir, exist_ok=True)
+                            os.makedirs(self.zed_node_left_dir, exist_ok=True)
                         self.save_camera_image(connection, rawdata, typestore)
-                    elif topic_name in ["/audio/left_mic", "/audio/right_mic"]:
-                        self.save_audio_data(connection, rawdata, typestore)
+                    ## for audio file
+                    # if topic_name in ["/audio/left_mic", "/audio/right_mic"]:
+                    #     self.save_audio_data(connection, rawdata, typestore)
 
                 except Exception as e:
                     print(f'Error processing message: {str(e)}')
 
         # Close files
-        self.vn100_imu_file.close()
-        self.mti30_imu_file.close()
+        if self.isvn100:
+            self.vn100_imu_file.close()
+        if self.ismti30:
+            self.mti30_imu_file.close()
 
-    def process_camera_info(self, connection, rawdata, typestore):
+    def process_camera_info(self, img_h, img_w): # use calibration values for zedx
+        # ---- Canonical (FHD1200 = 1920x1200) intrinsics + 5-coeff distortions
+        K_left_FHD1200  = np.array([[734.789,   0.    , 930.358],
+                                    [  0.    , 734.854, 606.359],
+                                    [  0.    ,   0.   ,   1.   ]], dtype=np.float64)
+        D_left_5        = np.array([-0.0107462, -0.0354004, -0.00023542, 0.000173096, 0.00980669], dtype=np.float64)
+
+        K_right_FHD1200 = np.array([[736.993,   0.    , 966.632],
+                                    [  0.    , 736.788, 586.738],
+                                    [  0.    ,   0.   ,   1.   ]], dtype=np.float64)
+        D_right_5       = np.array([-0.0137929, -0.0310381, -0.000356811, -0.00015091, 0.00815849], dtype=np.float64)
+
+        # ---- Extrinsics (left -> right), meters and radians
+        Tx = 119.702 / 1000.0                 # baseline in meters
+        Ty = -0.191556 / 1000.0               # meters (likely mm in file)
+        Tz =  0.0527709 / 1000.0              # meters (likely mm in file)
+        rx = 0.00270998                       # pitch about X
+        ry = 0.00850346                       # yaw about Y  (file's CV)
+        rz = 0.00116536                       # roll about Z
+
+        R_lr = rot_z(rz) @ rot_y(ry) @ rot_x(rx)
+        t_lr = np.array([Tx, Ty, Tz], dtype=np.float64)
+        
+        # scale intrinsics from 1920x1200 to img_w x img_h
+        sx = img_w / 1920.0
+        sy = img_h / 1200.0
+        # Expect uniform scale (keep aspect ratio); if not, assert:
+        assert abs(sx - sy) < 1e-6, f"Non-uniform scale? sx={sx}, sy={sy}"
+
+        S = np.diag([sx, sy, 1.0])
+        K_L = S @ K_left_FHD1200
+        K_R = S @ K_right_FHD1200
+
+        size = (int(img_w), int(img_h))  # (w,h)
+
+        R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(
+            K_L, D_left_5, K_R, D_right_5, size, R_lr, t_lr,
+            flags=cv2.CALIB_ZERO_DISPARITY, alpha=0
+        )
+
+        self.map1_L, self.map2_L = cv2.initUndistortRectifyMap(K_L, D_left_5,  R1, P1, size, cv2.CV_32FC1)
+        self.map1_R, self.map2_R = cv2.initUndistortRectifyMap(K_R, D_right_5, R2, P2, size, cv2.CV_32FC1)
+
+        # sanity prints
+        fx2 = P2[0,0]
+        print("P2[0,3] vs -fx2*Tx:", P2[0,3], "≈", -fx2*Tx)   # should be close (sign depends on OpenCV's convention)
+        print("Q[3,2] ~ -1/Tx:", Q[3,2])
+
+        return (self.map1_L, self.map2_L), (self.map1_R, self.map2_R)
+
+
+    def compute_rectification_maps(self, image_size):
+        """Compute rectification maps once for both cameras"""   
+
+        # print("image size is:", image_size)
+        if self.map1_L is None or self.map2_L is None or self.map1_R is None or self.map2_R is None:
+            self.process_camera_info(image_size[0],image_size[1])
+            print("Rectification maps computed for both cameras.")
+
+    def save_camera_image(self, connection, rawdata, typestore):
         msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
         
-        if connection.topic == '/zed_node/left_raw/camera_info':
-            self.K_left = np.array(msg.k).reshape(3, 3)
-            self.D_left = np.array(msg.d)
-            self.R_left = np.array(msg.r).reshape(3, 3)
-            self.P_left = np.array(msg.p).reshape(3, 4)
-            print("Processed left camera info")
-            
-        elif connection.topic == '/zed_node/right_raw/camera_info':
-            self.K_right = np.array(msg.k).reshape(3, 3)
-            self.D_right = np.array(msg.d)
-            self.R_right = np.array(msg.r).reshape(3, 3)
-            self.P_right = np.array(msg.p).reshape(3, 4)
-            print("Processed right camera info")
-            
-        # Compute rectification maps if both camera infos are available
-        if self.K_left is not None and self.K_right is not None and self.map1_left is None:
-            self.compute_rectification_maps()
-            
-            self.zed_map_processed = True
+        try:
+            timestamp = msg.header.stamp
+            nano_sec = msg.header.stamp.nanosec
+            stamp_in_micro = timestamp.sec * 1_000_000 + (nano_sec // 1_000) # use microsecs
 
-    def compute_rectification_maps(self):
-        """Compute rectification maps once for both cameras"""
-        # Use the image size from left camera (assuming both are same)
-        image_size = (1920,1200) # width, height
+            # Decode image
+            from cv_bridge import CvBridge
+            bridge = CvBridge()
+            img = bridge.imgmsg_to_cv2(msg)
 
-        print("image size is:", image_size)
-        
-        R = np.eye(3)
-        t = np.array([0.12, 0, 0], dtype=np.float64)  # Small translation along x-axis read from tf tree
-        
-        R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
-            self.K_left, self.D_left, self.K_right, self.D_right,
-            image_size, R, t, flags=cv2.CALIB_ZERO_DISPARITY, alpha=0
-        )
-        
-        self.map1_left, self.map2_left = cv2.initUndistortRectifyMap(
-            self.K_left, self.D_left, R1, P1, image_size, cv2.CV_32FC1
-        )
-        
-        self.map1_right, self.map2_right = cv2.initUndistortRectifyMap(
-            self.K_right, self.D_right, R2, P2, image_size, cv2.CV_32FC1
-        )
-        
-        print("Computed rectification maps")
+            self.compute_rectification_maps(img.shape[:2])  # img.shape[:2] gives (height, width)
+                
+            # Rectify image
+            if connection.topic == '/zed_node/left_raw/image_raw_color' and self.map1_L is not None:
+                img = cv2.remap(img, self.map1_L, self.map2_L, cv2.INTER_LINEAR)
+                output_dir = self.zed_node_left_dir
+
+            elif connection.topic == '/zed_node/right_raw/image_raw_color' and self.map1_R is not None:
+                img = cv2.remap(img, self.map1_R, self.map2_R, cv2.INTER_LINEAR)
+                output_dir = self.zed_node_right_dir
+            else:
+                print("Rectification maps not available, saving raw image")
+                output_dir = self.zed_node_left_dir if 'left' in connection.topic else self.zed_node_right_dir
+                
+            # Save image
+            img_filename = os.path.join(output_dir, f'{stamp_in_micro}.png') # save in microsecs
+            cv2.imwrite(img_filename, img)
+            print(f'Saved camera image: {img_filename}')
+            
+        except Exception as e:
+            print(f'Error saving camera image: {str(e)}')
+
 
 
     def save_radar_image(self, msg, rawdata, typestore):
@@ -539,10 +605,14 @@ class BagToDir():
             encoder_values = np.array(msg.encoder_values, dtype=np.uint16)
 
             radar_data = np.frombuffer(img_msg.data, dtype=np.uint8).reshape(img_msg.height, img_msg.width)
+            
             timestamp = img_msg.header.stamp
             nano_sec = img_msg.header.stamp.nanosec
-            stamp = timestamp.sec + nano_sec/1e9
-            image_filename = os.path.join(self.radar_image_dir, f'{str(stamp*1000)}.png')
+            stamp_in_micro = timestamp.sec * 1_000_000 + (nano_sec // 1_000)
+
+            # floor the stamp in micro
+            stamp_in_micro = math.floor(stamp_in_micro)
+            image_filename = os.path.join(self.radar_image_dir, f'{str(stamp_in_micro)}.png')
 
             timestamp_bytes = np.frombuffer(timestamp_row.tobytes(), dtype=np.uint8).reshape(-1, 8)
             encoder_bytes = np.frombuffer(encoder_values.tobytes(), dtype=np.uint8).reshape(-1, 2)
@@ -581,7 +651,7 @@ class BagToDir():
             arr = np.zeros(num_points, dtype=array_dtype)
 
             timestamp = msg.header.stamp
-            ns_timestamp = timestamp.sec*1e9 + timestamp.nanosec
+            micro_timestamp = timestamp.sec * 1_000_000 + (timestamp.nanosec // 1_000)
 
                # 3) View the buffer as that structured array
             data = np.frombuffer(msg.data, dtype=np.uint8).reshape(-1,msg.point_step)
@@ -600,7 +670,7 @@ class BagToDir():
                 col = np.frombuffer(raw, dtype=type)
 
                 if name == 'timestamp':
-                    arr[name] = col*1e9 + ns_timestamp  # Convert to nanoseconds
+                    arr[name] = col* 1_000_000 + micro_timestamp  # Convert to nanoseconds
                 else:
                     arr[name] = col
 
@@ -610,16 +680,25 @@ class BagToDir():
                 arr = arr[mask]
             # print("10 data:", arr[0:10])
             # Save to binary file
-            bin_filename = os.path.join(output_dir, f'{ns_timestamp/1e3}.bin') # save in microseconds
+            bin_filename = os.path.join(output_dir, f'{micro_timestamp}.bin') # save in microseconds
             arr.tofile(bin_filename)
             print(f'Saved lidar bin: {bin_filename}')
+
+            # # once we save the bin we load it again and save another csv
+            # points = np.fromfile(bin_filename, dtype=np.float32).reshape((-1, 6))
+            # # t = float(Path(bin_filename).stem) * 1e-6
+            # # points[:, 5] += t
+            # print("sam the shape of points is:", points.shape)
+            # # write to points csv and the first line is: x,y,z,i,r,t
+            # csv_filename = os.path.join(output_dir, f'{micro_timestamp}.csv')
+            # np.savetxt(csv_filename, points, delimiter=',', header='x,y,z,intensity,ring,timestamp', comments='')
+            # print(f'Saved lidar csv: {csv_filename}')
+
 
         except Exception as e:
             print(f'Error saving lidar bins: {str(e)}')
     
     
-
-
     def save_rslidar_bins(self, connection, rawdata, typestore, output_dir):
 
         msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
@@ -643,7 +722,7 @@ class BagToDir():
             arr = np.zeros(num_points, dtype=array_dtype)
 
             timestamp = msg.header.stamp
-            ns_timestamp = timestamp.sec + timestamp.nanosec/1e9
+            micro_timestamp = timestamp.sec * 1_000_000 + (timestamp.nanosec // 1_000)
 
                # 3) View the buffer as that structured array
             data = np.frombuffer(msg.data, dtype=np.uint8).reshape(-1,msg.point_step)
@@ -661,7 +740,7 @@ class BagToDir():
                 col = np.frombuffer(raw, dtype=type)
 
                 if name == 'timestamp':
-                    arr[name] = col*1e9 # in nanoseconds
+                    arr[name] = col * 1_000_000 # in microseconds
                 else:
                     arr[name] = col
 
@@ -671,12 +750,22 @@ class BagToDir():
                 arr = arr[mask]
 
             # print("10 data:", arr[0:10])
-            export_timestamp = arr[0]['timestamp']/1e3 # microseconds
+            export_timestamp = arr[0]['timestamp'] # microseconds
             
             # Save to binary file
             bin_filename = os.path.join(output_dir, f'{export_timestamp}.bin')
             arr.tofile(bin_filename)
             print(f'Saved lidar bin: {bin_filename}')
+
+            # # once we save the bin we load it again and save another csv
+            # points = np.fromfile(bin_filename, dtype=np.float32).reshape((-1, 6))
+            # # t = float(Path(bin_filename).stem) * 1e-6
+            # # points[:, 5] += t
+            # print("sam the shape of points is:", points.shape)
+            # # write to points csv and the first line is: x,y,z,i,r,t
+            # csv_filename = os.path.join(output_dir, f'{micro_timestamp}.csv')
+            # np.savetxt(csv_filename, points, delimiter=',', header='x,y,z,intensity,ring,timestamp', comments='')
+            # print(f'Saved lidar csv: {csv_filename}')
 
         except Exception as e:
             print(f'Error saving lidar bins: {str(e)}')
@@ -685,49 +774,21 @@ class BagToDir():
         msg = deserialize_cdr(rawdata, connection.msgtype, typestore=typestore)
         
         try:
-            ts = msg.header.stamp
-            timestamp = ts.sec + ts.nanosec * 1e-9
+            timestamp = msg.header.stamp
+            nano_sec = msg.header.stamp.nanosec
+            stamp_in_micro = timestamp.sec * 1_000_000 + (nano_sec // 1_000) # use microsecs
+
             ang_vel = msg.angular_velocity
             lin_acc = msg.linear_acceleration
             
             imu_file.write(
-                f"{timestamp},{ang_vel.x},{ang_vel.y},{ang_vel.z},"
+                f"{stamp_in_micro},{ang_vel.x},{ang_vel.y},{ang_vel.z},"
                 f"{lin_acc.x},{lin_acc.y},{lin_acc.z}\n"
             )
             
         except Exception as e:
             print(f'Error saving IMU data: {str(e)}')
 
-    def save_camera_image(self, connection, rawdata, typestore):
-        msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
-        
-        try:
-            ts = msg.header.stamp
-            timestamp = ts.sec + ts.nanosec/1e9
-            
-            # Decode image
-            from cv_bridge import CvBridge
-            bridge = CvBridge()
-            img = bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-                
-            # Rectify image
-            if connection.topic == '/zed_node/left_raw/image_raw_color' and self.map1_left is not None:
-                img = cv2.remap(img, self.map1_left, self.map2_left, cv2.INTER_LINEAR)
-                output_dir = self.zed_node_left_dir
-            elif connection.topic == '/zed_node/right_raw/image_raw_color' and self.map1_right is not None:
-                img = cv2.remap(img, self.map1_right, self.map2_right, cv2.INTER_LINEAR)
-                output_dir = self.zed_node_right_dir
-            else:
-                print("Rectification maps not available, saving raw image")
-                output_dir = self.zed_node_left_dir if 'left' in connection.topic else self.zed_node_right_dir
-                
-            # Save image
-            img_filename = os.path.join(output_dir, f'{timestamp*1000}.png')
-            cv2.imwrite(img_filename, img)
-            print(f'Saved camera image: {img_filename}')
-            
-        except Exception as e:
-            print(f'Error saving camera image: {str(e)}')
 
     def save_audio_data(self, connection, rawdata, typestore):
         msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
@@ -738,8 +799,9 @@ class BagToDir():
         os.makedirs(output_dir, exist_ok=True)
 
         try:
-            ts = msg.header.stamp
-            timestamp = ts.sec + ts.nanosec/1e9
+            timestamp = msg.header.stamp
+            nano_sec = msg.header.stamp.nanosec
+            stamp_in_micro = timestamp.sec * 1_000_000 + (nano_sec // 1_000) # use microsecs
 
             if audio_stereo.is_mic_topic(connection.topic):
                 print(f"Processing audio data from topic: {connection.topic}")
@@ -747,7 +809,7 @@ class BagToDir():
             
 
             # audio_stereo.postprocess_audio_data()
-            audio_stereo.save_audio(f"{output_dir}/{timestamp}.wav", True)
+            audio_stereo.save_audio(f"{output_dir}/{stamp_in_micro}.wav", True)
 
 
         except Exception as e:
@@ -755,7 +817,7 @@ class BagToDir():
 
 def main():
     parser = argparse.ArgumentParser(description='Convert ROS2 bag to sensor data files.')
-    parser.add_argument('--input', type=str, default='/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/deployment4/red/', help='Path to input bag file')
+    parser.add_argument('--input', type=str, default='/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/red_preview', help='Path to input bag file')
     parser.add_argument('--output', type=str, default='/home/samqiao/ASRL/fomo-public-sdk/output', help='Output directory')
     parser.add_argument('--overwrite', action='store_true', help='Overwrite existing output directory')
     args = parser.parse_args()
