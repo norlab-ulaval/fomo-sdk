@@ -589,7 +589,7 @@ class BagToDir():
 
 
             for field in msg.fields:
-                print(field.datatype, field.name, field.offset, field.count)
+                # print(field.datatype, field.name, field.offset, field.count)
                 name = field.name
                 offset = field.offset
                 type = DATA_TYPES[field.datatype] # this is the data type of the field
@@ -650,7 +650,7 @@ class BagToDir():
 
 
             for field in msg.fields:
-                print(field.datatype, field.name, field.offset, field.count)
+                # print(field.datatype, field.name, field.offset, field.count)
                 name = field.name
                 offset = field.offset
                 type = DATA_TYPES[field.datatype] # this is the data type of the field
