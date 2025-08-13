@@ -468,7 +468,7 @@ class BagToDir():
                     #     if not os.path.exists(self.rs_lidar_bin_dir):
                     #         os.makedirs(self.rs_lidar_bin_dir, exist_ok=True)
                     #     self.save_rslidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
-                    ## for vn100 imu
+                    # for vn100 imu
                     if topic_name.startswith('/vn100/data_raw'):
                         if not os.path.exists(os.path.join(self.output_dir, 'vn100.csv')):
                             self.vn100_imu_file = open(os.path.join(self.output_dir, 'vn100.csv'), 'w')
@@ -546,7 +546,7 @@ class BagToDir():
 
         # sanity prints
         fx2 = P2[0,0]
-        print("P2[0,3] vs -fx2*Tx:", P2[0,3], "≈", -fx2*Tx)   # should be close (sign depends on OpenCV's convention)
+        print("P2[0,3] vs -fx2*Tx:", P2[0,3], "≈", -fx2*Tx)   
         print("Q[3,2] ~ -1/Tx:", Q[3,2])
 
         return (self.map1_L, self.map2_L), (self.map1_R, self.map2_R)
@@ -601,7 +601,11 @@ class BagToDir():
         msg = deserialize_cdr(rawdata, msg.msgtype, typestore=typestore)
         try:
             img_msg = msg.b_scan_img
-            timestamp_row = np.array(msg.timestamps, dtype=np.uint64)
+            timestamp_row = np.array(msg.timestamps, dtype=np.uint64) # possibly in nano-secs
+
+            # put it in microsecs
+            timestamp_row = np.floor(timestamp_row / 1000).astype(np.uint64)  # convert to microseconds
+            # print("Timestamp row:", timestamp_row)
             encoder_values = np.array(msg.encoder_values, dtype=np.uint16)
 
             radar_data = np.frombuffer(img_msg.data, dtype=np.uint8).reshape(img_msg.height, img_msg.width)
