@@ -441,6 +441,9 @@ class BagToDir():
         # Image map constructed
         self.zed_map_processed = False
 
+        # for debug mesgs
+        self.DEBUG = True
+
     def read_bag(self):
         bag_path = Path(self.bag_file)
         typestore = get_fomo_typestore()
@@ -461,13 +464,15 @@ class BagToDir():
                             os.makedirs(self.radar_image_dir, exist_ok=True)
                         self.save_radar_image(connection, rawdata, typestore)
                     # for lslidar128
-                    # elif topic_name.startswith('/lslidar128/points'):
-                    #     self.save_lslidar_bins(connection, rawdata, typestore, self.ls_lidar_bin_dir)
+                    if topic_name.startswith('/lslidar128/points'):
+                        if not os.path.exists(self.ls_lidar_bin_dir):
+                            os.makedirs(self.ls_lidar_bin_dir, exist_ok=True)
+                        self.save_lslidar_bins(connection, rawdata, typestore, self.ls_lidar_bin_dir)
                     # for rslidar128
-                    # if topic_name.startswith('/rslidar128/points'):
-                    #     if not os.path.exists(self.rs_lidar_bin_dir):
-                    #         os.makedirs(self.rs_lidar_bin_dir, exist_ok=True)
-                    #     self.save_rslidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
+                    if topic_name.startswith('/rslidar128/points'):
+                        if not os.path.exists(self.rs_lidar_bin_dir):
+                            os.makedirs(self.rs_lidar_bin_dir, exist_ok=True)
+                        self.save_rslidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
                     # for vn100 imu
                     if topic_name.startswith('/vn100/data_raw'):
                         if not os.path.exists(os.path.join(self.output_dir, 'vn100.csv')):
@@ -475,7 +480,7 @@ class BagToDir():
                             self.vn100_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
                             self.isvn100 = True
                         self.save_imu_data(connection, rawdata, typestore, self.vn100_imu_file)
-                    # for mti30 imu
+                    # # for mti30 imu
                     if topic_name.startswith('/mti30/data_raw'):
                         if not os.path.exists(os.path.join(self.output_dir, 'mti30.csv')):
                             self.mti30_imu_file = open(os.path.join(self.output_dir, 'mti30.csv'), 'w')
@@ -489,8 +494,8 @@ class BagToDir():
                             os.makedirs(self.zed_node_left_dir, exist_ok=True)
                         self.save_camera_image(connection, rawdata, typestore)
                     ## for audio file
-                    # if topic_name in ["/audio/left_mic", "/audio/right_mic"]:
-                    #     self.save_audio_data(connection, rawdata, typestore)
+                    if topic_name in ["/audio/left_mic", "/audio/right_mic"]:
+                        self.save_audio_data(connection, rawdata, typestore)
 
                 except Exception as e:
                     print(f'Error processing message: {str(e)}')
@@ -528,7 +533,7 @@ class BagToDir():
         sx = img_w / 1920.0
         sy = img_h / 1200.0
         # Expect uniform scale (keep aspect ratio); if not, assert:
-        assert abs(sx - sy) < 1e-6, f"Non-uniform scale? sx={sx}, sy={sy}"
+        assert abs(sx - sy) < 1e-6, f"Non-uniform scale? printing sx={sx}, sy={sy}"
 
         S = np.diag([sx, sy, 1.0])
         K_L = S @ K_left_FHD1200
@@ -546,8 +551,10 @@ class BagToDir():
 
         # sanity prints
         fx2 = P2[0,0]
-        print("P2[0,3] vs -fx2*Tx:", P2[0,3], "≈", -fx2*Tx)   
-        print("Q[3,2] ~ -1/Tx:", Q[3,2])
+
+        if self.DEBUG:
+            print("P2[0,3] vs -fx2*Tx:", P2[0,3], "≈", -fx2*Tx)   
+            print("Q[3,2] ~ -1/Tx:", Q[3,2])
 
         return (self.map1_L, self.map2_L), (self.map1_R, self.map2_R)
 
@@ -643,7 +650,7 @@ class BagToDir():
             ('z',         np.float32),
             ('intensity', np.float32),
             ('ring',      np.uint16),
-            ('timestamp', np.float32), # float32 for lslidar
+            ('timestamp', np.uint64), # float32 for lslidar was ('timestamp', np.float32)
             ])
             # 2) Compute number of points
             point_step   = msg.point_step              # bytes per point
@@ -659,8 +666,6 @@ class BagToDir():
 
                # 3) View the buffer as that structured array
             data = np.frombuffer(msg.data, dtype=np.uint8).reshape(-1,msg.point_step)
-            # print("sam: the shape of data is:", data.shape)
-
 
             for field in msg.fields:
                 # print(field.datatype, field.name, field.offset, field.count)
@@ -674,7 +679,7 @@ class BagToDir():
                 col = np.frombuffer(raw, dtype=type)
 
                 if name == 'timestamp':
-                    arr[name] = col* 1_000_000 + micro_timestamp  # Convert to nanoseconds
+                    arr[name] = (col * 1_000_000 + micro_timestamp).astype(np.uint64)  # Convert to nanoseconds
                 else:
                     arr[name] = col
 
@@ -682,21 +687,11 @@ class BagToDir():
             if not msg.is_dense:
                 mask = ~np.isnan(arr['x']) & ~np.isnan(arr['y']) & ~np.isnan(arr['z'])
                 arr = arr[mask]
-            # print("10 data:", arr[0:10])
+            print("10 data:", arr[0:100])
             # Save to binary file
             bin_filename = os.path.join(output_dir, f'{micro_timestamp}.bin') # save in microseconds
             arr.tofile(bin_filename)
             print(f'Saved lidar bin: {bin_filename}')
-
-            # # once we save the bin we load it again and save another csv
-            # points = np.fromfile(bin_filename, dtype=np.float32).reshape((-1, 6))
-            # # t = float(Path(bin_filename).stem) * 1e-6
-            # # points[:, 5] += t
-            # print("sam the shape of points is:", points.shape)
-            # # write to points csv and the first line is: x,y,z,i,r,t
-            # csv_filename = os.path.join(output_dir, f'{micro_timestamp}.csv')
-            # np.savetxt(csv_filename, points, delimiter=',', header='x,y,z,intensity,ring,timestamp', comments='')
-            # print(f'Saved lidar csv: {csv_filename}')
 
 
         except Exception as e:
@@ -714,7 +709,7 @@ class BagToDir():
             ('z',         np.float32),
             ('intensity', np.float32),
             ('ring',      np.uint16),
-            ('timestamp', np.float64), # floast64 for rslidar
+            ('timestamp', np.uint64), # floast64 for rslidar was ('timestamp', np.float64)
             ])
             # 2) Compute number of points
             point_step   = msg.point_step              # bytes per point
@@ -726,7 +721,7 @@ class BagToDir():
             arr = np.zeros(num_points, dtype=array_dtype)
 
             timestamp = msg.header.stamp
-            micro_timestamp = timestamp.sec * 1_000_000 + (timestamp.nanosec // 1_000)
+            micro_timestamp = timestamp.sec * 1_000_000 + (timestamp.nanosec // 1_000) # for rslidar this refers to the end of the scan 
 
                # 3) View the buffer as that structured array
             data = np.frombuffer(msg.data, dtype=np.uint8).reshape(-1,msg.point_step)
@@ -744,7 +739,8 @@ class BagToDir():
                 col = np.frombuffer(raw, dtype=type)
 
                 if name == 'timestamp':
-                    arr[name] = col * 1_000_000 # in microseconds
+                    print("the shape of col is:", col.shape)
+                    arr[name] = (col * 1_000_000).astype(np.uint64)# in microseconds
                 else:
                     arr[name] = col
 
@@ -754,22 +750,13 @@ class BagToDir():
                 arr = arr[mask]
 
             # print("10 data:", arr[0:10])
-            export_timestamp = arr[0]['timestamp'] # microseconds
-            
+            export_timestamp = np.min(arr['timestamp']).astype(np.uint64) # microseconds # first point timestamp
+
             # Save to binary file
             bin_filename = os.path.join(output_dir, f'{export_timestamp}.bin')
             arr.tofile(bin_filename)
             print(f'Saved lidar bin: {bin_filename}')
 
-            # # once we save the bin we load it again and save another csv
-            # points = np.fromfile(bin_filename, dtype=np.float32).reshape((-1, 6))
-            # # t = float(Path(bin_filename).stem) * 1e-6
-            # # points[:, 5] += t
-            # print("sam the shape of points is:", points.shape)
-            # # write to points csv and the first line is: x,y,z,i,r,t
-            # csv_filename = os.path.join(output_dir, f'{micro_timestamp}.csv')
-            # np.savetxt(csv_filename, points, delimiter=',', header='x,y,z,intensity,ring,timestamp', comments='')
-            # print(f'Saved lidar csv: {csv_filename}')
 
         except Exception as e:
             print(f'Error saving lidar bins: {str(e)}')
@@ -826,12 +813,12 @@ def main():
     parser.add_argument('--overwrite', action='store_true', help='Overwrite existing output directory')
     args = parser.parse_args()
 
-    if os.path.exists(args.output):
-        if args.overwrite:
-            import shutil
-            shutil.rmtree(args.output)
-        else:
-            raise FileExistsError(f"Output directory {args.output} already exists. Use --overwrite to replace.")
+    # if os.path.exists(args.output):
+    #     if args.overwrite:
+    #         import shutil
+    #         shutil.rmtree(args.output)
+    #     else:
+    #         raise FileExistsError(f"Output directory {args.output} already exists. Use --overwrite to replace.")
     
     os.makedirs(args.output, exist_ok=True)
     
