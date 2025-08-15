@@ -457,45 +457,45 @@ class BagToDir():
                 try:
                     topic_name = connection.topic
                     
-                    # radar navtech topic
-                    if topic_name.startswith('/radar/b_scan_msg'):
-                        if not os.path.exists(self.radar_image_dir):
-                            self.radar_image_dir = os.path.join(self.output_dir, 'navtech')
-                            os.makedirs(self.radar_image_dir, exist_ok=True)
-                        self.save_radar_image(connection, rawdata, typestore)
-                    # for lslidar128
-                    if topic_name.startswith('/lslidar128/points'):
-                        if not os.path.exists(self.ls_lidar_bin_dir):
-                            os.makedirs(self.ls_lidar_bin_dir, exist_ok=True)
-                        self.save_lslidar_bins(connection, rawdata, typestore, self.ls_lidar_bin_dir)
-                    # for rslidar128
-                    if topic_name.startswith('/rslidar128/points'):
-                        if not os.path.exists(self.rs_lidar_bin_dir):
-                            os.makedirs(self.rs_lidar_bin_dir, exist_ok=True)
-                        self.save_rslidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
-                    # for vn100 imu
-                    if topic_name.startswith('/vn100/data_raw'):
-                        if not os.path.exists(os.path.join(self.output_dir, 'vn100.csv')):
-                            self.vn100_imu_file = open(os.path.join(self.output_dir, 'vn100.csv'), 'w')
-                            self.vn100_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
-                            self.isvn100 = True
-                        self.save_imu_data(connection, rawdata, typestore, self.vn100_imu_file)
-                    # # for mti30 imu
-                    if topic_name.startswith('/mti30/data_raw'):
-                        if not os.path.exists(os.path.join(self.output_dir, 'mti30.csv')):
-                            self.mti30_imu_file = open(os.path.join(self.output_dir, 'mti30.csv'), 'w')
-                            self.mti30_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
-                            self.ismti30 = True
-                        self.save_imu_data(connection, rawdata, typestore, self.mti30_imu_file)
+                    # # radar navtech topic
+                    # if topic_name.startswith('/radar/b_scan_msg'):
+                    #     if not os.path.exists(self.radar_image_dir):
+                    #         self.radar_image_dir = os.path.join(self.output_dir, 'navtech')
+                    #         os.makedirs(self.radar_image_dir, exist_ok=True)
+                    #     self.save_radar_image(connection, rawdata, typestore)
+                    # # for lslidar128
+                    # if topic_name.startswith('/lslidar128/points'):
+                    #     if not os.path.exists(self.ls_lidar_bin_dir):
+                    #         os.makedirs(self.ls_lidar_bin_dir, exist_ok=True)
+                    #     self.save_lslidar_bins(connection, rawdata, typestore, self.ls_lidar_bin_dir)
+                    # # for rslidar128
+                    # if topic_name.startswith('/rslidar128/points'):
+                    #     if not os.path.exists(self.rs_lidar_bin_dir):
+                    #         os.makedirs(self.rs_lidar_bin_dir, exist_ok=True)
+                    #     self.save_rslidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
+                    # # for vn100 imu
+                    # if topic_name.startswith('/vn100/data_raw'):
+                    #     if not os.path.exists(os.path.join(self.output_dir, 'vn100.csv')):
+                    #         self.vn100_imu_file = open(os.path.join(self.output_dir, 'vn100.csv'), 'w')
+                    #         self.vn100_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
+                    #         self.isvn100 = True
+                    #     self.save_imu_data(connection, rawdata, typestore, self.vn100_imu_file)
+                    # # # for mti30 imu
+                    # if topic_name.startswith('/mti30/data_raw'):
+                    #     if not os.path.exists(os.path.join(self.output_dir, 'mti30.csv')):
+                    #         self.mti30_imu_file = open(os.path.join(self.output_dir, 'mti30.csv'), 'w')
+                    #         self.mti30_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
+                    #         self.ismti30 = True
+                    #     self.save_imu_data(connection, rawdata, typestore, self.mti30_imu_file)
                     # for zed node camera
                     if topic_name in ['/zed_node/right_raw/image_raw_color', '/zed_node/left_raw/image_raw_color']:
                         if not os.path.exists(self.zed_node_right_dir) or not os.path.exists(self.zed_node_left_dir):
                             os.makedirs(self.zed_node_right_dir, exist_ok=True)
                             os.makedirs(self.zed_node_left_dir, exist_ok=True)
                         self.save_camera_image(connection, rawdata, typestore)
-                    ## for audio file
-                    if topic_name in ["/audio/left_mic", "/audio/right_mic"]:
-                        self.save_audio_data(connection, rawdata, typestore)
+                    # ## for audio file
+                    # if topic_name in ["/audio/left_mic", "/audio/right_mic"]:
+                    #     self.save_audio_data(connection, rawdata, typestore)
 
                 except Exception as e:
                     print(f'Error processing message: {str(e)}')
@@ -526,9 +526,10 @@ class BagToDir():
         ry = 0.00850346                       # yaw about Y  (file's CV)
         rz = 0.00116536                       # roll about Z
 
-        R_lr = rot_z(rz) @ rot_y(ry) @ rot_x(rx)
+        rvec = np.array([rx, ry, rz], dtype=np.float64)   # Rodrigues vector (left->right)
+        R_lr, _ = cv2.Rodrigues(rvec)
         t_lr = np.array([Tx, Ty, Tz], dtype=np.float64)
-        
+                
         # scale intrinsics from 1920x1200 to img_w x img_h
         sx = img_w / 1920.0
         sy = img_h / 1200.0
