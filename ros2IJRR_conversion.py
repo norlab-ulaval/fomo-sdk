@@ -4,6 +4,7 @@ from turtle import width
 import numpy as np
 import math
 import cv2
+from cv_bridge import CvBridge
 import argparse
 import rclpy
 from rosbags.rosbag2 import Reader
@@ -425,6 +426,7 @@ class BagToDir():
         self.rs_lidar_bin_dir = os.path.join(output_dir, 'rslidar128')
         self.zed_node_right_dir = os.path.join(output_dir, 'zedx_right')
         self.zed_node_left_dir = os.path.join(output_dir, 'zedx_left')
+        self.basler_mono_dir = os.path.join(output_dir, 'basler')
 
         self.audio_left_dir = os.path.join(output_dir, 'audio_left')
         self.audio_right_dir = os.path.join(output_dir, 'audio_right')
@@ -440,6 +442,9 @@ class BagToDir():
 
         # Image map constructed
         self.zed_map_processed = False
+
+        # Initialize the CV bridge here
+        self.bridge = CvBridge()
 
         # for debug mesgs
         self.DEBUG = True
@@ -457,45 +462,51 @@ class BagToDir():
                 try:
                     topic_name = connection.topic
                     
-                    # # radar navtech topic
-                    # if topic_name.startswith('/radar/b_scan_msg'):
-                    #     if not os.path.exists(self.radar_image_dir):
-                    #         self.radar_image_dir = os.path.join(self.output_dir, 'navtech')
-                    #         os.makedirs(self.radar_image_dir, exist_ok=True)
-                    #     self.save_radar_image(connection, rawdata, typestore)
-                    # # for lslidar128
-                    # if topic_name.startswith('/lslidar128/points'):
-                    #     if not os.path.exists(self.ls_lidar_bin_dir):
-                    #         os.makedirs(self.ls_lidar_bin_dir, exist_ok=True)
-                    #     self.save_lslidar_bins(connection, rawdata, typestore, self.ls_lidar_bin_dir)
-                    # # for rslidar128
-                    # if topic_name.startswith('/rslidar128/points'):
-                    #     if not os.path.exists(self.rs_lidar_bin_dir):
-                    #         os.makedirs(self.rs_lidar_bin_dir, exist_ok=True)
-                    #     self.save_rslidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
-                    # # for vn100 imu
-                    # if topic_name.startswith('/vn100/data_raw'):
-                    #     if not os.path.exists(os.path.join(self.output_dir, 'vn100.csv')):
-                    #         self.vn100_imu_file = open(os.path.join(self.output_dir, 'vn100.csv'), 'w')
-                    #         self.vn100_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
-                    #         self.isvn100 = True
-                    #     self.save_imu_data(connection, rawdata, typestore, self.vn100_imu_file)
-                    # # # for mti30 imu
-                    # if topic_name.startswith('/mti30/data_raw'):
-                    #     if not os.path.exists(os.path.join(self.output_dir, 'mti30.csv')):
-                    #         self.mti30_imu_file = open(os.path.join(self.output_dir, 'mti30.csv'), 'w')
-                    #         self.mti30_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
-                    #         self.ismti30 = True
-                    #     self.save_imu_data(connection, rawdata, typestore, self.mti30_imu_file)
+                    # radar navtech topic
+                    if topic_name.startswith('/radar/b_scan_msg'):
+                        if not os.path.exists(self.radar_image_dir):
+                            self.radar_image_dir = os.path.join(self.output_dir, 'navtech')
+                            os.makedirs(self.radar_image_dir, exist_ok=True)
+                        self.save_radar_image(connection, rawdata, typestore)
+                    # for lslidar128
+                    if topic_name.startswith('/lslidar128/points'):
+                        if not os.path.exists(self.ls_lidar_bin_dir):
+                            os.makedirs(self.ls_lidar_bin_dir, exist_ok=True)
+                        self.save_lslidar_bins(connection, rawdata, typestore, self.ls_lidar_bin_dir)
+                    # for rslidar128
+                    if topic_name.startswith('/rslidar128/points'):
+                        if not os.path.exists(self.rs_lidar_bin_dir):
+                            os.makedirs(self.rs_lidar_bin_dir, exist_ok=True)
+                        self.save_rslidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
+                    # for vn100 imu
+                    if topic_name.startswith('/vn100/data_raw'):
+                        if not os.path.exists(os.path.join(self.output_dir, 'vn100.csv')):
+                            self.vn100_imu_file = open(os.path.join(self.output_dir, 'vn100.csv'), 'w')
+                            self.vn100_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
+                            self.isvn100 = True
+                        self.save_imu_data(connection, rawdata, typestore, self.vn100_imu_file)
+                    # for mti30 imu
+                    if topic_name.startswith('/mti30/data_raw'):
+                        if not os.path.exists(os.path.join(self.output_dir, 'mti30.csv')):
+                            self.mti30_imu_file = open(os.path.join(self.output_dir, 'mti30.csv'), 'w')
+                            self.mti30_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
+                            self.ismti30 = True
+                        self.save_imu_data(connection, rawdata, typestore, self.mti30_imu_file)
                     # for zed node camera
                     if topic_name in ['/zed_node/right_raw/image_raw_color', '/zed_node/left_raw/image_raw_color']:
                         if not os.path.exists(self.zed_node_right_dir) or not os.path.exists(self.zed_node_left_dir):
                             os.makedirs(self.zed_node_right_dir, exist_ok=True)
                             os.makedirs(self.zed_node_left_dir, exist_ok=True)
                         self.save_camera_image(connection, rawdata, typestore)
-                    # ## for audio file
-                    # if topic_name in ["/audio/left_mic", "/audio/right_mic"]:
-                    #     self.save_audio_data(connection, rawdata, typestore)
+                    ## for audio file #TODO need to fix the audio data saving
+                    if topic_name in ["/audio/left_mic", "/audio/right_mic"]:
+                        self.save_audio_data(connection, rawdata, typestore)
+                    # for basler mono camera
+                    if topic_name.startswith('/basler/driver/image_raw'):
+                        if not os.path.exists(self.basler_mono_dir):
+                            os.makedirs(self.basler_mono_dir, exist_ok=True)
+                        self.save_basler_mono_image(connection, rawdata, typestore)
+
 
                 except Exception as e:
                     print(f'Error processing message: {str(e)}')
@@ -577,9 +588,7 @@ class BagToDir():
             stamp_in_micro = timestamp.sec * 1_000_000 + (nano_sec // 1_000) # use microsecs
 
             # Decode image
-            from cv_bridge import CvBridge
-            bridge = CvBridge()
-            img = bridge.imgmsg_to_cv2(msg)
+            img = self.bridge.imgmsg_to_cv2(msg)
 
             self.compute_rectification_maps(img.shape[:2])  # img.shape[:2] gives (height, width)
                 
@@ -651,7 +660,7 @@ class BagToDir():
             ('z',         np.float32),
             ('intensity', np.float32),
             ('ring',      np.uint16),
-            ('timestamp', np.uint64), # float32 for lslidar was ('timestamp', np.float32)
+            ('timestamp', np.float32), # float32 for lslidar was ('timestamp', np.float32)
             ])
             # 2) Compute number of points
             point_step   = msg.point_step              # bytes per point
@@ -663,10 +672,13 @@ class BagToDir():
             arr = np.zeros(num_points, dtype=array_dtype)
 
             timestamp = msg.header.stamp
-            micro_timestamp = timestamp.sec * 1_000_000 + (timestamp.nanosec // 1_000)
+            nano_timestamp = timestamp.sec * 1_000_000_000 + timestamp.nanosec # original timestamp in nano secs
+            micro_timestamp = np.uint64(nano_timestamp // 1_000)
 
                # 3) View the buffer as that structured array
             data = np.frombuffer(msg.data, dtype=np.uint8).reshape(-1,msg.point_step)
+
+            print("the shape of data", data.shape)
 
             for field in msg.fields:
                 # print(field.datatype, field.name, field.offset, field.count)
@@ -675,28 +687,33 @@ class BagToDir():
                 type = DATA_TYPES[field.datatype] # this is the data type of the field
                 num_bytes = np.dtype(type).itemsize
 
+                print(name)
+
                 raw = data[:, offset:offset + num_bytes].ravel()
 
-                col = np.frombuffer(raw, dtype=type)
-
                 if name == 'timestamp':
-                    arr[name] = (col * 1_000_000 + micro_timestamp).astype(np.uint64)  # Convert to nanoseconds
+                    # the type could be float 64
+                    col = np.frombuffer(raw, dtype=type)
+                    arr[name] = ((nano_timestamp + col.astype(np.float64)*1000_000_000)//1_000).astype(np.uint64)  # TODO: now the timeoffset col stays 0 for no reason... Need to debug here... the nano_timestamp is correct thou
                 else:
-                    arr[name] = col
+                    col = np.frombuffer(raw, dtype=type)
+                    arr[name] = col 
 
              # get rid of invalid points (nan)
             if not msg.is_dense:
                 mask = ~np.isnan(arr['x']) & ~np.isnan(arr['y']) & ~np.isnan(arr['z'])
                 arr = arr[mask]
-            print("10 data:", arr[0:100])
+
+            # print example data
+            print("10 data:", arr[0:10])
             # Save to binary file
             bin_filename = os.path.join(output_dir, f'{micro_timestamp}.bin') # save in microseconds
             arr.tofile(bin_filename)
-            print(f'Saved lidar bin: {bin_filename}')
+            print(f'Saved lslidar bin: {bin_filename}')
 
 
         except Exception as e:
-            print(f'Error saving lidar bins: {str(e)}')
+            print(f'Error saving lslidar bins: {str(e)}')
     
     
     def save_rslidar_bins(self, connection, rawdata, typestore, output_dir):
@@ -741,7 +758,7 @@ class BagToDir():
 
                 if name == 'timestamp':
                     print("the shape of col is:", col.shape)
-                    arr[name] = (col * 1_000_000).astype(np.uint64)# in microseconds
+                    arr[name] = (col * 1_000_000).astype(np.uint64) # in microseconds # (here matej does 1e9 as int) then / 1_000
                 else:
                     arr[name] = col
 
@@ -750,17 +767,17 @@ class BagToDir():
                 mask = ~np.isnan(arr['x']) & ~np.isnan(arr['y']) & ~np.isnan(arr['z'])
                 arr = arr[mask]
 
-            # print("10 data:", arr[0:10])
+            # print("10 data:", arr[0:50])
             export_timestamp = np.min(arr['timestamp']).astype(np.uint64) # microseconds # first point timestamp
 
             # Save to binary file
             bin_filename = os.path.join(output_dir, f'{export_timestamp}.bin')
             arr.tofile(bin_filename)
-            print(f'Saved lidar bin: {bin_filename}')
+            print(f'Saved rslidar bin: {bin_filename}')
 
 
         except Exception as e:
-            print(f'Error saving lidar bins: {str(e)}')
+            print(f'Error saving rslidar bins: {str(e)}')
 
     def save_imu_data(self, connection, rawdata, typestore, imu_file):
         msg = deserialize_cdr(rawdata, connection.msgtype, typestore=typestore)
@@ -806,6 +823,48 @@ class BagToDir():
 
         except Exception as e:
             print(f'Error saving audio data: {str(e)}')
+
+    def save_basler_mono_image(self, connection, rawdata, typestore):
+        msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
+
+        crop_to_roi =  False
+
+        try:
+            # the micro timestamp is
+            timestamp = msg.header.stamp
+            micro_timestamp = timestamp.sec * 1_000_000 + (timestamp.nanosec // 1_000) # for rslidar this refers to the end of the scan 
+
+            # use the cv bridge to convert the image into opencv format
+            img = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+
+            h,w = img.shape[:2]
+
+            # define camera intrinsic matrices
+            K_cal = np.array([[734.789,   0.    , 930.358],
+                        [  0.    , 734.854, 606.359],
+                        [  0.    ,   0.   ,   1.   ]], dtype=np.float64)
+            D_cal = np.array([-0.0107462, -0.0354004, -0.00023542, 0.000173096, 0.00980669],
+                        dtype=np.float64)
+            
+            # 4) Build newK and undistort (one-shot)
+            # alpha=0 => tighter crop (less black); alpha=1 => keep FOV (more black).
+            newK, roi = cv2.getOptimalNewCameraMatrix(K_cal, D_cal, (w, h), alpha=0)
+            undist = cv2.undistort(img, K_cal, D_cal, None, newK)
+
+            if crop_to_roi:
+                # Crop the image to the ROI
+                x, y, w, h = roi
+                undist = undist[y:y+h, x:x+w]
+
+            out_path = os.path.join(self.basler_mono_dir, f"{micro_timestamp}.png")
+            cv2.imwrite(out_path, undist)
+
+        except Exception as e:
+            print(f'Error saving Basler mono image: {str(e)}')
+
+
+
+
 
 def main():
     parser = argparse.ArgumentParser(description='Convert ROS2 bag to sensor data files.')
