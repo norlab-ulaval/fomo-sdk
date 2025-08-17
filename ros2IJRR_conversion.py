@@ -498,8 +498,11 @@ class BagToDir():
                             os.makedirs(self.zed_node_right_dir, exist_ok=True)
                             os.makedirs(self.zed_node_left_dir, exist_ok=True)
                         self.save_camera_image(connection, rawdata, typestore)
-                    ## for audio file #TODO need to fix the audio data saving
+                    # for audio file
                     if topic_name in ["/audio/left_mic", "/audio/right_mic"]:
+                        if not os.path.exists(self.audio_left_dir) or not os.path.exists(self.audio_right_dir):
+                            os.makedirs(self.audio_left_dir, exist_ok=True)
+                            os.makedirs(self.audio_right_dir, exist_ok=True)
                         self.save_audio_data(connection, rawdata, typestore)
                     # for basler mono camera
                     if topic_name.startswith('/basler/driver/image_raw'):
@@ -804,8 +807,8 @@ class BagToDir():
 
         audio_stereo = autils.Stereo()
 
-        output_dir = os.path.join(self.output_dir, 'audio')
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir = self.audio_left_dir if 'left' in connection.topic else self.audio_right_dir
+
 
         try:
             timestamp = msg.header.stamp
@@ -814,11 +817,14 @@ class BagToDir():
 
             if audio_stereo.is_mic_topic(connection.topic):
                 print(f"Processing audio data from topic: {connection.topic}")
-                audio_stereo.add_message(connection, timestamp, rawdata, typestore)
-            
+                # audio_stereo.add_message(connection, timestamp, rawdata, typestore)
+                samples = np.frombuffer(msg.audio.data, dtype=np.int16)  
+                if samples.size == 0:
+                    print(f"No audio samples found in message: {msg.header.stamp}")
+                    return
 
-            # audio_stereo.postprocess_audio_data()
-            audio_stereo.save_audio(f"{output_dir}/{stamp_in_micro}.wav", True)
+            from scipy.io import wavfile
+            wavfile.write(f"{output_dir}/{stamp_in_micro}.wav", audio_stereo.sample_rate, samples)
 
 
         except Exception as e:
@@ -852,7 +858,7 @@ class BagToDir():
             undist = cv2.undistort(img, K_cal, D_cal, None, newK)
 
             if crop_to_roi:
-                # Crop the image to the ROI
+                # Crop the image to the ROI optionally
                 x, y, w, h = roi
                 undist = undist[y:y+h, x:x+w]
 
@@ -864,8 +870,6 @@ class BagToDir():
 
 
 
-
-
 def main():
     parser = argparse.ArgumentParser(description='Convert ROS2 bag to sensor data files.')
     parser.add_argument('--input', type=str, default='/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/red_preview', help='Path to input bag file')
@@ -873,12 +877,12 @@ def main():
     parser.add_argument('--overwrite', action='store_true', help='Overwrite existing output directory')
     args = parser.parse_args()
 
-    # if os.path.exists(args.output):
-    #     if args.overwrite:
-    #         import shutil
-    #         shutil.rmtree(args.output)
-    #     else:
-    #         raise FileExistsError(f"Output directory {args.output} already exists. Use --overwrite to replace.")
+    if os.path.exists(args.output):
+        if args.overwrite:
+            import shutil
+            shutil.rmtree(args.output)
+        else:
+            raise FileExistsError(f"Output directory {args.output} already exists. Use --overwrite to replace.")
     
     os.makedirs(args.output, exist_ok=True)
     

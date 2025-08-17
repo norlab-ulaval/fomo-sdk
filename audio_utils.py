@@ -54,10 +54,12 @@ class Stereo:
                 self.left.append(audio_data)
                 self.left_timestamps.append(timestamps)
                 self.first_message["left"] = False
+                print("added left audio message")
             elif connection.topic == MIC_RIGHT_TOPIC:
                 self.right.append(audio_data)
                 self.right_timestamps.append(timestamps)
                 self.first_message["right"] = False
+                print("added right audio message")
 
     def postprocess_audio_data(self):
         if type(self.left_timestamps) is list:
@@ -137,13 +139,13 @@ class Stereo:
             # print("filename", filename)
             if len(self.left) > 0:
                 wavfile.write(
-                    output.replace(filename, f"{filename}_left"),
+                    output.replace(filename, f"{filename}"),
                     self.sample_rate,
                     self.left,
                 )   
             if len(self.right) > 0:
                 wavfile.write(
-                    output.replace(filename, f"{filename}_right"),
+                    output.replace(filename, f"{filename}"),
                     self.sample_rate,
                     self.right,
                 )
