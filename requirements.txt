@@ -1,0 +1,7 @@
+numpy
+opencv-python
+cv-bridge   # often comes with ROS 2 installation, but may need to be built from source if using ROS 2 Humble
+rosbags
+tqdm
+matplotlib
+scipy

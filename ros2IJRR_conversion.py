@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from turtle import width
 import numpy as np
 import math
 import cv2
@@ -852,8 +851,6 @@ class BagToDir():
             D_cal = np.array([-0.0107462, -0.0354004, -0.00023542, 0.000173096, 0.00980669],
                         dtype=np.float64)
             
-            # 4) Build newK and undistort (one-shot)
-            # alpha=0 => tighter crop (less black); alpha=1 => keep FOV (more black).
             newK, roi = cv2.getOptimalNewCameraMatrix(K_cal, D_cal, (w, h), alpha=0)
             undist = cv2.undistort(img, K_cal, D_cal, None, newK)
 
