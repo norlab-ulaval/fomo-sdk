@@ -3,15 +3,14 @@ from pathlib import Path
 import numpy as np
 import math
 import cv2
-from cv_bridge import CvBridge
 import argparse
-import rclpy
 from rosbags.rosbag2 import Reader
 from rosbags.typesys import get_typestore, Stores, get_types_from_msg
 from rosbags.serde import deserialize_cdr
 import tqdm
 
 import audio_utils as autils
+from utils import *
 
 # Define custom message types
 RADAR_SCAN_MSG = """
@@ -351,6 +350,28 @@ DATA_TYPES = {
     8: np.float64,
 }
 
+ENCODINGS = {
+    "rgb8": (np.uint8, 3),
+    "rgba8": (np.uint8, 4),
+    "rgb16": (np.uint16, 3),
+    "rgba16": (np.uint16, 4),
+    "bgr8": (np.uint8, 3),
+    "bgra8": (np.uint8, 4),
+    "bgr16": (np.uint16, 3),
+    "bgra16": (np.uint16, 4),
+    "mono8": (np.uint8, 1),
+    "mono16": (np.uint16, 1),
+    "bayer_rggb8": (np.uint8, 1),
+    "bayer_bggr8": (np.uint8, 1),
+    "bayer_gbrg8": (np.uint8, 1),
+    "bayer_grbg8": (np.uint8, 1),
+    "bayer_rggb16": (np.uint16, 1),
+    "bayer_bggr16": (np.uint16, 1),
+    "bayer_gbrg16": (np.uint16, 1),
+    "bayer_grbg16": (np.uint16, 1),
+}
+
+
 
 def get_fomo_typestore():
     typestore = get_typestore(Stores.ROS2_HUMBLE)
@@ -442,8 +463,8 @@ class BagToDir():
         # Image map constructed
         self.zed_map_processed = False
 
-        # Initialize the CV bridge here
-        self.bridge = CvBridge()
+        # # Initialize the CV bridge here
+        # self.bridge = CvBridge()
 
         # for debug mesgs
         self.DEBUG = True
@@ -491,7 +512,7 @@ class BagToDir():
                             self.mti30_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
                             self.ismti30 = True
                         self.save_imu_data(connection, rawdata, typestore, self.mti30_imu_file)
-                    # for zed node camera
+                    # # for zed node camera
                     if topic_name in ['/zed_node/right_raw/image_raw_color', '/zed_node/left_raw/image_raw_color']:
                         if not os.path.exists(self.zed_node_right_dir) or not os.path.exists(self.zed_node_left_dir):
                             os.makedirs(self.zed_node_right_dir, exist_ok=True)
@@ -590,7 +611,7 @@ class BagToDir():
             stamp_in_micro = timestamp.sec * 1_000_000 + (nano_sec // 1_000) # use microsecs
 
             # Decode image
-            img = self.bridge.imgmsg_to_cv2(msg)
+            img = image_to_numpy(msg)
 
             self.compute_rectification_maps(img.shape[:2])  # img.shape[:2] gives (height, width)
                 
@@ -839,8 +860,8 @@ class BagToDir():
             timestamp = msg.header.stamp
             micro_timestamp = timestamp.sec * 1_000_000 + (timestamp.nanosec // 1_000) # for rslidar this refers to the end of the scan 
 
-            # use the cv bridge to convert the image into opencv format
-            img = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            # use manual function to convert ros images to numpy array
+            img = rosimg_to_cv2(msg,desired="rgb")
 
             h,w = img.shape[:2]
 
