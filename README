@@ -1,0 +1,17 @@
+# fomo-public-sdk
+A public SDK for the FoMo dataset for autonomous driving in multiseasonal conditions
+This directory contains tools and scripts for post-processing data collected from the Warthog robot.
+
+## Requirements
+
+- **ROS 2 Humble**: Ensure that ROS 2 Humble is installed and properly sourced before using these tools.
+- **Bag Format**: Some scripts in this directory assume that the recorded bag files are in `.mcap` format. Please convert your bag files to `.mcap` if necessary.
+
+## Notes
+- Ensure that all dependencies for the scripts are installed and configured correctly.
+- If you encounter any issues, verify that your environment matches the requirements.
+
+
+### The Boreas format 
+
+Task on hand need to covert the rosbag from fomo dataset to the boreas format
