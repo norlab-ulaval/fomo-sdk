@@ -1,6 +1,5 @@
 numpy==1.24.4
-opencv-python==4.10.0.84
-cv-bridge==3.2.1 
+opencv-python
 rosbags==0.10.3
 tqdm==4.67.0
 matplotlib==3.5.1

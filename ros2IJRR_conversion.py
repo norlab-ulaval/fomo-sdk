@@ -455,7 +455,6 @@ class BagToDir():
         self.isvn100 = False
         self.ismti30 = False
    
-        
         # Initialize rectification maps
         self.map1_L = self.map2_L = None
         self.map1_R = self.map2_R = None
@@ -463,11 +462,8 @@ class BagToDir():
         # Image map constructed
         self.zed_map_processed = False
 
-        # # Initialize the CV bridge here
-        # self.bridge = CvBridge()
-
         # for debug mesgs
-        self.DEBUG = True
+        self.DEBUG = False
 
     def read_bag(self):
         bag_path = Path(self.bag_file)
@@ -476,7 +472,9 @@ class BagToDir():
         with Reader(bag_path) as reader:
             reader.typestore = typestore
             connections = list(reader.connections)
-                 
+            if self.DEBUG:
+                print(f"Found {len(connections)} connections in the bag file.")
+
             # loop through all the connections
             for connection, timestamp, rawdata in tqdm.tqdm(reader.messages(), total=reader.message_count, desc="Processing data"):
                 try:
@@ -683,7 +681,7 @@ class BagToDir():
             ('z',         np.float32),
             ('intensity', np.float32),
             ('ring',      np.uint16),
-            ('timestamp', np.float32), # float32 for lslidar was ('timestamp', np.float32)
+            ('timestamp', np.uint64), # Note that the field type of timestamp in lslidar is incorrectly set to float32, it is in fact float64
             ])
             # 2) Compute number of points
             point_step   = msg.point_step              # bytes per point
@@ -709,16 +707,21 @@ class BagToDir():
                 offset = field.offset
                 type = DATA_TYPES[field.datatype] # this is the data type of the field
                 num_bytes = np.dtype(type).itemsize
-
-                print(name)
-
-                raw = data[:, offset:offset + num_bytes].ravel()
+                
+                if self.DEBUG:
+                    print(f"Processing field: {name}, offset: {offset}, type: {type}, num_bytes: {num_bytes}")
+                    print(name)
 
                 if name == 'timestamp':
-                    # the type could be float 64
-                    col = np.frombuffer(raw, dtype=type)
-                    arr[name] = ((nano_timestamp + col.astype(np.float64)*1000_000_000)//1_000).astype(np.uint64)  # TODO: now the timeoffset col stays 0 for no reason... Need to debug here... the nano_timestamp is correct thou
+                    # the type could be float64
+                    ls_lidar_ts_type = np.float64
+                    num_bytes = np.dtype(ls_lidar_ts_type).itemsize
+                    # raw data here should be consistent with float64 only a problem becayse the type is wrong in the rosbag
+                    raw = data[:, offset:offset + num_bytes].ravel()
+                    col = np.frombuffer(raw, dtype=ls_lidar_ts_type)
+                    arr[name] = ((nano_timestamp + col.astype(ls_lidar_ts_type)*1000_000_000)//1_000).astype(np.uint64) 
                 else:
+                    raw = data[:, offset:offset + num_bytes].ravel()
                     col = np.frombuffer(raw, dtype=type)
                     arr[name] = col 
 
@@ -727,8 +730,6 @@ class BagToDir():
                 mask = ~np.isnan(arr['x']) & ~np.isnan(arr['y']) & ~np.isnan(arr['z'])
                 arr = arr[mask]
 
-            # print example data
-            print("10 data:", arr[0:10])
             # Save to binary file
             bin_filename = os.path.join(output_dir, f'{micro_timestamp}.bin') # save in microseconds
             arr.tofile(bin_filename)
@@ -890,8 +891,8 @@ class BagToDir():
 
 def main():
     parser = argparse.ArgumentParser(description='Convert ROS2 bag to sensor data files.')
-    parser.add_argument('--input', type=str, default='/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/red_preview', help='Path to input bag file')
-    parser.add_argument('--output', type=str, default='/home/samqiao/ASRL/fomo-public-sdk/output', help='Output directory')
+    parser.add_argument('--input', type=str, help='Path to input bag file')
+    parser.add_argument('--output', type=str,help='Output directory')
     parser.add_argument('--overwrite', action='store_true', help='Overwrite existing output directory')
     args = parser.parse_args()
 
