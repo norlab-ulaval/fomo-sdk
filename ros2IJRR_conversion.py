@@ -781,7 +781,6 @@ class BagToDir():
                 col = np.frombuffer(raw, dtype=type)
 
                 if name == 'timestamp':
-                    print("the shape of col is:", col.shape)
                     arr[name] = (col * 1_000_000).astype(np.uint64) # in microseconds # (here matej does 1e9 as int) then / 1_000
                 else:
                     arr[name] = col

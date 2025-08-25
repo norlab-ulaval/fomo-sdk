@@ -1,0 +1,826 @@
+Writing log to verify_lidar_log.txt
+
+Comparing folders:
+  OUTPUT  : /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128
+  SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128
+
+Number of output lidar bins  : 100
+Number of solution lidar bins: 100
+
+Timestamps present in SOLUTION but missing in OUTPUT (19):
+1748443582400486, 1748443582600497, 1748443582800521, 1748443583300508, 1748443583600497, 1748443585100563, 1748443585500541, 1748443585800500, 1748443586000488, 1748443586800478, 1748443587100455, 1748443587400486, 1748443587600488, 1748443587900497, 1748443588700500, 1748443588800514, 1748443589000474, 1748443589100497, 1748443589800487
+
+Timestamps present in OUTPUT but missing in SOLUTION (19):
+1748443582400487, 1748443582600498, 1748443582800522, 1748443583300509, 1748443583600498, 1748443585100564, 1748443585500542, 1748443585800501, 1748443586000489, 1748443586800479, 1748443587100456, 1748443587400487, 1748443587600489, 1748443587900498, 1748443588700501, 1748443588800515, 1748443589000475, 1748443589100498, 1748443589800488
+
+Common timestamps to compare: 81
+
+=== SUMMARY ===
+Identical files (within tolerances): 0 / 81
+
+Differences found:
+
+--- DIFF for timestamp 1748443579900562 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443579900562.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443579900562.bin
+- Field 'x' mismatch: max_abs_diff=4.027e+00, mean_abs_diff=1.147e-03, num_diff=6 (showing first 6 idx: 4853, 4854, 4943, 4944, 6375, 6376)
+- Field 'y' mismatch: max_abs_diff=4.662e+00, mean_abs_diff=1.171e-03, num_diff=6 (showing first 6 idx: 4853, 4854, 4943, 4944, 6375, 6376)
+- Field 'z' mismatch: max_abs_diff=5.362e-01, mean_abs_diff=1.575e-04, num_diff=6 (showing first 6 idx: 4853, 4854, 4943, 4944, 6375, 6376)
+- Field 'intensity' mismatch: max_abs_diff=5.000e+01, mean_abs_diff=1.846e-02, num_diff=6 (showing first 6 idx: 4853, 4854, 4943, 4944, 6375, 6376)
+- Field 'ring' mismatch: num_diff=6 (first indices: 4853, 4854, 4943, 4944, 6375, 6376); values: 4853:A=25,B=29, 4854:A=29,B=25, 4943:A=31,B=27, 4944:A=27,B=31, 6375:A=27,B=28, 6376:A=28,B=27
+- Field 'timestamp' mismatch: num_diff=1126 (first indices: 2, 8, 13, 24, 32, 38, 43, 47, 57, 60); values: 2:A=1748443579900787,B=1748443579900786, 8:A=1748443579901289,B=1748443579901288, 13:A=1748443579901470,B=1748443579901469, 24:A=1748443579901892,B=1748443579901891, 32:A=1748443579902068,B=1748443579902067, 38:A=1748443579902218,B=1748443579902217, 43:A=1748443579902288,B=1748443579902287, 47:A=1748443579902350,B=1748443579902349, 57:A=1748443579902472,B=1748443579902471, 60:A=1748443579902521,B=1748443579902520
+
+--- DIFF for timestamp 1748443580000563 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443580000563.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443580000563.bin
+- Field 'x' mismatch: max_abs_diff=5.688e+01, mean_abs_diff=1.459e-02, num_diff=11 (showing first 10 idx: 2588, 2589, 3933, 3934, 5237, 5238, 7497, 7498, 7499, 8494)
+- Field 'y' mismatch: max_abs_diff=1.383e+01, mean_abs_diff=4.450e-03, num_diff=11 (showing first 10 idx: 2588, 2589, 3933, 3934, 5237, 5238, 7497, 7498, 7499, 8494)
+- Field 'z' mismatch: max_abs_diff=6.914e+00, mean_abs_diff=1.716e-03, num_diff=11 (showing first 10 idx: 2588, 2589, 3933, 3934, 5237, 5238, 7497, 7498, 7499, 8494)
+- Field 'intensity' mismatch: max_abs_diff=3.900e+01, mean_abs_diff=2.687e-02, num_diff=11 (showing first 10 idx: 2588, 2589, 3933, 3934, 5237, 5238, 7497, 7498, 7499, 8494)
+- Field 'ring' mismatch: num_diff=11 (first indices: 2588, 2589, 3933, 3934, 5237, 5238, 7497, 7498, 7499, 8494); values: 2588:A=30,B=27, 2589:A=27,B=30, 3933:A=27,B=30, 3934:A=30,B=27, 5237:A=31,B=24, 5238:A=24,B=31, 7497:A=24,B=28, 7498:A=28,B=31, 7499:A=31,B=24, 8494:A=4,B=123
+- Field 'timestamp' mismatch: num_diff=1109 (first indices: 5, 11, 15, 21, 32, 42, 44, 45, 52, 65); values: 5:A=1748443580001076,B=1748443580001075, 11:A=1748443580001318,B=1748443580001317, 15:A=1748443580001454,B=1748443580001453, 21:A=1748443580001759,B=1748443580001758, 32:A=1748443580002033,B=1748443580002032, 42:A=1748443580002248,B=1748443580002247, 44:A=1748443580002259,B=1748443580002258, 45:A=1748443580002276,B=1748443580002275, 52:A=1748443580002409,B=1748443580002408, 65:A=1748443580002610,B=1748443580002609
+
+--- DIFF for timestamp 1748443580100531 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443580100531.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443580100531.bin
+- Field 'x' mismatch: max_abs_diff=1.476e+00, mean_abs_diff=3.453e-04, num_diff=4 (showing first 4 idx: 5062, 5063, 6322, 6323)
+- Field 'y' mismatch: max_abs_diff=6.612e-01, mean_abs_diff=1.669e-04, num_diff=4 (showing first 4 idx: 5062, 5063, 6322, 6323)
+- Field 'z' mismatch: max_abs_diff=3.060e-02, mean_abs_diff=1.043e-05, num_diff=4 (showing first 4 idx: 5062, 5063, 6322, 6323)
+- Field 'intensity' mismatch: max_abs_diff=5.000e+00, mean_abs_diff=2.103e-03, num_diff=4 (showing first 4 idx: 5062, 5063, 6322, 6323)
+- Field 'ring' mismatch: num_diff=4 (first indices: 5062, 5063, 6322, 6323); values: 5062:A=27,B=30, 5063:A=30,B=27, 6322:A=31,B=24, 6323:A=24,B=31
+- Field 'timestamp' mismatch: num_diff=1112 (first indices: 2, 48, 54, 61, 77, 78, 80, 102, 111, 123); values: 2:A=1748443580100756,B=1748443580100755, 48:A=1748443580102325,B=1748443580102324, 54:A=1748443580102428,B=1748443580102427, 61:A=1748443580102517,B=1748443580102516, 77:A=1748443580102862,B=1748443580102861, 78:A=1748443580102877,B=1748443580102876, 80:A=1748443580102943,B=1748443580102942, 102:A=1748443580103325,B=1748443580103324, 111:A=1748443580103597,B=1748443580103596, 123:A=1748443580103785,B=1748443580103784
+
+--- DIFF for timestamp 1748443580200522 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443580200522.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443580200522.bin
+- Field 'x' mismatch: max_abs_diff=4.542e+00, mean_abs_diff=1.266e-03, num_diff=8 (showing first 8 idx: 700, 701, 2946, 2947, 4182, 4183, 6962, 6963)
+- Field 'y' mismatch: max_abs_diff=9.465e+00, mean_abs_diff=3.251e-03, num_diff=8 (showing first 8 idx: 700, 701, 2946, 2947, 4182, 4183, 6962, 6963)
+- Field 'z' mismatch: max_abs_diff=2.532e+00, mean_abs_diff=6.483e-04, num_diff=8 (showing first 8 idx: 700, 701, 2946, 2947, 4182, 4183, 6962, 6963)
+- Field 'intensity' mismatch: max_abs_diff=5.800e+01, mean_abs_diff=2.478e-02, num_diff=6 (showing first 6 idx: 700, 701, 2946, 2947, 6962, 6963)
+- Field 'ring' mismatch: num_diff=8 (first indices: 700, 701, 2946, 2947, 4182, 4183, 6962, 6963); values: 700:A=26,B=29, 701:A=29,B=26, 2946:A=123,B=5, 2947:A=5,B=123, 4182:A=25,B=28, 4183:A=28,B=25, 6962:A=30,B=27, 6963:A=27,B=30
+- Field 'timestamp' mismatch: num_diff=1166 (first indices: 19, 22, 23, 25, 26, 29, 33, 38, 48, 49); values: 19:A=1748443580201704,B=1748443580201703, 22:A=1748443580201850,B=1748443580201849, 23:A=1748443580201860,B=1748443580201859, 25:A=1748443580201940,B=1748443580201939, 26:A=1748443580201961,B=1748443580201960, 29:A=1748443580201971,B=1748443580201970, 33:A=1748443580202066,B=1748443580202065, 38:A=1748443580202193,B=1748443580202192, 48:A=1748443580202322,B=1748443580202321, 49:A=1748443580202365,B=1748443580202364
+
+--- DIFF for timestamp 1748443580300522 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443580300522.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443580300522.bin
+- Field 'x' mismatch: max_abs_diff=1.588e+00, mean_abs_diff=8.466e-04, num_diff=11 (showing first 10 idx: 1036, 1037, 1038, 4039, 4040, 5836, 5837, 6453, 6454, 6590)
+- Field 'y' mismatch: max_abs_diff=1.312e+00, mean_abs_diff=6.204e-04, num_diff=11 (showing first 10 idx: 1036, 1037, 1038, 4039, 4040, 5836, 5837, 6453, 6454, 6590)
+- Field 'z' mismatch: max_abs_diff=8.091e-02, mean_abs_diff=3.432e-05, num_diff=11 (showing first 10 idx: 1036, 1037, 1038, 4039, 4040, 5836, 5837, 6453, 6454, 6590)
+- Field 'intensity' mismatch: max_abs_diff=5.900e+01, mean_abs_diff=3.320e-02, num_diff=11 (showing first 10 idx: 1036, 1037, 1038, 4039, 4040, 5836, 5837, 6453, 6454, 6590)
+- Field 'ring' mismatch: num_diff=11 (first indices: 1036, 1037, 1038, 4039, 4040, 5836, 5837, 6453, 6454, 6590); values: 1036:A=31,B=25, 1037:A=25,B=26, 1038:A=26,B=31, 4039:A=27,B=28, 4040:A=28,B=27, 5836:A=31,B=27, 5837:A=27,B=31, 6453:A=27,B=29, 6454:A=29,B=27, 6590:A=24,B=28
+- Field 'timestamp' mismatch: num_diff=1114 (first indices: 6, 12, 27, 33, 36, 65, 67, 70, 100, 101); values: 6:A=1748443580301107,B=1748443580301106, 12:A=1748443580301411,B=1748443580301410, 27:A=1748443580301971,B=1748443580301970, 33:A=1748443580302077,B=1748443580302076, 36:A=1748443580302193,B=1748443580302192, 65:A=1748443580302655,B=1748443580302654, 67:A=1748443580302744,B=1748443580302743, 70:A=1748443580302794,B=1748443580302793, 100:A=1748443580303321,B=1748443580303320, 101:A=1748443580303321,B=1748443580303320
+
+--- DIFF for timestamp 1748443580400518 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443580400518.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443580400518.bin
+- Field 'x' mismatch: max_abs_diff=3.278e+01, mean_abs_diff=8.466e-03, num_diff=16 (showing first 10 idx: 42, 43, 536, 537, 745, 746, 2046, 2047, 3168, 3169)
+- Field 'y' mismatch: max_abs_diff=4.299e+01, mean_abs_diff=1.205e-02, num_diff=16 (showing first 10 idx: 42, 43, 536, 537, 745, 746, 2046, 2047, 3168, 3169)
+- Field 'z' mismatch: max_abs_diff=7.650e+00, mean_abs_diff=1.944e-03, num_diff=16 (showing first 10 idx: 42, 43, 536, 537, 745, 746, 2046, 2047, 3168, 3169)
+- Field 'intensity' mismatch: max_abs_diff=5.700e+01, mean_abs_diff=2.920e-02, num_diff=14 (showing first 10 idx: 42, 43, 536, 537, 745, 746, 2046, 2047, 3168, 3169)
+- Field 'ring' mismatch: num_diff=16 (first indices: 42, 43, 536, 537, 745, 746, 2046, 2047, 3168, 3169); values: 42:A=24,B=28, 43:A=28,B=24, 536:A=26,B=30, 537:A=30,B=26, 745:A=28,B=26, 746:A=26,B=28, 2046:A=25,B=28, 2047:A=28,B=25, 3168:A=5,B=123, 3169:A=123,B=5
+- Field 'timestamp' mismatch: num_diff=1123 (first indices: 2, 21, 28, 33, 36, 42, 44, 49, 58, 62); values: 2:A=1748443580400743,B=1748443580400742, 21:A=1748443580401749,B=1748443580401748, 28:A=1748443580401929,B=1748443580401928, 33:A=1748443580402025,B=1748443580402024, 36:A=1748443580402154,B=1748443580402153, 42:A=1748443580402243,B=1748443580402242, 44:A=1748443580402248,B=1748443580402247, 49:A=1748443580402309,B=1748443580402308, 58:A=1748443580402451,B=1748443580402450, 62:A=1748443580402525,B=1748443580402524
+
+--- DIFF for timestamp 1748443580500513 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443580500513.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443580500513.bin
+- Field 'timestamp' mismatch: num_diff=1108 (first indices: 7, 23, 32, 33, 36, 48, 60, 68, 71, 76); values: 7:A=1748443580501076,B=1748443580501075, 23:A=1748443580501802,B=1748443580501801, 32:A=1748443580502020,B=1748443580502019, 33:A=1748443580502020,B=1748443580502019, 36:A=1748443580502151,B=1748443580502150, 48:A=1748443580502302,B=1748443580502301, 60:A=1748443580502471,B=1748443580502470, 68:A=1748443580502707,B=1748443580502706, 71:A=1748443580502756,B=1748443580502755, 76:A=1748443580502807,B=1748443580502806
+
+--- DIFF for timestamp 1748443580600504 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443580600504.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443580600504.bin
+- Field 'x' mismatch: max_abs_diff=1.319e+00, mean_abs_diff=3.082e-04, num_diff=3 (showing first 3 idx: 3452, 3453, 3454)
+- Field 'y' mismatch: max_abs_diff=6.840e-01, mean_abs_diff=1.598e-04, num_diff=3 (showing first 3 idx: 3452, 3453, 3454)
+- Field 'z' mismatch: max_abs_diff=4.342e-02, mean_abs_diff=1.014e-05, num_diff=3 (showing first 3 idx: 3452, 3453, 3454)
+- Field 'intensity' mismatch: max_abs_diff=3.300e+01, mean_abs_diff=7.708e-03, num_diff=3 (showing first 3 idx: 3452, 3453, 3454)
+- Field 'ring' mismatch: num_diff=3 (first indices: 3452, 3453, 3454); values: 3452:A=28,B=27, 3453:A=30,B=28, 3454:A=27,B=30
+- Field 'timestamp' mismatch: num_diff=1092 (first indices: 10, 21, 33, 36, 40, 46, 62, 70, 71, 76); values: 10:A=1748443580601279,B=1748443580601278, 21:A=1748443580601735,B=1748443580601734, 33:A=1748443580602012,B=1748443580602011, 36:A=1748443580602141,B=1748443580602140, 40:A=1748443580602197,B=1748443580602196, 46:A=1748443580602248,B=1748443580602247, 62:A=1748443580602512,B=1748443580602511, 70:A=1748443580602728,B=1748443580602727, 71:A=1748443580602748,B=1748443580602747, 76:A=1748443580602799,B=1748443580602798
+
+--- DIFF for timestamp 1748443580700499 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443580700499.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443580700499.bin
+- Field 'x' mismatch: max_abs_diff=1.151e+00, mean_abs_diff=3.869e-04, num_diff=6 (showing first 6 idx: 2637, 2638, 3448, 3449, 3923, 3924)
+- Field 'y' mismatch: max_abs_diff=3.951e-01, mean_abs_diff=1.322e-04, num_diff=6 (showing first 6 idx: 2637, 2638, 3448, 3449, 3923, 3924)
+- Field 'z' mismatch: max_abs_diff=1.673e-01, mean_abs_diff=6.460e-05, num_diff=6 (showing first 6 idx: 2637, 2638, 3448, 3449, 3923, 3924)
+- Field 'intensity' mismatch: max_abs_diff=3.900e+01, mean_abs_diff=1.542e-02, num_diff=6 (showing first 6 idx: 2637, 2638, 3448, 3449, 3923, 3924)
+- Field 'ring' mismatch: num_diff=6 (first indices: 2637, 2638, 3448, 3449, 3923, 3924); values: 2637:A=30,B=26, 2638:A=26,B=30, 3448:A=30,B=25, 3449:A=25,B=30, 3923:A=25,B=31, 3924:A=31,B=25
+- Field 'timestamp' mismatch: num_diff=1102 (first indices: 12, 19, 24, 26, 27, 30, 34, 40, 48, 53); values: 12:A=1748443580701388,B=1748443580701387, 19:A=1748443580701683,B=1748443580701682, 24:A=1748443580701839,B=1748443580701838, 26:A=1748443580701919,B=1748443580701918, 27:A=1748443580701940,B=1748443580701939, 30:A=1748443580701950,B=1748443580701949, 34:A=1748443580702044,B=1748443580702043, 40:A=1748443580702221,B=1748443580702220, 48:A=1748443580702301,B=1748443580702300, 53:A=1748443580702396,B=1748443580702395
+
+--- DIFF for timestamp 1748443580800496 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443580800496.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443580800496.bin
+- Field 'x' mismatch: max_abs_diff=2.975e+00, mean_abs_diff=1.000e-03, num_diff=12 (showing first 10 idx: 1775, 1776, 2066, 2067, 2360, 2361, 5024, 5025, 5180, 5181)
+- Field 'y' mismatch: max_abs_diff=1.265e+01, mean_abs_diff=3.374e-03, num_diff=12 (showing first 10 idx: 1775, 1776, 2066, 2067, 2360, 2361, 5024, 5025, 5180, 5181)
+- Field 'z' mismatch: max_abs_diff=2.707e+00, mean_abs_diff=6.686e-04, num_diff=12 (showing first 10 idx: 1775, 1776, 2066, 2067, 2360, 2361, 5024, 5025, 5180, 5181)
+- Field 'intensity' mismatch: max_abs_diff=2.900e+01, mean_abs_diff=1.565e-02, num_diff=10 (showing first 10 idx: 2066, 2067, 2360, 2361, 5024, 5025, 5180, 5181, 6170, 6171)
+- Field 'ring' mismatch: num_diff=12 (first indices: 1775, 1776, 2066, 2067, 2360, 2361, 5024, 5025, 5180, 5181); values: 1775:A=123,B=4, 1776:A=4,B=123, 2066:A=25,B=31, 2067:A=31,B=25, 2360:A=31,B=27, 2361:A=27,B=31, 5024:A=27,B=31, 5025:A=31,B=27, 5180:A=24,B=28, 5181:A=28,B=24
+- Field 'timestamp' mismatch: num_diff=1116 (first indices: 2, 13, 27, 42, 43, 53, 55, 57, 70, 76); values: 2:A=1748443580800721,B=1748443580800720, 13:A=1748443580801407,B=1748443580801406, 27:A=1748443580801907,B=1748443580801906, 42:A=1748443580802223,B=1748443580802222, 43:A=1748443580802223,B=1748443580802222, 53:A=1748443580802384,B=1748443580802383, 55:A=1748443580802394,B=1748443580802393, 57:A=1748443580802404,B=1748443580802403, 70:A=1748443580802719,B=1748443580802718, 76:A=1748443580802789,B=1748443580802788
+
+--- DIFF for timestamp 1748443580900490 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443580900490.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443580900490.bin
+- Field 'x' mismatch: max_abs_diff=1.080e+00, mean_abs_diff=4.271e-04, num_diff=6 (showing first 6 idx: 2947, 2948, 5122, 5123, 5724, 5725)
+- Field 'y' mismatch: max_abs_diff=1.078e+00, mean_abs_diff=5.449e-04, num_diff=6 (showing first 6 idx: 2947, 2948, 5122, 5123, 5724, 5725)
+- Field 'z' mismatch: max_abs_diff=3.376e-02, mean_abs_diff=1.777e-05, num_diff=6 (showing first 6 idx: 2947, 2948, 5122, 5123, 5724, 5725)
+- Field 'intensity' mismatch: max_abs_diff=2.800e+01, mean_abs_diff=1.799e-02, num_diff=6 (showing first 6 idx: 2947, 2948, 5122, 5123, 5724, 5725)
+- Field 'ring' mismatch: num_diff=6 (first indices: 2947, 2948, 5122, 5123, 5724, 5725); values: 2947:A=27,B=30, 2948:A=30,B=27, 5122:A=28,B=26, 5123:A=26,B=28, 5724:A=28,B=27, 5725:A=27,B=28
+- Field 'timestamp' mismatch: num_diff=1112 (first indices: 1, 11, 24, 31, 37, 38, 71, 87, 93, 95); values: 1:A=1748443580900545,B=1748443580900544, 11:A=1748443580901347,B=1748443580901346, 24:A=1748443580901886,B=1748443580901885, 31:A=1748443580902047,B=1748443580902048, 37:A=1748443580902184,B=1748443580902183, 38:A=1748443580902201,B=1748443580902200, 71:A=1748443580902791,B=1748443580902790, 87:A=1748443580903107,B=1748443580903106, 93:A=1748443580903221,B=1748443580903220, 95:A=1748443580903263,B=1748443580903262
+
+--- DIFF for timestamp 1748443581000488 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443581000488.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443581000488.bin
+- Field 'x' mismatch: max_abs_diff=8.491e-01, mean_abs_diff=2.438e-04, num_diff=5 (showing first 5 idx: 2845, 2846, 3663, 3664, 3665)
+- Field 'y' mismatch: max_abs_diff=8.544e-01, mean_abs_diff=3.727e-04, num_diff=5 (showing first 5 idx: 2845, 2846, 3663, 3664, 3665)
+- Field 'z' mismatch: max_abs_diff=1.171e-01, mean_abs_diff=2.827e-05, num_diff=5 (showing first 5 idx: 2845, 2846, 3663, 3664, 3665)
+- Field 'intensity' mismatch: max_abs_diff=3.200e+01, mean_abs_diff=1.400e-02, num_diff=5 (showing first 5 idx: 2845, 2846, 3663, 3664, 3665)
+- Field 'ring' mismatch: num_diff=5 (first indices: 2845, 2846, 3663, 3664, 3665); values: 2845:A=29,B=24, 2846:A=24,B=29, 3663:A=31,B=24, 3664:A=24,B=25, 3665:A=25,B=31
+- Field 'timestamp' mismatch: num_diff=1093 (first indices: 1, 25, 34, 42, 48, 49, 70, 85, 86, 93); values: 1:A=1748443581000542,B=1748443581000541, 25:A=1748443581001832,B=1748443581001831, 34:A=1748443581002013,B=1748443581002012, 42:A=1748443581002214,B=1748443581002213, 48:A=1748443581002291,B=1748443581002290, 49:A=1748443581002293,B=1748443581002292, 70:A=1748443581002709,B=1748443581002708, 85:A=1748443581002946,B=1748443581002945, 86:A=1748443581002946,B=1748443581002945, 93:A=1748443581003124,B=1748443581003123
+
+--- DIFF for timestamp 1748443581100533 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443581100533.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443581100533.bin
+- Field 'x' mismatch: max_abs_diff=1.298e+00, mean_abs_diff=8.870e-04, num_diff=13 (showing first 10 idx: 1358, 1359, 3059, 3060, 4611, 4612, 6000, 6001, 6002, 6224)
+- Field 'y' mismatch: max_abs_diff=1.765e+00, mean_abs_diff=8.712e-04, num_diff=13 (showing first 10 idx: 1358, 1359, 3059, 3060, 4611, 4612, 6000, 6001, 6002, 6224)
+- Field 'z' mismatch: max_abs_diff=2.516e-01, mean_abs_diff=9.764e-05, num_diff=13 (showing first 10 idx: 1358, 1359, 3059, 3060, 4611, 4612, 6000, 6001, 6002, 6224)
+- Field 'intensity' mismatch: max_abs_diff=2.400e+01, mean_abs_diff=1.786e-02, num_diff=10 (showing first 10 idx: 1358, 1359, 3059, 3060, 6000, 6001, 6224, 6225, 7303, 7304)
+- Field 'ring' mismatch: num_diff=13 (first indices: 1358, 1359, 3059, 3060, 4611, 4612, 6000, 6001, 6002, 6224); values: 1358:A=29,B=24, 1359:A=24,B=29, 3059:A=29,B=27, 3060:A=27,B=29, 4611:A=29,B=24, 4612:A=24,B=29, 6000:A=24,B=29, 6001:A=25,B=24, 6002:A=29,B=25, 6224:A=25,B=29
+- Field 'timestamp' mismatch: num_diff=1154 (first indices: 18, 25, 28, 31, 32, 39, 50, 51, 52, 55); values: 18:A=1748443581101373,B=1748443581101372, 25:A=1748443581101671,B=1748443581101670, 28:A=1748443581101759,B=1748443581101758, 31:A=1748443581101866,B=1748443581101865, 32:A=1748443581101928,B=1748443581101927, 39:A=1748443581102160,B=1748443581102159, 50:A=1748443581102365,B=1748443581102364, 51:A=1748443581102365,B=1748443581102364, 52:A=1748443581102393,B=1748443581102392, 55:A=1748443581102427,B=1748443581102426
+
+--- DIFF for timestamp 1748443581200550 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443581200550.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443581200550.bin
+- Field 'x' mismatch: max_abs_diff=2.282e+01, mean_abs_diff=5.715e-03, num_diff=9 (showing first 9 idx: 1056, 1057, 2108, 2109, 3377, 3378, 3379, 3987, 3988)
+- Field 'y' mismatch: max_abs_diff=1.323e+01, mean_abs_diff=3.351e-03, num_diff=9 (showing first 9 idx: 1056, 1057, 2108, 2109, 3377, 3378, 3379, 3987, 3988)
+- Field 'z' mismatch: max_abs_diff=4.649e+00, mean_abs_diff=1.093e-03, num_diff=9 (showing first 9 idx: 1056, 1057, 2108, 2109, 3377, 3378, 3379, 3987, 3988)
+- Field 'intensity' mismatch: max_abs_diff=1.900e+01, mean_abs_diff=8.317e-03, num_diff=6 (showing first 6 idx: 1056, 1057, 2108, 2109, 3377, 3379)
+- Field 'ring' mismatch: num_diff=9 (first indices: 1056, 1057, 2108, 2109, 3377, 3378, 3379, 3987, 3988); values: 1056:A=27,B=28, 1057:A=28,B=27, 2108:A=27,B=31, 2109:A=31,B=27, 3377:A=29,B=24, 3378:A=24,B=25, 3379:A=25,B=29, 3987:A=123,B=4, 3988:A=4,B=123
+- Field 'timestamp' mismatch: num_diff=1088 (first indices: 19, 28, 29, 34, 39, 43, 58, 60, 88, 91); values: 19:A=1748443581201447,B=1748443581201446, 28:A=1748443581201853,B=1748443581201852, 29:A=1748443581201930,B=1748443581201929, 34:A=1748443581202020,B=1748443581202019, 39:A=1748443581202173,B=1748443581202172, 43:A=1748443581202273,B=1748443581202272, 58:A=1748443581202502,B=1748443581202501, 60:A=1748443581202576,B=1748443581202575, 88:A=1748443581203177,B=1748443581203176, 91:A=1748443581203246,B=1748443581203245
+
+--- DIFF for timestamp 1748443581300482 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443581300482.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443581300482.bin
+- Field 'x' mismatch: max_abs_diff=6.376e-01, mean_abs_diff=2.188e-04, num_diff=6 (showing first 6 idx: 1127, 1128, 2618, 2619, 6674, 6675)
+- Field 'y' mismatch: max_abs_diff=5.764e-01, mean_abs_diff=2.756e-04, num_diff=6 (showing first 6 idx: 1127, 1128, 2618, 2619, 6674, 6675)
+- Field 'z' mismatch: max_abs_diff=3.543e-02, mean_abs_diff=1.128e-05, num_diff=6 (showing first 6 idx: 1127, 1128, 2618, 2619, 6674, 6675)
+- Field 'intensity' mismatch: max_abs_diff=2.900e+01, mean_abs_diff=1.358e-02, num_diff=6 (showing first 6 idx: 1127, 1128, 2618, 2619, 6674, 6675)
+- Field 'ring' mismatch: num_diff=6 (first indices: 1127, 1128, 2618, 2619, 6674, 6675); values: 1127:A=30,B=25, 1128:A=25,B=30, 2618:A=24,B=28, 2619:A=28,B=24, 6674:A=30,B=26, 6675:A=26,B=30
+- Field 'timestamp' mismatch: num_diff=1191 (first indices: 5, 9, 10, 13, 22, 26, 34, 40, 41, 52); values: 5:A=1748443581300860,B=1748443581300859, 9:A=1748443581301040,B=1748443581301039, 10:A=1748443581301045,B=1748443581301044, 13:A=1748443581301226,B=1748443581301225, 22:A=1748443581301493,B=1748443581301492, 26:A=1748443581301737,B=1748443581301736, 34:A=1748443581301940,B=1748443581301939, 40:A=1748443581302204,B=1748443581302203, 41:A=1748443581302214,B=1748443581302213, 52:A=1748443581302376,B=1748443581302375
+
+--- DIFF for timestamp 1748443581400509 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443581400509.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443581400509.bin
+- Field 'x' mismatch: max_abs_diff=1.331e+00, mean_abs_diff=6.499e-04, num_diff=6 (showing first 6 idx: 745, 746, 865, 866, 3999, 4000)
+- Field 'y' mismatch: max_abs_diff=4.913e-01, mean_abs_diff=1.803e-04, num_diff=6 (showing first 6 idx: 745, 746, 865, 866, 3999, 4000)
+- Field 'z' mismatch: max_abs_diff=3.741e-02, mean_abs_diff=1.833e-05, num_diff=6 (showing first 6 idx: 745, 746, 865, 866, 3999, 4000)
+- Field 'intensity' mismatch: max_abs_diff=1.500e+01, mean_abs_diff=5.989e-03, num_diff=4 (showing first 4 idx: 745, 746, 865, 866)
+- Field 'ring' mismatch: num_diff=6 (first indices: 745, 746, 865, 866, 3999, 4000); values: 745:A=24,B=30, 746:A=30,B=24, 865:A=24,B=31, 866:A=31,B=24, 3999:A=25,B=30, 4000:A=30,B=25
+- Field 'timestamp' mismatch: num_diff=1118 (first indices: 4, 18, 33, 37, 40, 41, 44, 65, 86, 89); values: 4:A=1748443581400734,B=1748443581400733, 18:A=1748443581401418,B=1748443581401417, 33:A=1748443581401948,B=1748443581401947, 37:A=1748443581402163,B=1748443581402162, 40:A=1748443581402218,B=1748443581402217, 41:A=1748443581402236,B=1748443581402235, 44:A=1748443581402299,B=1748443581402298, 65:A=1748443581402628,B=1748443581402627, 86:A=1748443581403017,B=1748443581403016, 89:A=1748443581403071,B=1748443581403070
+
+--- DIFF for timestamp 1748443581500513 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443581500513.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443581500513.bin
+- Field 'x' mismatch: max_abs_diff=9.132e-01, mean_abs_diff=4.530e-04, num_diff=8 (showing first 8 idx: 2463, 2464, 3873, 3874, 5373, 5374, 6986, 6987)
+- Field 'y' mismatch: max_abs_diff=5.609e-01, mean_abs_diff=3.568e-04, num_diff=8 (showing first 8 idx: 2463, 2464, 3873, 3874, 5373, 5374, 6986, 6987)
+- Field 'z' mismatch: max_abs_diff=2.955e-02, mean_abs_diff=1.682e-05, num_diff=8 (showing first 8 idx: 2463, 2464, 3873, 3874, 5373, 5374, 6986, 6987)
+- Field 'intensity' mismatch: max_abs_diff=2.000e+01, mean_abs_diff=8.015e-03, num_diff=6 (showing first 6 idx: 2463, 2464, 3873, 3874, 5373, 5374)
+- Field 'ring' mismatch: num_diff=8 (first indices: 2463, 2464, 3873, 3874, 5373, 5374, 6986, 6987); values: 2463:A=25,B=31, 2464:A=31,B=25, 3873:A=27,B=30, 3874:A=30,B=27, 5373:A=28,B=24, 5374:A=24,B=28, 6986:A=30,B=25, 6987:A=25,B=30
+- Field 'timestamp' mismatch: num_diff=1165 (first indices: 9, 10, 19, 39, 49, 50, 51, 53, 54, 62); values: 9:A=1748443581500903,B=1748443581500902, 10:A=1748443581500953,B=1748443581500952, 19:A=1748443581501406,B=1748443581501405, 39:A=1748443581502058,B=1748443581502057, 49:A=1748443581502297,B=1748443581502296, 50:A=1748443581502343,B=1748443581502342, 51:A=1748443581502345,B=1748443581502344, 53:A=1748443581502373,B=1748443581502372, 54:A=1748443581502373,B=1748443581502372, 62:A=1748443581502509,B=1748443581502508
+
+--- DIFF for timestamp 1748443581600501 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443581600501.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443581600501.bin
+- Field 'x' mismatch: max_abs_diff=4.757e-01, mean_abs_diff=2.864e-04, num_diff=8 (showing first 8 idx: 4187, 4188, 4737, 4738, 5620, 5621, 7858, 7859)
+- Field 'y' mismatch: max_abs_diff=6.481e-01, mean_abs_diff=2.712e-04, num_diff=8 (showing first 8 idx: 4187, 4188, 4737, 4738, 5620, 5621, 7858, 7859)
+- Field 'z' mismatch: max_abs_diff=4.261e-02, mean_abs_diff=2.149e-05, num_diff=8 (showing first 8 idx: 4187, 4188, 4737, 4738, 5620, 5621, 7858, 7859)
+- Field 'intensity' mismatch: max_abs_diff=9.000e+00, mean_abs_diff=5.031e-03, num_diff=6 (showing first 6 idx: 4737, 4738, 5620, 5621, 7858, 7859)
+- Field 'ring' mismatch: num_diff=8 (first indices: 4187, 4188, 4737, 4738, 5620, 5621, 7858, 7859); values: 4187:A=27,B=31, 4188:A=31,B=27, 4737:A=30,B=27, 4738:A=27,B=30, 5620:A=27,B=31, 5621:A=31,B=27, 7858:A=30,B=26, 7859:A=26,B=30
+- Field 'timestamp' mismatch: num_diff=1152 (first indices: 11, 12, 21, 27, 36, 55, 62, 72, 73, 89); values: 11:A=1748443581601055,B=1748443581601054, 12:A=1748443581601077,B=1748443581601076, 21:A=1748443581601490,B=1748443581601489, 27:A=1748443581601726,B=1748443581601725, 36:A=1748443581601955,B=1748443581601954, 55:A=1748443581602410,B=1748443581602409, 62:A=1748443581602512,B=1748443581602511, 72:A=1748443581602803,B=1748443581602802, 73:A=1748443581602803,B=1748443581602802, 89:A=1748443581603123,B=1748443581603122
+
+--- DIFF for timestamp 1748443581700546 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443581700546.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443581700546.bin
+- Field 'x' mismatch: max_abs_diff=4.954e+00, mean_abs_diff=1.472e-03, num_diff=8 (showing first 8 idx: 1095, 1096, 3793, 3794, 4349, 4350, 7884, 7885)
+- Field 'y' mismatch: max_abs_diff=5.533e+00, mean_abs_diff=1.435e-03, num_diff=8 (showing first 8 idx: 1095, 1096, 3793, 3794, 4349, 4350, 7884, 7885)
+- Field 'z' mismatch: max_abs_diff=5.830e-01, mean_abs_diff=1.811e-04, num_diff=8 (showing first 8 idx: 1095, 1096, 3793, 3794, 4349, 4350, 7884, 7885)
+- Field 'intensity' mismatch: max_abs_diff=7.000e+01, mean_abs_diff=3.415e-02, num_diff=6 (showing first 6 idx: 1095, 1096, 3793, 3794, 7884, 7885)
+- Field 'ring' mismatch: num_diff=8 (first indices: 1095, 1096, 3793, 3794, 4349, 4350, 7884, 7885); values: 1095:A=24,B=28, 1096:A=28,B=24, 3793:A=24,B=30, 3794:A=30,B=24, 4349:A=24,B=28, 4350:A=28,B=24, 7884:A=30,B=24, 7885:A=24,B=30
+- Field 'timestamp' mismatch: num_diff=1186 (first indices: 8, 9, 14, 29, 34, 37, 49, 53, 54, 68); values: 8:A=1748443581700935,B=1748443581700934, 9:A=1748443581700938,B=1748443581700937, 14:A=1748443581701322,B=1748443581701321, 29:A=1748443581701926,B=1748443581701925, 34:A=1748443581702003,B=1748443581702002, 37:A=1748443581702225,B=1748443581702224, 49:A=1748443581702407,B=1748443581702406, 53:A=1748443581702471,B=1748443581702470, 54:A=1748443581702483,B=1748443581702482, 68:A=1748443581702839,B=1748443581702838
+
+--- DIFF for timestamp 1748443581800526 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443581800526.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443581800526.bin
+- Field 'x' mismatch: max_abs_diff=1.301e+00, mean_abs_diff=1.188e-03, num_diff=16 (showing first 10 idx: 717, 718, 1033, 1034, 2419, 2420, 3960, 3961, 3962, 3963)
+- Field 'y' mismatch: max_abs_diff=8.243e-01, mean_abs_diff=4.443e-04, num_diff=16 (showing first 10 idx: 717, 718, 1033, 1034, 2419, 2420, 3960, 3961, 3962, 3963)
+- Field 'z' mismatch: max_abs_diff=1.804e-01, mean_abs_diff=7.028e-05, num_diff=16 (showing first 10 idx: 717, 718, 1033, 1034, 2419, 2420, 3960, 3961, 3962, 3963)
+- Field 'intensity' mismatch: max_abs_diff=3.200e+01, mean_abs_diff=2.425e-02, num_diff=12 (showing first 10 idx: 717, 718, 1033, 1034, 2419, 2420, 3960, 3961, 3962, 3963)
+- Field 'ring' mismatch: num_diff=16 (first indices: 717, 718, 1033, 1034, 2419, 2420, 3960, 3961, 3962, 3963); values: 717:A=26,B=28, 718:A=28,B=26, 1033:A=25,B=31, 1034:A=31,B=25, 2419:A=27,B=31, 2420:A=31,B=27, 3960:A=25,B=31, 3961:A=26,B=25, 3962:A=27,B=26, 3963:A=31,B=27
+- Field 'timestamp' mismatch: num_diff=1091 (first indices: 6, 9, 15, 16, 24, 32, 41, 49, 50, 52); values: 6:A=1748443581800845,B=1748443581800844, 9:A=1748443581800905,B=1748443581800904, 15:A=1748443581801251,B=1748443581801250, 16:A=1748443581801301,B=1748443581801300, 24:A=1748443581801693,B=1748443581801692, 32:A=1748443581801939,B=1748443581801938, 41:A=1748443581802192,B=1748443581802191, 49:A=1748443581802303,B=1748443581802302, 50:A=1748443581802322,B=1748443581802321, 52:A=1748443581802369,B=1748443581802368
+
+--- DIFF for timestamp 1748443581900503 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443581900503.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443581900503.bin
+- Field 'x' mismatch: max_abs_diff=1.272e+00, mean_abs_diff=6.999e-04, num_diff=10 (showing first 10 idx: 5730, 5731, 6373, 6374, 6486, 6487, 6488, 6489, 7638, 7639)
+- Field 'y' mismatch: max_abs_diff=3.544e+00, mean_abs_diff=9.591e-04, num_diff=10 (showing first 10 idx: 5730, 5731, 6373, 6374, 6486, 6487, 6488, 6489, 7638, 7639)
+- Field 'z' mismatch: max_abs_diff=1.560e+00, mean_abs_diff=3.815e-04, num_diff=10 (showing first 10 idx: 5730, 5731, 6373, 6374, 6486, 6487, 6488, 6489, 7638, 7639)
+- Field 'intensity' mismatch: max_abs_diff=2.300e+01, mean_abs_diff=1.328e-02, num_diff=8 (showing first 8 idx: 5730, 5731, 6486, 6487, 6488, 6489, 7638, 7639)
+- Field 'ring' mismatch: num_diff=10 (first indices: 5730, 5731, 6373, 6374, 6486, 6487, 6488, 6489, 7638, 7639); values: 5730:A=24,B=29, 5731:A=29,B=24, 6373:A=26,B=31, 6374:A=31,B=26, 6486:A=24,B=28, 6487:A=25,B=30, 6488:A=28,B=24, 6489:A=30,B=25, 7638:A=6,B=123, 7639:A=123,B=6
+- Field 'timestamp' mismatch: num_diff=1156 (first indices: 1, 8, 14, 26, 29, 33, 38, 57, 59, 74); values: 1:A=1748443581900549,B=1748443581900548, 8:A=1748443581900883,B=1748443581900882, 14:A=1748443581901069,B=1748443581901068, 26:A=1748443581901847,B=1748443581901846, 29:A=1748443581901927,B=1748443581901926, 33:A=1748443581902014,B=1748443581902013, 38:A=1748443581902173,B=1748443581902172, 57:A=1748443581902515,B=1748443581902514, 59:A=1748443581902569,B=1748443581902568, 74:A=1748443581902906,B=1748443581902905
+
+--- DIFF for timestamp 1748443582000519 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443582000519.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443582000519.bin
+- Field 'x' mismatch: max_abs_diff=1.667e+00, mean_abs_diff=8.263e-04, num_diff=7 (showing first 7 idx: 644, 645, 5357, 5358, 5359, 7732, 7733)
+- Field 'y' mismatch: max_abs_diff=4.593e+00, mean_abs_diff=1.345e-03, num_diff=7 (showing first 7 idx: 644, 645, 5357, 5358, 5359, 7732, 7733)
+- Field 'z' mismatch: max_abs_diff=1.573e+00, mean_abs_diff=3.641e-04, num_diff=7 (showing first 7 idx: 644, 645, 5357, 5358, 5359, 7732, 7733)
+- Field 'intensity' mismatch: max_abs_diff=6.000e+01, mean_abs_diff=2.032e-02, num_diff=7 (showing first 7 idx: 644, 645, 5357, 5358, 5359, 7732, 7733)
+- Field 'ring' mismatch: num_diff=7 (first indices: 644, 645, 5357, 5358, 5359, 7732, 7733); values: 644:A=30,B=24, 645:A=24,B=30, 5357:A=24,B=28, 5358:A=28,B=31, 5359:A=31,B=24, 7732:A=123,B=4, 7733:A=4,B=123
+- Field 'timestamp' mismatch: num_diff=1203 (first indices: 1, 7, 12, 17, 41, 53, 61, 68, 75, 82); values: 1:A=1748443582000565,B=1748443582000564, 7:A=1748443582000842,B=1748443582000841, 12:A=1748443582000969,B=1748443582000968, 17:A=1748443582001320,B=1748443582001319, 41:A=1748443582002246,B=1748443582002245, 53:A=1748443582002451,B=1748443582002450, 61:A=1748443582002579,B=1748443582002578, 68:A=1748443582002772,B=1748443582002771, 75:A=1748443582002908,B=1748443582002907, 82:A=1748443582003089,B=1748443582003088
+
+--- DIFF for timestamp 1748443582100595 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443582100595.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443582100595.bin
+- Field 'x' mismatch: max_abs_diff=6.515e+00, mean_abs_diff=2.297e-03, num_diff=19 (showing first 10 idx: 1917, 1918, 1919, 2423, 2424, 2750, 2751, 3501, 3502, 3599)
+- Field 'y' mismatch: max_abs_diff=3.214e+01, mean_abs_diff=7.607e-03, num_diff=19 (showing first 10 idx: 1917, 1918, 1919, 2423, 2424, 2750, 2751, 3501, 3502, 3599)
+- Field 'z' mismatch: max_abs_diff=4.981e+00, mean_abs_diff=1.174e-03, num_diff=19 (showing first 10 idx: 1917, 1918, 1919, 2423, 2424, 2750, 2751, 3501, 3502, 3599)
+- Field 'intensity' mismatch: max_abs_diff=4.500e+01, mean_abs_diff=5.153e-02, num_diff=18 (showing first 10 idx: 1917, 1918, 1919, 2423, 2424, 2750, 2751, 3501, 3502, 3599)
+- Field 'ring' mismatch: num_diff=19 (first indices: 1917, 1918, 1919, 2423, 2424, 2750, 2751, 3501, 3502, 3599); values: 1917:A=31,B=25, 1918:A=25,B=27, 1919:A=27,B=31, 2423:A=7,B=123, 2424:A=123,B=7, 2750:A=24,B=28, 2751:A=28,B=24, 3501:A=26,B=31, 3502:A=31,B=26, 3599:A=24,B=29
+- Field 'timestamp' mismatch: num_diff=1140 (first indices: 9, 13, 29, 30, 38, 46, 47, 51, 74, 84); values: 9:A=1748443582100935,B=1748443582100934, 13:A=1748443582101094,B=1748443582101093, 29:A=1748443582102046,B=1748443582102045, 30:A=1748443582102053,B=1748443582102052, 38:A=1748443582102212,B=1748443582102211, 46:A=1748443582102321,B=1748443582102320, 47:A=1748443582102337,B=1748443582102336, 51:A=1748443582102386,B=1748443582102385, 74:A=1748443582102897,B=1748443582102896, 84:A=1748443582103108,B=1748443582103107
+
+--- DIFF for timestamp 1748443582200488 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443582200488.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443582200488.bin
+- Field 'x' mismatch: max_abs_diff=1.189e-01, mean_abs_diff=5.051e-05, num_diff=4 (showing first 4 idx: 6335, 6336, 6822, 6823)
+- Field 'y' mismatch: max_abs_diff=5.620e-01, mean_abs_diff=1.822e-04, num_diff=4 (showing first 4 idx: 6335, 6336, 6822, 6823)
+- Field 'z' mismatch: max_abs_diff=3.184e-02, mean_abs_diff=8.202e-06, num_diff=4 (showing first 4 idx: 6335, 6336, 6822, 6823)
+- Field 'intensity' mismatch: max_abs_diff=4.000e+00, mean_abs_diff=8.898e-04, num_diff=2 (showing first 2 idx: 6822, 6823)
+- Field 'ring' mismatch: num_diff=4 (first indices: 6335, 6336, 6822, 6823); values: 6335:A=28,B=24, 6336:A=24,B=28, 6822:A=24,B=28, 6823:A=28,B=24
+- Field 'timestamp' mismatch: num_diff=1168 (first indices: 6, 8, 28, 33, 42, 45, 59, 83, 96, 109); values: 6:A=1748443582200788,B=1748443582200787, 8:A=1748443582200894,B=1748443582200893, 28:A=1748443582201884,B=1748443582201883, 33:A=1748443582202034,B=1748443582202033, 42:A=1748443582202235,B=1748443582202234, 45:A=1748443582202247,B=1748443582202246, 59:A=1748443582202416,B=1748443582202415, 83:A=1748443582202896,B=1748443582202895, 96:A=1748443582203184,B=1748443582203183, 109:A=1748443582203475,B=1748443582203474
+
+--- DIFF for timestamp 1748443582300492 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443582300492.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443582300492.bin
+- Field 'x' mismatch: max_abs_diff=2.401e-01, mean_abs_diff=5.347e-05, num_diff=2 (showing first 2 idx: 4558, 4559)
+- Field 'y' mismatch: max_abs_diff=1.316e+00, mean_abs_diff=2.931e-04, num_diff=2 (showing first 2 idx: 4558, 4559)
+- Field 'z' mismatch: max_abs_diff=2.105e-02, mean_abs_diff=4.689e-06, num_diff=2 (showing first 2 idx: 4558, 4559)
+- Field 'intensity' mismatch: max_abs_diff=1.000e+00, mean_abs_diff=2.227e-04, num_diff=2 (showing first 2 idx: 4558, 4559)
+- Field 'ring' mismatch: num_diff=2 (first indices: 4558, 4559); values: 4558:A=27,B=29, 4559:A=29,B=27
+- Field 'timestamp' mismatch: num_diff=1120 (first indices: 2, 8, 9, 10, 11, 12, 32, 41, 44, 62); values: 2:A=1748443582300582,B=1748443582300581, 8:A=1748443582300856,B=1748443582300855, 9:A=1748443582300881,B=1748443582300880, 10:A=1748443582300915,B=1748443582300914, 11:A=1748443582300933,B=1748443582300932, 12:A=1748443582300933,B=1748443582300932, 32:A=1748443582302026,B=1748443582302025, 41:A=1748443582302171,B=1748443582302170, 44:A=1748443582302248,B=1748443582302247, 62:A=1748443582302491,B=1748443582302490
+
+--- DIFF for timestamp 1748443582500502 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443582500502.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443582500502.bin
+- Field 'x' mismatch: max_abs_diff=1.044e+00, mean_abs_diff=3.924e-04, num_diff=9 (showing first 9 idx: 2058, 2059, 2976, 2977, 5146, 5147, 6168, 6169, 6170)
+- Field 'y' mismatch: max_abs_diff=7.389e-01, mean_abs_diff=3.874e-04, num_diff=9 (showing first 9 idx: 2058, 2059, 2976, 2977, 5146, 5147, 6168, 6169, 6170)
+- Field 'z' mismatch: max_abs_diff=2.580e-02, mean_abs_diff=1.415e-05, num_diff=9 (showing first 9 idx: 2058, 2059, 2976, 2977, 5146, 5147, 6168, 6169, 6170)
+- Field 'intensity' mismatch: max_abs_diff=2.600e+01, mean_abs_diff=1.556e-02, num_diff=9 (showing first 9 idx: 2058, 2059, 2976, 2977, 5146, 5147, 6168, 6169, 6170)
+- Field 'ring' mismatch: num_diff=9 (first indices: 2058, 2059, 2976, 2977, 5146, 5147, 6168, 6169, 6170); values: 2058:A=25,B=30, 2059:A=30,B=25, 2976:A=28,B=24, 2977:A=24,B=28, 5146:A=29,B=26, 5147:A=26,B=29, 6168:A=30,B=24, 6169:A=24,B=25, 6170:A=25,B=30
+- Field 'timestamp' mismatch: num_diff=1169 (first indices: 9, 15, 18, 22, 44, 52, 59, 85, 87, 96); values: 9:A=1748443582500908,B=1748443582500907, 15:A=1748443582501255,B=1748443582501254, 18:A=1748443582501350,B=1748443582501349, 22:A=1748443582501509,B=1748443582501508, 44:A=1748443582502239,B=1748443582502238, 52:A=1748443582502302,B=1748443582502301, 59:A=1748443582502406,B=1748443582502405, 85:A=1748443582502905,B=1748443582502904, 87:A=1748443582502932,B=1748443582502931, 96:A=1748443582503145,B=1748443582503144
+
+--- DIFF for timestamp 1748443582700498 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443582700498.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443582700498.bin
+- Field 'x' mismatch: max_abs_diff=1.455e+00, mean_abs_diff=5.831e-04, num_diff=4 (showing first 4 idx: 4080, 4081, 6859, 6860)
+- Field 'y' mismatch: max_abs_diff=2.922e+00, mean_abs_diff=7.049e-04, num_diff=4 (showing first 4 idx: 4080, 4081, 6859, 6860)
+- Field 'z' mismatch: max_abs_diff=1.777e+00, mean_abs_diff=4.040e-04, num_diff=4 (showing first 4 idx: 4080, 4081, 6859, 6860)
+- Field 'intensity' mismatch: max_abs_diff=3.700e+01, mean_abs_diff=1.198e-02, num_diff=4 (showing first 4 idx: 4080, 4081, 6859, 6860)
+- Field 'ring' mismatch: num_diff=4 (first indices: 4080, 4081, 6859, 6860); values: 4080:A=30,B=27, 4081:A=27,B=30, 6859:A=123,B=7, 6860:A=7,B=123
+- Field 'timestamp' mismatch: num_diff=1193 (first indices: 1, 13, 25, 26, 38, 42, 44, 46, 48, 57); values: 1:A=1748443582700542,B=1748443582700541, 13:A=1748443582701027,B=1748443582701026, 25:A=1748443582701662,B=1748443582701661, 26:A=1748443582701662,B=1748443582701661, 38:A=1748443582702056,B=1748443582702055, 42:A=1748443582702152,B=1748443582702151, 44:A=1748443582702162,B=1748443582702161, 46:A=1748443582702169,B=1748443582702168, 48:A=1748443582702180,B=1748443582702179, 57:A=1748443582702334,B=1748443582702333
+
+--- DIFF for timestamp 1748443582900529 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443582900529.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443582900529.bin
+- Field 'x' mismatch: max_abs_diff=1.253e+00, mean_abs_diff=7.066e-04, num_diff=9 (showing first 9 idx: 1412, 1413, 1414, 3259, 3260, 6579, 6580, 8048, 8049)
+- Field 'y' mismatch: max_abs_diff=5.127e-01, mean_abs_diff=2.494e-04, num_diff=9 (showing first 9 idx: 1412, 1413, 1414, 3259, 3260, 6579, 6580, 8048, 8049)
+- Field 'z' mismatch: max_abs_diff=5.812e-02, mean_abs_diff=3.670e-05, num_diff=9 (showing first 9 idx: 1412, 1413, 1414, 3259, 3260, 6579, 6580, 8048, 8049)
+- Field 'intensity' mismatch: max_abs_diff=5.600e+01, mean_abs_diff=2.564e-02, num_diff=9 (showing first 9 idx: 1412, 1413, 1414, 3259, 3260, 6579, 6580, 8048, 8049)
+- Field 'ring' mismatch: num_diff=9 (first indices: 1412, 1413, 1414, 3259, 3260, 6579, 6580, 8048, 8049); values: 1412:A=29,B=26, 1413:A=26,B=27, 1414:A=27,B=29, 3259:A=26,B=31, 3260:A=31,B=26, 6579:A=24,B=30, 6580:A=30,B=24, 8048:A=25,B=28, 8049:A=28,B=25
+- Field 'timestamp' mismatch: num_diff=1140 (first indices: 18, 27, 30, 31, 32, 34, 38, 39, 47, 50); values: 18:A=1748443582901260,B=1748443582901259, 27:A=1748443582901754,B=1748443582901753, 30:A=1748443582901919,B=1748443582901918, 31:A=1748443582901927,B=1748443582901926, 32:A=1748443582901929,B=1748443582901928, 34:A=1748443582901959,B=1748443582901958, 38:A=1748443582902076,B=1748443582902075, 39:A=1748443582902089,B=1748443582902088, 47:A=1748443582902194,B=1748443582902193, 50:A=1748443582902225,B=1748443582902224
+
+--- DIFF for timestamp 1748443583000542 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443583000542.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443583000542.bin
+- Field 'x' mismatch: max_abs_diff=1.991e+01, mean_abs_diff=4.784e-03, num_diff=7 (showing first 7 idx: 4276, 4277, 4572, 4573, 6453, 6454, 6455)
+- Field 'y' mismatch: max_abs_diff=7.115e+00, mean_abs_diff=1.860e-03, num_diff=7 (showing first 7 idx: 4276, 4277, 4572, 4573, 6453, 6454, 6455)
+- Field 'z' mismatch: max_abs_diff=4.058e+00, mean_abs_diff=9.224e-04, num_diff=7 (showing first 7 idx: 4276, 4277, 4572, 4573, 6453, 6454, 6455)
+- Field 'intensity' mismatch: max_abs_diff=2.100e+01, mean_abs_diff=6.934e-03, num_diff=7 (showing first 7 idx: 4276, 4277, 4572, 4573, 6453, 6454, 6455)
+- Field 'ring' mismatch: num_diff=7 (first indices: 4276, 4277, 4572, 4573, 6453, 6454, 6455); values: 4276:A=6,B=123, 4277:A=123,B=6, 4572:A=26,B=31, 4573:A=31,B=26, 6453:A=24,B=29, 6454:A=26,B=24, 6455:A=29,B=26
+- Field 'timestamp' mismatch: num_diff=1201 (first indices: 13, 19, 29, 35, 44, 47, 48, 67, 71, 77); values: 13:A=1748443583001033,B=1748443583001032, 19:A=1748443583001374,B=1748443583001373, 29:A=1748443583001901,B=1748443583001900, 35:A=1748443583002054,B=1748443583002053, 44:A=1748443583002169,B=1748443583002168, 47:A=1748443583002227,B=1748443583002226, 48:A=1748443583002255,B=1748443583002254, 67:A=1748443583002665,B=1748443583002664, 71:A=1748443583002755,B=1748443583002754, 77:A=1748443583002832,B=1748443583002831
+
+--- DIFF for timestamp 1748443583100502 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443583100502.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443583100502.bin
+- Field 'x' mismatch: max_abs_diff=4.810e-01, mean_abs_diff=1.477e-04, num_diff=6 (showing first 6 idx: 4528, 4529, 7163, 7164, 8607, 8608)
+- Field 'y' mismatch: max_abs_diff=7.904e-01, mean_abs_diff=2.432e-04, num_diff=6 (showing first 6 idx: 4528, 4529, 7163, 7164, 8607, 8608)
+- Field 'z' mismatch: max_abs_diff=3.781e-02, mean_abs_diff=1.346e-05, num_diff=6 (showing first 6 idx: 4528, 4529, 7163, 7164, 8607, 8608)
+- Field 'intensity' mismatch: max_abs_diff=3.500e+01, mean_abs_diff=9.642e-03, num_diff=4 (showing first 4 idx: 7163, 7164, 8607, 8608)
+- Field 'ring' mismatch: num_diff=6 (first indices: 4528, 4529, 7163, 7164, 8607, 8608); values: 4528:A=25,B=28, 4529:A=28,B=25, 7163:A=31,B=27, 7164:A=27,B=31, 8607:A=24,B=30, 8608:A=30,B=24
+- Field 'timestamp' mismatch: num_diff=1095 (first indices: 1, 2, 14, 21, 30, 39, 53, 64, 66, 79); values: 1:A=1748443583100549,B=1748443583100548, 2:A=1748443583100549,B=1748443583100548, 14:A=1748443583101021,B=1748443583101020, 21:A=1748443583101383,B=1748443583101382, 30:A=1748443583101855,B=1748443583101854, 39:A=1748443583102079,B=1748443583102078, 53:A=1748443583102351,B=1748443583102350, 64:A=1748443583102568,B=1748443583102567, 66:A=1748443583102622,B=1748443583102621, 79:A=1748443583102896,B=1748443583102895
+
+--- DIFF for timestamp 1748443583200505 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443583200505.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443583200505.bin
+- Field 'x' mismatch: max_abs_diff=1.286e+00, mean_abs_diff=4.680e-04, num_diff=6 (showing first 6 idx: 5356, 5357, 6076, 6077, 6326, 6327)
+- Field 'y' mismatch: max_abs_diff=8.385e-01, mean_abs_diff=3.816e-04, num_diff=6 (showing first 6 idx: 5356, 5357, 6076, 6077, 6326, 6327)
+- Field 'z' mismatch: max_abs_diff=2.778e-02, mean_abs_diff=1.726e-05, num_diff=6 (showing first 6 idx: 5356, 5357, 6076, 6077, 6326, 6327)
+- Field 'intensity' mismatch: max_abs_diff=2.100e+01, mean_abs_diff=5.624e-03, num_diff=4 (showing first 4 idx: 5356, 5357, 6076, 6077)
+- Field 'ring' mismatch: num_diff=6 (first indices: 5356, 5357, 6076, 6077, 6326, 6327); values: 5356:A=31,B=24, 5357:A=24,B=31, 6076:A=30,B=27, 6077:A=27,B=30, 6326:A=29,B=24, 6327:A=24,B=29
+- Field 'timestamp' mismatch: num_diff=1178 (first indices: 9, 11, 13, 15, 17, 39, 65, 68, 76, 95); values: 9:A=1748443583200894,B=1748443583200893, 11:A=1748443583200944,B=1748443583200943, 13:A=1748443583201042,B=1748443583201041, 15:A=1748443583201228,B=1748443583201227, 17:A=1748443583201295,B=1748443583201294, 39:A=1748443583202128,B=1748443583202127, 65:A=1748443583202621,B=1748443583202620, 68:A=1748443583202687,B=1748443583202686, 76:A=1748443583202833,B=1748443583202832, 95:A=1748443583203194,B=1748443583203193
+
+--- DIFF for timestamp 1748443583400506 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443583400506.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443583400506.bin
+- Field 'x' mismatch: max_abs_diff=1.234e+00, mean_abs_diff=5.121e-04, num_diff=4 (showing first 4 idx: 4978, 4979, 6330, 6331)
+- Field 'y' mismatch: max_abs_diff=5.167e-01, mean_abs_diff=2.077e-04, num_diff=4 (showing first 4 idx: 4978, 4979, 6330, 6331)
+- Field 'z' mismatch: max_abs_diff=1.261e-01, mean_abs_diff=2.959e-05, num_diff=4 (showing first 4 idx: 4978, 4979, 6330, 6331)
+- Field 'intensity' mismatch: max_abs_diff=1.700e+01, mean_abs_diff=7.224e-03, num_diff=4 (showing first 4 idx: 4978, 4979, 6330, 6331)
+- Field 'ring' mismatch: num_diff=4 (first indices: 4978, 4979, 6330, 6331); values: 4978:A=25,B=28, 4979:A=28,B=25, 6330:A=24,B=30, 6331:A=30,B=24
+- Field 'timestamp' mismatch: num_diff=1114 (first indices: 18, 19, 31, 33, 38, 49, 63, 65, 75, 80); values: 18:A=1748443583401353,B=1748443583401352, 19:A=1748443583401403,B=1748443583401402, 31:A=1748443583401851,B=1748443583401850, 33:A=1748443583401885,B=1748443583401884, 38:A=1748443583402017,B=1748443583402016, 49:A=1748443583402197,B=1748443583402196, 63:A=1748443583402504,B=1748443583402503, 65:A=1748443583402548,B=1748443583402547, 75:A=1748443583402736,B=1748443583402735, 80:A=1748443583402868,B=1748443583402867
+
+--- DIFF for timestamp 1748443583500503 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443583500503.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443583500503.bin
+- Field 'x' mismatch: max_abs_diff=1.339e+00, mean_abs_diff=8.274e-04, num_diff=8 (showing first 8 idx: 828, 829, 4212, 4213, 4243, 4244, 6156, 6157)
+- Field 'y' mismatch: max_abs_diff=7.396e-01, mean_abs_diff=4.608e-04, num_diff=8 (showing first 8 idx: 828, 829, 4212, 4213, 4243, 4244, 6156, 6157)
+- Field 'z' mismatch: max_abs_diff=1.935e-01, mean_abs_diff=6.248e-05, num_diff=8 (showing first 8 idx: 828, 829, 4212, 4213, 4243, 4244, 6156, 6157)
+- Field 'intensity' mismatch: max_abs_diff=4.500e+01, mean_abs_diff=1.789e-02, num_diff=6 (showing first 6 idx: 828, 829, 4212, 4213, 4243, 4244)
+- Field 'ring' mismatch: num_diff=8 (first indices: 828, 829, 4212, 4213, 4243, 4244, 6156, 6157); values: 828:A=27,B=29, 829:A=29,B=27, 4212:A=29,B=25, 4213:A=25,B=29, 4243:A=31,B=25, 4244:A=25,B=31, 6156:A=25,B=30, 6157:A=30,B=25
+- Field 'timestamp' mismatch: num_diff=1171 (first indices: 6, 10, 11, 12, 27, 34, 43, 48, 52, 59); values: 6:A=1748443583500787,B=1748443583500786, 10:A=1748443583500892,B=1748443583500891, 11:A=1748443583500893,B=1748443583500892, 12:A=1748443583501000,B=1748443583500999, 27:A=1748443583501606,B=1748443583501605, 34:A=1748443583501833,B=1748443583501832, 43:A=1748443583502061,B=1748443583502060, 48:A=1748443583502096,B=1748443583502095, 52:A=1748443583502225,B=1748443583502224, 59:A=1748443583502335,B=1748443583502334
+
+--- DIFF for timestamp 1748443583700504 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443583700504.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443583700504.bin
+- Field 'x' mismatch: max_abs_diff=7.411e+00, mean_abs_diff=1.911e-03, num_diff=4 (showing first 4 idx: 3887, 3888, 8144, 8145)
+- Field 'y' mismatch: max_abs_diff=5.316e+00, mean_abs_diff=1.288e-03, num_diff=4 (showing first 4 idx: 3887, 3888, 8144, 8145)
+- Field 'z' mismatch: max_abs_diff=7.366e-01, mean_abs_diff=1.737e-04, num_diff=4 (showing first 4 idx: 3887, 3888, 8144, 8145)
+- Field 'intensity' mismatch: max_abs_diff=1.100e+01, mean_abs_diff=3.634e-03, num_diff=4 (showing first 4 idx: 3887, 3888, 8144, 8145)
+- Field 'ring' mismatch: num_diff=4 (first indices: 3887, 3888, 8144, 8145); values: 3887:A=25,B=28, 3888:A=28,B=25, 8144:A=24,B=30, 8145:A=30,B=24
+- Field 'timestamp' mismatch: num_diff=1127 (first indices: 6, 9, 12, 14, 24, 38, 59, 65, 66, 73); values: 6:A=1748443583700822,B=1748443583700821, 9:A=1748443583700882,B=1748443583700881, 12:A=1748443583701010,B=1748443583701009, 14:A=1748443583701182,B=1748443583701181, 24:A=1748443583701567,B=1748443583701566, 38:A=1748443583702000,B=1748443583701999, 59:A=1748443583702319,B=1748443583702318, 65:A=1748443583702463,B=1748443583702462, 66:A=1748443583702510,B=1748443583702509, 73:A=1748443583702590,B=1748443583702589
+
+--- DIFF for timestamp 1748443583800486 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443583800486.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443583800486.bin
+- Field 'x' mismatch: max_abs_diff=1.852e+00, mean_abs_diff=9.773e-04, num_diff=11 (showing first 10 idx: 2080, 2081, 5360, 5361, 6190, 6191, 6192, 7508, 7509, 8085)
+- Field 'y' mismatch: max_abs_diff=8.978e-01, mean_abs_diff=5.345e-04, num_diff=11 (showing first 10 idx: 2080, 2081, 5360, 5361, 6190, 6191, 6192, 7508, 7509, 8085)
+- Field 'z' mismatch: max_abs_diff=7.133e-02, mean_abs_diff=3.771e-05, num_diff=11 (showing first 10 idx: 2080, 2081, 5360, 5361, 6190, 6191, 6192, 7508, 7509, 8085)
+- Field 'intensity' mismatch: max_abs_diff=3.600e+01, mean_abs_diff=1.200e-02, num_diff=8 (showing first 8 idx: 2080, 2081, 6190, 6192, 7508, 7509, 8085, 8086)
+- Field 'ring' mismatch: num_diff=11 (first indices: 2080, 2081, 5360, 5361, 6190, 6191, 6192, 7508, 7509, 8085); values: 2080:A=28,B=25, 2081:A=25,B=28, 5360:A=25,B=28, 5361:A=28,B=25, 6190:A=24,B=29, 6191:A=25,B=24, 6192:A=29,B=25, 7508:A=26,B=29, 7509:A=29,B=26, 8085:A=28,B=26
+- Field 'timestamp' mismatch: num_diff=1132 (first indices: 8, 13, 15, 17, 19, 28, 32, 41, 45, 54); values: 8:A=1748443583800818,B=1748443583800817, 13:A=1748443583800998,B=1748443583800997, 15:A=1748443583801151,B=1748443583801150, 17:A=1748443583801199,B=1748443583801198, 19:A=1748443583801310,B=1748443583801309, 28:A=1748443583801650,B=1748443583801649, 32:A=1748443583801745,B=1748443583801744, 41:A=1748443583801972,B=1748443583801971, 45:A=1748443583802047,B=1748443583802046, 54:A=1748443583802213,B=1748443583802212
+
+--- DIFF for timestamp 1748443583900488 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443583900488.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443583900488.bin
+- Field 'x' mismatch: max_abs_diff=5.624e-01, mean_abs_diff=2.247e-04, num_diff=4 (showing first 4 idx: 1062, 1063, 4655, 4656)
+- Field 'y' mismatch: max_abs_diff=8.125e-01, mean_abs_diff=2.153e-04, num_diff=4 (showing first 4 idx: 1062, 1063, 4655, 4656)
+- Field 'z' mismatch: max_abs_diff=2.761e-02, mean_abs_diff=6.876e-06, num_diff=4 (showing first 4 idx: 1062, 1063, 4655, 4656)
+- Field 'intensity' mismatch: max_abs_diff=2.000e+00, mean_abs_diff=4.538e-04, num_diff=2 (showing first 2 idx: 1062, 1063)
+- Field 'ring' mismatch: num_diff=4 (first indices: 1062, 1063, 4655, 4656); values: 1062:A=26,B=31, 1063:A=31,B=26, 4655:A=28,B=25, 4656:A=25,B=28
+- Field 'timestamp' mismatch: num_diff=1110 (first indices: 5, 9, 11, 14, 20, 27, 32, 38, 44, 56); values: 5:A=1748443583900702,B=1748443583900701, 9:A=1748443583900821,B=1748443583900820, 11:A=1748443583900868,B=1748443583900867, 14:A=1748443583901139,B=1748443583901138, 20:A=1748443583901348,B=1748443583901347, 27:A=1748443583901640,B=1748443583901639, 32:A=1748443583901734,B=1748443583901733, 38:A=1748443583901950,B=1748443583901949, 44:A=1748443583902036,B=1748443583902035, 56:A=1748443583902233,B=1748443583902232
+
+--- DIFF for timestamp 1748443584000486 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443584000486.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443584000486.bin
+- Field 'x' mismatch: max_abs_diff=1.718e-01, mean_abs_diff=3.905e-05, num_diff=2 (showing first 2 idx: 7181, 7182)
+- Field 'y' mismatch: max_abs_diff=7.590e-02, mean_abs_diff=1.725e-05, num_diff=2 (showing first 2 idx: 7181, 7182)
+- Field 'z' mismatch: max_abs_diff=5.419e-02, mean_abs_diff=1.232e-05, num_diff=2 (showing first 2 idx: 7181, 7182)
+- Field 'intensity' mismatch: max_abs_diff=2.600e+01, mean_abs_diff=5.910e-03, num_diff=2 (showing first 2 idx: 7181, 7182)
+- Field 'ring' mismatch: num_diff=2 (first indices: 7181, 7182); values: 7181:A=27,B=31, 7182:A=31,B=27
+- Field 'timestamp' mismatch: num_diff=1102 (first indices: 6, 23, 29, 38, 50, 56, 64, 71, 78, 81); values: 6:A=1748443584000805,B=1748443584000804, 23:A=1748443584001562,B=1748443584001561, 29:A=1748443584001711,B=1748443584001710, 38:A=1748443584001998,B=1748443584001997, 50:A=1748443584002159,B=1748443584002158, 56:A=1748443584002277,B=1748443584002276, 64:A=1748443584002446,B=1748443584002445, 71:A=1748443584002564,B=1748443584002563, 78:A=1748443584002665,B=1748443584002664, 81:A=1748443584002719,B=1748443584002718
+
+--- DIFF for timestamp 1748443584100541 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443584100541.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443584100541.bin
+- Field 'x' mismatch: max_abs_diff=1.899e+00, mean_abs_diff=1.469e-03, num_diff=12 (showing first 10 idx: 604, 605, 724, 725, 3499, 3500, 4981, 4982, 5480, 5481)
+- Field 'y' mismatch: max_abs_diff=3.396e+00, mean_abs_diff=1.289e-03, num_diff=12 (showing first 10 idx: 604, 605, 724, 725, 3499, 3500, 4981, 4982, 5480, 5481)
+- Field 'z' mismatch: max_abs_diff=1.828e+00, mean_abs_diff=4.380e-04, num_diff=12 (showing first 10 idx: 604, 605, 724, 725, 3499, 3500, 4981, 4982, 5480, 5481)
+- Field 'intensity' mismatch: max_abs_diff=3.500e+01, mean_abs_diff=1.681e-02, num_diff=10 (showing first 10 idx: 604, 605, 3499, 3500, 4981, 4982, 5480, 5481, 6951, 6952)
+- Field 'ring' mismatch: num_diff=12 (first indices: 604, 605, 724, 725, 3499, 3500, 4981, 4982, 5480, 5481); values: 604:A=27,B=28, 605:A=28,B=27, 724:A=25,B=31, 725:A=31,B=25, 3499:A=28,B=26, 3500:A=26,B=28, 4981:A=29,B=25, 4982:A=25,B=29, 5480:A=25,B=29, 5481:A=29,B=25
+- Field 'timestamp' mismatch: num_diff=1115 (first indices: 3, 7, 10, 14, 17, 23, 25, 29, 31, 33); values: 3:A=1748443584100643,B=1748443584100642, 7:A=1748443584100830,B=1748443584100829, 10:A=1748443584100932,B=1748443584100931, 14:A=1748443584101219,B=1748443584101218, 17:A=1748443584101285,B=1748443584101284, 23:A=1748443584101605,B=1748443584101604, 25:A=1748443584101668,B=1748443584101667, 29:A=1748443584101765,B=1748443584101764, 31:A=1748443584101830,B=1748443584101829, 33:A=1748443584101843,B=1748443584101842
+
+--- DIFF for timestamp 1748443584200539 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443584200539.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443584200539.bin
+- Field 'x' mismatch: max_abs_diff=9.424e-01, mean_abs_diff=2.873e-04, num_diff=8 (showing first 8 idx: 635, 636, 1547, 1548, 5777, 5778, 6749, 6750)
+- Field 'y' mismatch: max_abs_diff=9.079e-01, mean_abs_diff=4.449e-04, num_diff=8 (showing first 8 idx: 635, 636, 1547, 1548, 5777, 5778, 6749, 6750)
+- Field 'z' mismatch: max_abs_diff=3.655e-02, mean_abs_diff=1.725e-05, num_diff=8 (showing first 8 idx: 635, 636, 1547, 1548, 5777, 5778, 6749, 6750)
+- Field 'intensity' mismatch: max_abs_diff=2.500e+01, mean_abs_diff=1.381e-02, num_diff=6 (showing first 6 idx: 1547, 1548, 5777, 5778, 6749, 6750)
+- Field 'ring' mismatch: num_diff=8 (first indices: 635, 636, 1547, 1548, 5777, 5778, 6749, 6750); values: 635:A=28,B=25, 636:A=25,B=28, 1547:A=30,B=26, 1548:A=26,B=30, 5777:A=25,B=28, 5778:A=28,B=25, 6749:A=30,B=24, 6750:A=24,B=30
+- Field 'timestamp' mismatch: num_diff=1085 (first indices: 6, 20, 28, 32, 36, 39, 41, 54, 62, 82); values: 6:A=1748443584200858,B=1748443584200857, 20:A=1748443584201459,B=1748443584201458, 28:A=1748443584201763,B=1748443584201762, 32:A=1748443584201855,B=1748443584201854, 36:A=1748443584201938,B=1748443584201937, 39:A=1748443584202065,B=1748443584202064, 41:A=1748443584202077,B=1748443584202076, 54:A=1748443584202313,B=1748443584202312, 62:A=1748443584202450,B=1748443584202449, 82:A=1748443584202884,B=1748443584202883
+
+--- DIFF for timestamp 1748443584300540 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443584300540.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443584300540.bin
+- Field 'x' mismatch: max_abs_diff=4.820e-01, mean_abs_diff=1.998e-04, num_diff=4 (showing first 4 idx: 5410, 5411, 5958, 5959)
+- Field 'y' mismatch: max_abs_diff=6.230e-01, mean_abs_diff=2.234e-04, num_diff=4 (showing first 4 idx: 5410, 5411, 5958, 5959)
+- Field 'z' mismatch: max_abs_diff=1.408e-02, mean_abs_diff=4.070e-06, num_diff=4 (showing first 4 idx: 5410, 5411, 5958, 5959)
+- Field 'intensity' mismatch: max_abs_diff=2.200e+01, mean_abs_diff=5.883e-03, num_diff=4 (showing first 4 idx: 5410, 5411, 5958, 5959)
+- Field 'ring' mismatch: num_diff=4 (first indices: 5410, 5411, 5958, 5959); values: 5410:A=26,B=30, 5411:A=30,B=26, 5958:A=27,B=31, 5959:A=31,B=27
+- Field 'timestamp' mismatch: num_diff=1179 (first indices: 3, 6, 7, 12, 13, 20, 24, 25, 28, 31); values: 3:A=1748443584300647,B=1748443584300646, 6:A=1748443584300863,B=1748443584300862, 7:A=1748443584300863,B=1748443584300862, 12:A=1748443584301051,B=1748443584301050, 13:A=1748443584301103,B=1748443584301102, 20:A=1748443584301468,B=1748443584301467, 24:A=1748443584301630,B=1748443584301629, 25:A=1748443584301647,B=1748443584301646, 28:A=1748443584301765,B=1748443584301764, 31:A=1748443584301859,B=1748443584301858
+
+--- DIFF for timestamp 1748443584400551 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443584400551.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443584400551.bin
+- Field 'x' mismatch: max_abs_diff=1.049e+00, mean_abs_diff=6.890e-04, num_diff=9 (showing first 9 idx: 539, 540, 541, 4495, 4496, 5254, 5255, 6640, 6641)
+- Field 'y' mismatch: max_abs_diff=7.283e-01, mean_abs_diff=3.325e-04, num_diff=9 (showing first 9 idx: 539, 540, 541, 4495, 4496, 5254, 5255, 6640, 6641)
+- Field 'z' mismatch: max_abs_diff=3.646e-02, mean_abs_diff=2.192e-05, num_diff=9 (showing first 9 idx: 539, 540, 541, 4495, 4496, 5254, 5255, 6640, 6641)
+- Field 'intensity' mismatch: max_abs_diff=1.100e+01, mean_abs_diff=4.079e-03, num_diff=6 (showing first 6 idx: 539, 540, 5254, 5255, 6640, 6641)
+- Field 'ring' mismatch: num_diff=9 (first indices: 539, 540, 541, 4495, 4496, 5254, 5255, 6640, 6641); values: 539:A=25,B=28, 540:A=26,B=25, 541:A=28,B=26, 4495:A=28,B=24, 4496:A=24,B=28, 5254:A=30,B=25, 5255:A=25,B=30, 6640:A=28,B=26, 6641:A=26,B=28
+- Field 'timestamp' mismatch: num_diff=1164 (first indices: 1, 8, 9, 12, 14, 33, 44, 57, 72, 88); values: 1:A=1748443584400597,B=1748443584400596, 8:A=1748443584400882,B=1748443584400881, 9:A=1748443584400883,B=1748443584400882, 12:A=1748443584401022,B=1748443584401021, 14:A=1748443584401201,B=1748443584401200, 33:A=1748443584401809,B=1748443584401808, 44:A=1748443584402097,B=1748443584402096, 57:A=1748443584402314,B=1748443584402313, 72:A=1748443584402612,B=1748443584402611, 88:A=1748443584402930,B=1748443584402929
+
+--- DIFF for timestamp 1748443584500542 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443584500542.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443584500542.bin
+- Field 'x' mismatch: max_abs_diff=1.080e+00, mean_abs_diff=3.875e-04, num_diff=8 (showing first 8 idx: 590, 591, 1114, 1115, 6135, 6136, 8024, 8025)
+- Field 'y' mismatch: max_abs_diff=9.876e-01, mean_abs_diff=4.577e-04, num_diff=8 (showing first 8 idx: 590, 591, 1114, 1115, 6135, 6136, 8024, 8025)
+- Field 'z' mismatch: max_abs_diff=3.906e-02, mean_abs_diff=1.608e-05, num_diff=8 (showing first 8 idx: 590, 591, 1114, 1115, 6135, 6136, 8024, 8025)
+- Field 'intensity' mismatch: max_abs_diff=3.000e+01, mean_abs_diff=1.379e-02, num_diff=8 (showing first 8 idx: 590, 591, 1114, 1115, 6135, 6136, 8024, 8025)
+- Field 'ring' mismatch: num_diff=8 (first indices: 590, 591, 1114, 1115, 6135, 6136, 8024, 8025); values: 590:A=26,B=30, 591:A=30,B=26, 1114:A=28,B=27, 1115:A=27,B=28, 6135:A=25,B=28, 6136:A=28,B=25, 8024:A=28,B=24, 8025:A=24,B=28
+- Field 'timestamp' mismatch: num_diff=1187 (first indices: 9, 10, 18, 26, 29, 31, 39, 44, 45, 50); values: 9:A=1748443584500922,B=1748443584500921, 10:A=1748443584500937,B=1748443584500936, 18:A=1748443584501405,B=1748443584501404, 26:A=1748443584501679,B=1748443584501678, 29:A=1748443584501834,B=1748443584501833, 31:A=1748443584501845,B=1748443584501844, 39:A=1748443584502054,B=1748443584502053, 44:A=1748443584502138,B=1748443584502137, 45:A=1748443584502138,B=1748443584502137, 50:A=1748443584502227,B=1748443584502226
+
+--- DIFF for timestamp 1748443584600531 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443584600531.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443584600531.bin
+- Field 'x' mismatch: max_abs_diff=4.565e+00, mean_abs_diff=1.512e-03, num_diff=8 (showing first 8 idx: 1971, 1972, 5279, 5280, 5445, 5446, 7862, 7863)
+- Field 'y' mismatch: max_abs_diff=4.427e+01, mean_abs_diff=1.045e-02, num_diff=8 (showing first 8 idx: 1971, 1972, 5279, 5280, 5445, 5446, 7862, 7863)
+- Field 'z' mismatch: max_abs_diff=6.319e+00, mean_abs_diff=1.452e-03, num_diff=8 (showing first 8 idx: 1971, 1972, 5279, 5280, 5445, 5446, 7862, 7863)
+- Field 'intensity' mismatch: max_abs_diff=4.500e+01, mean_abs_diff=1.977e-02, num_diff=8 (showing first 8 idx: 1971, 1972, 5279, 5280, 5445, 5446, 7862, 7863)
+- Field 'ring' mismatch: num_diff=8 (first indices: 1971, 1972, 5279, 5280, 5445, 5446, 7862, 7863); values: 1971:A=5,B=123, 1972:A=123,B=5, 5279:A=26,B=31, 5280:A=31,B=26, 5445:A=27,B=30, 5446:A=30,B=27, 7862:A=26,B=28, 7863:A=28,B=26
+- Field 'timestamp' mismatch: num_diff=1175 (first indices: 4, 22, 27, 30, 48, 49, 53, 62, 74, 79); values: 4:A=1748443584600756,B=1748443584600755, 22:A=1748443584601653,B=1748443584601652, 27:A=1748443584601820,B=1748443584601819, 30:A=1748443584601889,B=1748443584601888, 48:A=1748443584602205,B=1748443584602204, 49:A=1748443584602254,B=1748443584602253, 53:A=1748443584602323,B=1748443584602322, 62:A=1748443584602483,B=1748443584602482, 74:A=1748443584602706,B=1748443584602705, 79:A=1748443584602835,B=1748443584602834
+
+--- DIFF for timestamp 1748443584700546 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443584700546.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443584700546.bin
+- Field 'x' mismatch: max_abs_diff=6.598e-01, mean_abs_diff=1.479e-04, num_diff=2 (showing first 2 idx: 835, 836)
+- Field 'y' mismatch: max_abs_diff=6.194e-01, mean_abs_diff=1.388e-04, num_diff=2 (showing first 2 idx: 835, 836)
+- Field 'z' mismatch: max_abs_diff=2.505e-02, mean_abs_diff=5.616e-06, num_diff=2 (showing first 2 idx: 835, 836)
+- Field 'intensity' mismatch: max_abs_diff=9.000e+00, mean_abs_diff=2.017e-03, num_diff=2 (showing first 2 idx: 835, 836)
+- Field 'ring' mismatch: num_diff=2 (first indices: 835, 836); values: 835:A=27,B=29, 836:A=29,B=27
+- Field 'timestamp' mismatch: num_diff=1153 (first indices: 4, 24, 26, 28, 38, 55, 70, 77, 93, 104); values: 4:A=1748443584700770,B=1748443584700769, 24:A=1748443584701670,B=1748443584701669, 26:A=1748443584701769,B=1748443584701768, 28:A=1748443584701839,B=1748443584701838, 38:A=1748443584702107,B=1748443584702106, 55:A=1748443584702366,B=1748443584702365, 70:A=1748443584702673,B=1748443584702672, 77:A=1748443584702804,B=1748443584702803, 93:A=1748443584703058,B=1748443584703057, 104:A=1748443584703304,B=1748443584703303
+
+--- DIFF for timestamp 1748443584800555 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443584800555.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443584800555.bin
+- Field 'x' mismatch: max_abs_diff=1.842e+00, mean_abs_diff=7.613e-04, num_diff=6 (showing first 6 idx: 5128, 5129, 6646, 6647, 6710, 6711)
+- Field 'y' mismatch: max_abs_diff=1.260e+00, mean_abs_diff=3.720e-04, num_diff=6 (showing first 6 idx: 5128, 5129, 6646, 6647, 6710, 6711)
+- Field 'z' mismatch: max_abs_diff=1.728e-01, mean_abs_diff=7.041e-05, num_diff=6 (showing first 6 idx: 5128, 5129, 6646, 6647, 6710, 6711)
+- Field 'intensity' mismatch: max_abs_diff=4.200e+01, mean_abs_diff=1.771e-02, num_diff=6 (showing first 6 idx: 5128, 5129, 6646, 6647, 6710, 6711)
+- Field 'ring' mismatch: num_diff=6 (first indices: 5128, 5129, 6646, 6647, 6710, 6711); values: 5128:A=27,B=29, 5129:A=29,B=27, 6646:A=29,B=26, 6647:A=26,B=29, 6710:A=25,B=28, 6711:A=28,B=25
+- Field 'timestamp' mismatch: num_diff=1158 (first indices: 30, 32, 34, 37, 56, 65, 71, 79, 84, 87); values: 30:A=1748443584801935,B=1748443584801934, 32:A=1748443584801950,B=1748443584801949, 34:A=1748443584802067,B=1748443584802066, 37:A=1748443584802121,B=1748443584802120, 56:A=1748443584802399,B=1748443584802400, 65:A=1748443584802619,B=1748443584802618, 71:A=1748443584802708,B=1748443584802707, 79:A=1748443584802879,B=1748443584802878, 84:A=1748443584802949,B=1748443584802948, 87:A=1748443584803011,B=1748443584803010
+
+--- DIFF for timestamp 1748443584900551 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443584900551.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443584900551.bin
+- Field 'x' mismatch: max_abs_diff=8.094e-01, mean_abs_diff=2.772e-04, num_diff=4 (showing first 4 idx: 4761, 4762, 6685, 6686)
+- Field 'y' mismatch: max_abs_diff=3.348e-01, mean_abs_diff=8.645e-05, num_diff=4 (showing first 4 idx: 4761, 4762, 6685, 6686)
+- Field 'z' mismatch: max_abs_diff=5.919e-02, mean_abs_diff=1.518e-05, num_diff=4 (showing first 4 idx: 4761, 4762, 6685, 6686)
+- Field 'intensity' mismatch: max_abs_diff=1.500e+01, mean_abs_diff=3.350e-03, num_diff=2 (showing first 2 idx: 6685, 6686)
+- Field 'ring' mismatch: num_diff=4 (first indices: 4761, 4762, 6685, 6686); values: 4761:A=28,B=24, 4762:A=24,B=28, 6685:A=26,B=31, 6686:A=31,B=26
+- Field 'timestamp' mismatch: num_diff=1173 (first indices: 1, 20, 36, 47, 63, 69, 70, 78, 88, 89); values: 1:A=1748443584900597,B=1748443584900596, 20:A=1748443584901424,B=1748443584901423, 36:A=1748443584902034,B=1748443584902033, 47:A=1748443584902174,B=1748443584902173, 63:A=1748443584902480,B=1748443584902479, 69:A=1748443584902597,B=1748443584902596, 70:A=1748443584902612,B=1748443584902611, 78:A=1748443584902730,B=1748443584902729, 88:A=1748443584902962,B=1748443584902961, 89:A=1748443584902975,B=1748443584902974
+
+--- DIFF for timestamp 1748443585000565 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443585000565.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443585000565.bin
+- Field 'x' mismatch: max_abs_diff=1.039e+00, mean_abs_diff=4.681e-04, num_diff=6 (showing first 6 idx: 4117, 4118, 5440, 5441, 5986, 5987)
+- Field 'y' mismatch: max_abs_diff=4.052e-01, mean_abs_diff=2.411e-04, num_diff=6 (showing first 6 idx: 4117, 4118, 5440, 5441, 5986, 5987)
+- Field 'z' mismatch: max_abs_diff=6.023e-02, mean_abs_diff=1.999e-05, num_diff=6 (showing first 6 idx: 4117, 4118, 5440, 5441, 5986, 5987)
+- Field 'intensity' mismatch: max_abs_diff=1.800e+01, mean_abs_diff=5.585e-03, num_diff=4 (showing first 4 idx: 4117, 4118, 5986, 5987)
+- Field 'ring' mismatch: num_diff=6 (first indices: 4117, 4118, 5440, 5441, 5986, 5987); values: 4117:A=26,B=31, 4118:A=31,B=26, 5440:A=24,B=30, 5441:A=30,B=24, 5986:A=31,B=26, 5987:A=26,B=31
+- Field 'timestamp' mismatch: num_diff=1153 (first indices: 4, 11, 21, 28, 29, 45, 47, 48, 50, 55); values: 4:A=1748443585000790,B=1748443585000789, 11:A=1748443585000965,B=1748443585000964, 21:A=1748443585001495,B=1748443585001494, 28:A=1748443585001885,B=1748443585001884, 29:A=1748443585001896,B=1748443585001895, 45:A=1748443585002193,B=1748443585002192, 47:A=1748443585002239,B=1748443585002238, 48:A=1748443585002246,B=1748443585002245, 50:A=1748443585002308,B=1748443585002307, 55:A=1748443585002406,B=1748443585002405
+
+--- DIFF for timestamp 1748443585200536 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443585200536.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443585200536.bin
+- Field 'x' mismatch: max_abs_diff=1.430e+00, mean_abs_diff=4.235e-04, num_diff=6 (showing first 6 idx: 6850, 6851, 6942, 6943, 8190, 8191)
+- Field 'y' mismatch: max_abs_diff=2.941e+00, mean_abs_diff=6.652e-04, num_diff=6 (showing first 6 idx: 6850, 6851, 6942, 6943, 8190, 8191)
+- Field 'z' mismatch: max_abs_diff=1.817e+00, mean_abs_diff=4.296e-04, num_diff=6 (showing first 6 idx: 6850, 6851, 6942, 6943, 8190, 8191)
+- Field 'intensity' mismatch: max_abs_diff=2.200e+01, mean_abs_diff=6.204e-03, num_diff=6 (showing first 6 idx: 6850, 6851, 6942, 6943, 8190, 8191)
+- Field 'ring' mismatch: num_diff=6 (first indices: 6850, 6851, 6942, 6943, 8190, 8191); values: 6850:A=27,B=31, 6851:A=31,B=27, 6942:A=7,B=123, 6943:A=123,B=7, 8190:A=31,B=27, 8191:A=27,B=31
+- Field 'timestamp' mismatch: num_diff=1147 (first indices: 5, 28, 37, 53, 55, 56, 75, 86, 93, 103); values: 5:A=1748443585200788,B=1748443585200787, 28:A=1748443585201808,B=1748443585201807, 37:A=1748443585202037,B=1748443585202036, 53:A=1748443585202229,B=1748443585202228, 55:A=1748443585202242,B=1748443585202241, 56:A=1748443585202259,B=1748443585202258, 75:A=1748443585202591,B=1748443585202590, 86:A=1748443585202773,B=1748443585202772, 93:A=1748443585202961,B=1748443585202960, 103:A=1748443585203122,B=1748443585203121
+
+--- DIFF for timestamp 1748443585300523 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443585300523.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443585300523.bin
+- Field 'x' mismatch: max_abs_diff=4.397e-01, mean_abs_diff=1.440e-04, num_diff=4 (showing first 4 idx: 2551, 2552, 5514, 5515)
+- Field 'y' mismatch: max_abs_diff=1.225e+00, mean_abs_diff=3.954e-04, num_diff=4 (showing first 4 idx: 2551, 2552, 5514, 5515)
+- Field 'z' mismatch: max_abs_diff=3.379e-02, mean_abs_diff=8.111e-06, num_diff=4 (showing first 4 idx: 2551, 2552, 5514, 5515)
+- Field 'intensity' mismatch: max_abs_diff=2.400e+01, mean_abs_diff=8.651e-03, num_diff=4 (showing first 4 idx: 2551, 2552, 5514, 5515)
+- Field 'ring' mismatch: num_diff=4 (first indices: 2551, 2552, 5514, 5515); values: 2551:A=31,B=25, 2552:A=25,B=31, 5514:A=27,B=29, 5515:A=29,B=27
+- Field 'timestamp' mismatch: num_diff=1209 (first indices: 2, 8, 9, 11, 17, 21, 25, 40, 44, 45); values: 2:A=1748443585300613,B=1748443585300612, 8:A=1748443585300912,B=1748443585300911, 9:A=1748443585300946,B=1748443585300945, 11:A=1748443585300964,B=1748443585300963, 17:A=1748443585301352,B=1748443585301351, 21:A=1748443585301458,B=1748443585301457, 25:A=1748443585301746,B=1748443585301745, 40:A=1748443585302131,B=1748443585302130, 44:A=1748443585302192,B=1748443585302191, 45:A=1748443585302194,B=1748443585302193
+
+--- DIFF for timestamp 1748443585400503 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443585400503.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443585400503.bin
+- Field 'x' mismatch: max_abs_diff=5.544e-01, mean_abs_diff=2.314e-04, num_diff=7 (showing first 7 idx: 2477, 2478, 5637, 5638, 5639, 6790, 6791)
+- Field 'y' mismatch: max_abs_diff=8.377e-01, mean_abs_diff=2.025e-04, num_diff=7 (showing first 7 idx: 2477, 2478, 5637, 5638, 5639, 6790, 6791)
+- Field 'z' mismatch: max_abs_diff=5.893e-02, mean_abs_diff=2.049e-05, num_diff=7 (showing first 7 idx: 2477, 2478, 5637, 5638, 5639, 6790, 6791)
+- Field 'intensity' mismatch: max_abs_diff=4.400e+01, mean_abs_diff=1.375e-02, num_diff=6 (showing first 6 idx: 2477, 2478, 5637, 5639, 6790, 6791)
+- Field 'ring' mismatch: num_diff=7 (first indices: 2477, 2478, 5637, 5638, 5639, 6790, 6791); values: 2477:A=28,B=25, 2478:A=25,B=28, 5637:A=29,B=26, 5638:A=30,B=29, 5639:A=26,B=30, 6790:A=24,B=28, 6791:A=28,B=24
+- Field 'timestamp' mismatch: num_diff=1167 (first indices: 2, 3, 4, 5, 14, 16, 26, 32, 40, 49); values: 2:A=1748443585400594,B=1748443585400593, 3:A=1748443585400594,B=1748443585400593, 4:A=1748443585400656,B=1748443585400655, 5:A=1748443585400760,B=1748443585400759, 14:A=1748443585401044,B=1748443585401043, 16:A=1748443585401226,B=1748443585401225, 26:A=1748443585401705,B=1748443585401704, 32:A=1748443585401945,B=1748443585401944, 40:A=1748443585402076,B=1748443585402075, 49:A=1748443585402165,B=1748443585402164
+
+--- DIFF for timestamp 1748443585600507 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443585600507.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443585600507.bin
+- Field 'x' mismatch: max_abs_diff=1.855e+00, mean_abs_diff=1.105e-03, num_diff=13 (showing first 10 idx: 3924, 3925, 4301, 4302, 5336, 5337, 6532, 6533, 6646, 6647)
+- Field 'y' mismatch: max_abs_diff=8.801e-01, mean_abs_diff=4.761e-04, num_diff=13 (showing first 10 idx: 3924, 3925, 4301, 4302, 5336, 5337, 6532, 6533, 6646, 6647)
+- Field 'z' mismatch: max_abs_diff=7.366e-02, mean_abs_diff=3.328e-05, num_diff=13 (showing first 10 idx: 3924, 3925, 4301, 4302, 5336, 5337, 6532, 6533, 6646, 6647)
+- Field 'intensity' mismatch: max_abs_diff=2.500e+01, mean_abs_diff=1.788e-02, num_diff=13 (showing first 10 idx: 3924, 3925, 4301, 4302, 5336, 5337, 6532, 6533, 6646, 6647)
+- Field 'ring' mismatch: num_diff=13 (first indices: 3924, 3925, 4301, 4302, 5336, 5337, 6532, 6533, 6646, 6647); values: 3924:A=30,B=27, 3925:A=27,B=30, 4301:A=27,B=31, 4302:A=31,B=27, 5336:A=26,B=30, 5337:A=30,B=26, 6532:A=31,B=24, 6533:A=24,B=31, 6646:A=25,B=29, 6647:A=29,B=30
+- Field 'timestamp' mismatch: num_diff=1116 (first indices: 1, 2, 3, 4, 8, 12, 14, 22, 23, 27); values: 1:A=1748443585600549,B=1748443585600548, 2:A=1748443585600596,B=1748443585600595, 3:A=1748443585600596,B=1748443585600595, 4:A=1748443585600658,B=1748443585600657, 8:A=1748443585600890,B=1748443585600889, 12:A=1748443585601021,B=1748443585601020, 14:A=1748443585601224,B=1748443585601223, 22:A=1748443585601471,B=1748443585601470, 23:A=1748443585601703,B=1748443585601702, 27:A=1748443585601853,B=1748443585601852
+
+--- DIFF for timestamp 1748443585700525 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443585700525.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443585700525.bin
+- Field 'x' mismatch: max_abs_diff=1.911e+00, mean_abs_diff=1.100e-03, num_diff=12 (showing first 10 idx: 1258, 1259, 3857, 3858, 4907, 4908, 5420, 5421, 7008, 7009)
+- Field 'y' mismatch: max_abs_diff=3.370e+00, mean_abs_diff=1.421e-03, num_diff=12 (showing first 10 idx: 1258, 1259, 3857, 3858, 4907, 4908, 5420, 5421, 7008, 7009)
+- Field 'z' mismatch: max_abs_diff=1.869e+00, mean_abs_diff=4.590e-04, num_diff=12 (showing first 10 idx: 1258, 1259, 3857, 3858, 4907, 4908, 5420, 5421, 7008, 7009)
+- Field 'intensity' mismatch: max_abs_diff=4.000e+01, mean_abs_diff=2.354e-02, num_diff=10 (showing first 10 idx: 1258, 1259, 3857, 3858, 5420, 5421, 7008, 7009, 8118, 8119)
+- Field 'ring' mismatch: num_diff=12 (first indices: 1258, 1259, 3857, 3858, 4907, 4908, 5420, 5421, 7008, 7009); values: 1258:A=25,B=30, 1259:A=30,B=25, 3857:A=27,B=31, 3858:A=31,B=27, 4907:A=31,B=27, 4908:A=27,B=31, 5420:A=26,B=29, 5421:A=29,B=26, 7008:A=123,B=5, 7009:A=5,B=123
+- Field 'timestamp' mismatch: num_diff=1184 (first indices: 2, 11, 12, 13, 16, 34, 40, 43, 58, 87); values: 2:A=1748443585700615,B=1748443585700614, 11:A=1748443585701013,B=1748443585701012, 12:A=1748443585701041,B=1748443585701040, 13:A=1748443585701066,B=1748443585701065, 16:A=1748443585701300,B=1748443585701299, 34:A=1748443585701959,B=1748443585701958, 40:A=1748443585702077,B=1748443585702076, 43:A=1748443585702131,B=1748443585702130, 58:A=1748443585702313,B=1748443585702312, 87:A=1748443585702762,B=1748443585702761
+
+--- DIFF for timestamp 1748443585900491 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443585900491.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443585900491.bin
+- Field 'x' mismatch: max_abs_diff=3.065e+00, mean_abs_diff=1.096e-03, num_diff=13 (showing first 10 idx: 3915, 3916, 3975, 3976, 5066, 5067, 5068, 5925, 5926, 5977)
+- Field 'y' mismatch: max_abs_diff=1.993e+00, mean_abs_diff=8.979e-04, num_diff=13 (showing first 10 idx: 3915, 3916, 3975, 3976, 5066, 5067, 5068, 5925, 5926, 5977)
+- Field 'z' mismatch: max_abs_diff=1.179e-01, mean_abs_diff=8.734e-05, num_diff=13 (showing first 10 idx: 3915, 3916, 3975, 3976, 5066, 5067, 5068, 5925, 5926, 5977)
+- Field 'intensity' mismatch: max_abs_diff=5.300e+01, mean_abs_diff=2.685e-02, num_diff=13 (showing first 10 idx: 3915, 3916, 3975, 3976, 5066, 5067, 5068, 5925, 5926, 5977)
+- Field 'ring' mismatch: num_diff=13 (first indices: 3915, 3916, 3975, 3976, 5066, 5067, 5068, 5925, 5926, 5977); values: 3915:A=26,B=30, 3916:A=30,B=26, 3975:A=24,B=29, 3976:A=29,B=24, 5066:A=31,B=24, 5067:A=24,B=26, 5068:A=26,B=31, 5925:A=27,B=29, 5926:A=29,B=27, 5977:A=27,B=31
+- Field 'timestamp' mismatch: num_diff=1178 (first indices: 17, 19, 29, 45, 49, 50, 71, 77, 91, 93); values: 17:A=1748443585901288,B=1748443585901287, 19:A=1748443585901386,B=1748443585901385, 29:A=1748443585901865,B=1748443585901864, 45:A=1748443585902130,B=1748443585902129, 49:A=1748443585902152,B=1748443585902151, 50:A=1748443585902152,B=1748443585902151, 71:A=1748443585902504,B=1748443585902503, 77:A=1748443585902580,B=1748443585902579, 91:A=1748443585902875,B=1748443585902874, 93:A=1748443585902932,B=1748443585902931
+
+--- DIFF for timestamp 1748443586100505 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443586100505.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443586100505.bin
+- Field 'x' mismatch: max_abs_diff=1.507e+00, mean_abs_diff=6.910e-04, num_diff=8 (showing first 8 idx: 736, 737, 3719, 3720, 4944, 4945, 6120, 6121)
+- Field 'y' mismatch: max_abs_diff=9.107e-01, mean_abs_diff=5.218e-04, num_diff=8 (showing first 8 idx: 736, 737, 3719, 3720, 4944, 4945, 6120, 6121)
+- Field 'z' mismatch: max_abs_diff=3.996e-02, mean_abs_diff=2.191e-05, num_diff=8 (showing first 8 idx: 736, 737, 3719, 3720, 4944, 4945, 6120, 6121)
+- Field 'intensity' mismatch: max_abs_diff=1.800e+01, mean_abs_diff=6.802e-03, num_diff=8 (showing first 8 idx: 736, 737, 3719, 3720, 4944, 4945, 6120, 6121)
+- Field 'ring' mismatch: num_diff=8 (first indices: 736, 737, 3719, 3720, 4944, 4945, 6120, 6121); values: 736:A=26,B=29, 737:A=29,B=26, 3719:A=24,B=30, 3720:A=30,B=24, 4944:A=24,B=30, 4945:A=30,B=24, 6120:A=24,B=30, 6121:A=30,B=24
+- Field 'timestamp' mismatch: num_diff=1122 (first indices: 7, 10, 17, 31, 49, 56, 58, 62, 83, 93); values: 7:A=1748443586100817,B=1748443586100816, 10:A=1748443586100921,B=1748443586100920, 17:A=1748443586101307,B=1748443586101306, 31:A=1748443586101893,B=1748443586101892, 49:A=1748443586102150,B=1748443586102149, 56:A=1748443586102213,B=1748443586102212, 58:A=1748443586102292,B=1748443586102291, 62:A=1748443586102373,B=1748443586102372, 83:A=1748443586102650,B=1748443586102649, 93:A=1748443586102837,B=1748443586102836
+
+--- DIFF for timestamp 1748443586200481 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443586200481.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443586200481.bin
+- Field 'x' mismatch: max_abs_diff=8.533e-01, mean_abs_diff=4.428e-04, num_diff=7 (showing first 7 idx: 1435, 1436, 3153, 3154, 3155, 4178, 4179)
+- Field 'y' mismatch: max_abs_diff=4.789e-01, mean_abs_diff=1.597e-04, num_diff=7 (showing first 7 idx: 1435, 1436, 3153, 3154, 3155, 4178, 4179)
+- Field 'z' mismatch: max_abs_diff=2.805e-02, mean_abs_diff=1.177e-05, num_diff=7 (showing first 7 idx: 1435, 1436, 3153, 3154, 3155, 4178, 4179)
+- Field 'intensity' mismatch: max_abs_diff=1.100e+01, mean_abs_diff=3.295e-03, num_diff=6 (showing first 6 idx: 1435, 1436, 3154, 3155, 4178, 4179)
+- Field 'ring' mismatch: num_diff=7 (first indices: 1435, 1436, 3153, 3154, 3155, 4178, 4179); values: 1435:A=30,B=25, 1436:A=25,B=30, 3153:A=25,B=28, 3154:A=26,B=25, 3155:A=28,B=26, 4178:A=25,B=29, 4179:A=29,B=25
+- Field 'timestamp' mismatch: num_diff=1181 (first indices: 7, 16, 22, 32, 50, 51, 58, 62, 63, 64); values: 7:A=1748443586200810,B=1748443586200809, 16:A=1748443586201279,B=1748443586201278, 22:A=1748443586201450,B=1748443586201449, 32:A=1748443586201918,B=1748443586201917, 50:A=1748443586202148,B=1748443586202147, 51:A=1748443586202148,B=1748443586202147, 58:A=1748443586202288,B=1748443586202287, 62:A=1748443586202366,B=1748443586202365, 63:A=1748443586202377,B=1748443586202376, 64:A=1748443586202377,B=1748443586202376
+
+--- DIFF for timestamp 1748443586300493 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443586300493.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443586300493.bin
+- Field 'x' mismatch: max_abs_diff=7.314e-01, mean_abs_diff=2.997e-04, num_diff=4 (showing first 4 idx: 876, 877, 7488, 7489)
+- Field 'y' mismatch: max_abs_diff=5.800e-01, mean_abs_diff=1.312e-04, num_diff=4 (showing first 4 idx: 876, 877, 7488, 7489)
+- Field 'z' mismatch: max_abs_diff=4.249e-02, mean_abs_diff=1.478e-05, num_diff=4 (showing first 4 idx: 876, 877, 7488, 7489)
+- Field 'intensity' mismatch: max_abs_diff=4.500e+01, mean_abs_diff=1.206e-02, num_diff=4 (showing first 4 idx: 876, 877, 7488, 7489)
+- Field 'ring' mismatch: num_diff=4 (first indices: 876, 877, 7488, 7489); values: 876:A=28,B=26, 877:A=26,B=28, 7488:A=29,B=26, 7489:A=26,B=29
+- Field 'timestamp' mismatch: num_diff=1129 (first indices: 8, 51, 55, 69, 73, 81, 88, 90, 92, 100); values: 8:A=1748443586300861,B=1748443586300860, 51:A=1748443586302147,B=1748443586302146, 55:A=1748443586302199,B=1748443586302198, 69:A=1748443586302481,B=1748443586302480, 73:A=1748443586302517,B=1748443586302516, 81:A=1748443586302645,B=1748443586302644, 88:A=1748443586302765,B=1748443586302764, 90:A=1748443586302825,B=1748443586302824, 92:A=1748443586302866,B=1748443586302865, 100:A=1748443586303039,B=1748443586303038
+
+--- DIFF for timestamp 1748443586400506 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443586400506.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443586400506.bin
+- Field 'x' mismatch: max_abs_diff=5.954e-01, mean_abs_diff=2.566e-04, num_diff=4 (showing first 4 idx: 4923, 4924, 5352, 5353)
+- Field 'y' mismatch: max_abs_diff=1.054e+00, mean_abs_diff=4.423e-04, num_diff=4 (showing first 4 idx: 4923, 4924, 5352, 5353)
+- Field 'z' mismatch: max_abs_diff=3.325e-02, mean_abs_diff=8.256e-06, num_diff=4 (showing first 4 idx: 4923, 4924, 5352, 5353)
+- Field 'intensity' mismatch: max_abs_diff=2.000e+00, mean_abs_diff=4.386e-04, num_diff=2 (showing first 2 idx: 5352, 5353)
+- Field 'ring' mismatch: num_diff=4 (first indices: 4923, 4924, 5352, 5353); values: 4923:A=27,B=30, 4924:A=30,B=27, 5352:A=25,B=28, 5353:A=28,B=25
+- Field 'timestamp' mismatch: num_diff=1223 (first indices: 18, 19, 36, 46, 67, 73, 88, 98, 103, 107); values: 18:A=1748443586401424,B=1748443586401423, 19:A=1748443586401427,B=1748443586401426, 36:A=1748443586401989,B=1748443586401988, 46:A=1748443586402159,B=1748443586402158, 67:A=1748443586402484,B=1748443586402483, 73:A=1748443586402546,B=1748443586402545, 88:A=1748443586402777,B=1748443586402776, 98:A=1748443586402993,B=1748443586402992, 103:A=1748443586403125,B=1748443586403124, 107:A=1748443586403157,B=1748443586403156
+
+--- DIFF for timestamp 1748443586500495 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443586500495.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443586500495.bin
+- Field 'x' mismatch: max_abs_diff=5.384e+01, mean_abs_diff=1.290e-02, num_diff=19 (showing first 10 idx: 1041, 1042, 2606, 2607, 2760, 2761, 2899, 2900, 2901, 3105)
+- Field 'y' mismatch: max_abs_diff=4.408e+01, mean_abs_diff=1.114e-02, num_diff=19 (showing first 10 idx: 1041, 1042, 2606, 2607, 2760, 2761, 2899, 2900, 2901, 3105)
+- Field 'z' mismatch: max_abs_diff=9.405e+00, mean_abs_diff=2.143e-03, num_diff=19 (showing first 10 idx: 1041, 1042, 2606, 2607, 2760, 2761, 2899, 2900, 2901, 3105)
+- Field 'intensity' mismatch: max_abs_diff=4.000e+01, mean_abs_diff=2.760e-02, num_diff=11 (showing first 10 idx: 2606, 2607, 2760, 2761, 2899, 2900, 2901, 3105, 3106, 3760)
+- Field 'ring' mismatch: num_diff=19 (first indices: 1041, 1042, 2606, 2607, 2760, 2761, 2899, 2900, 2901, 3105); values: 1041:A=26,B=31, 1042:A=31,B=26, 2606:A=24,B=30, 2607:A=30,B=24, 2760:A=24,B=30, 2761:A=30,B=24, 2899:A=25,B=30, 2900:A=30,B=31, 2901:A=31,B=25, 3105:A=30,B=24
+- Field 'timestamp' mismatch: num_diff=1202 (first indices: 5, 11, 23, 26, 42, 43, 74, 75, 93, 135); values: 5:A=1748443586500746,B=1748443586500745, 11:A=1748443586500978,B=1748443586500977, 23:A=1748443586501478,B=1748443586501477, 26:A=1748443586501717,B=1748443586501716, 42:A=1748443586502079,B=1748443586502078, 43:A=1748443586502085,B=1748443586502084, 74:A=1748443586502580,B=1748443586502579, 75:A=1748443586502585,B=1748443586502584, 93:A=1748443586502879,B=1748443586502878, 135:A=1748443586503599,B=1748443586503598
+
+--- DIFF for timestamp 1748443586600496 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443586600496.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443586600496.bin
+- Field 'x' mismatch: max_abs_diff=4.818e+00, mean_abs_diff=1.779e-03, num_diff=12 (showing first 10 idx: 1420, 1421, 3795, 3796, 4195, 4196, 4926, 4927, 8312, 8313)
+- Field 'y' mismatch: max_abs_diff=4.929e+00, mean_abs_diff=1.820e-03, num_diff=12 (showing first 10 idx: 1420, 1421, 3795, 3796, 4195, 4196, 4926, 4927, 8312, 8313)
+- Field 'z' mismatch: max_abs_diff=6.001e-01, mean_abs_diff=1.444e-04, num_diff=12 (showing first 10 idx: 1420, 1421, 3795, 3796, 4195, 4196, 4926, 4927, 8312, 8313)
+- Field 'intensity' mismatch: max_abs_diff=5.200e+01, mean_abs_diff=2.080e-02, num_diff=8 (showing first 8 idx: 3795, 3796, 4195, 4196, 8312, 8313, 8455, 8456)
+- Field 'ring' mismatch: num_diff=12 (first indices: 1420, 1421, 3795, 3796, 4195, 4196, 4926, 4927, 8312, 8313); values: 1420:A=30,B=25, 1421:A=25,B=30, 3795:A=27,B=28, 3796:A=28,B=27, 4195:A=26,B=29, 4196:A=29,B=26, 4926:A=25,B=28, 4927:A=28,B=25, 8312:A=28,B=25, 8313:A=25,B=28
+- Field 'timestamp' mismatch: num_diff=1158 (first indices: 14, 28, 41, 57, 59, 60, 63, 74, 79, 87); values: 14:A=1748443586601224,B=1748443586601223, 28:A=1748443586601841,B=1748443586601840, 41:A=1748443586602057,B=1748443586602056, 57:A=1748443586602238,B=1748443586602237, 59:A=1748443586602300,B=1748443586602299, 60:A=1748443586602341,B=1748443586602340, 63:A=1748443586602383,B=1748443586602382, 74:A=1748443586602557,B=1748443586602556, 79:A=1748443586602629,B=1748443586602628, 87:A=1748443586602736,B=1748443586602735
+
+--- DIFF for timestamp 1748443586700488 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443586700488.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443586700488.bin
+- Field 'x' mismatch: max_abs_diff=1.490e+01, mean_abs_diff=4.816e-03, num_diff=20 (showing first 10 idx: 412, 413, 2004, 2005, 3897, 3898, 3922, 3923, 5356, 5357)
+- Field 'y' mismatch: max_abs_diff=2.409e+00, mean_abs_diff=1.180e-03, num_diff=20 (showing first 10 idx: 412, 413, 2004, 2005, 3897, 3898, 3922, 3923, 5356, 5357)
+- Field 'z' mismatch: max_abs_diff=3.310e+00, mean_abs_diff=8.286e-04, num_diff=20 (showing first 10 idx: 412, 413, 2004, 2005, 3897, 3898, 3922, 3923, 5356, 5357)
+- Field 'intensity' mismatch: max_abs_diff=3.300e+01, mean_abs_diff=2.803e-02, num_diff=18 (showing first 10 idx: 412, 413, 2004, 2005, 3897, 3898, 3922, 3923, 5356, 5357)
+- Field 'ring' mismatch: num_diff=20 (first indices: 412, 413, 2004, 2005, 3897, 3898, 3922, 3923, 5356, 5357); values: 412:A=28,B=24, 413:A=24,B=28, 2004:A=31,B=24, 2005:A=24,B=31, 3897:A=29,B=24, 3898:A=24,B=29, 3922:A=25,B=28, 3923:A=28,B=25, 5356:A=123,B=4, 5357:A=4,B=123
+- Field 'timestamp' mismatch: num_diff=1201 (first indices: 20, 27, 34, 42, 50, 52, 56, 66, 67, 68); values: 20:A=1748443586701375,B=1748443586701374, 27:A=1748443586701759,B=1748443586701758, 34:A=1748443586701912,B=1748443586701911, 42:A=1748443586702044,B=1748443586702043, 50:A=1748443586702133,B=1748443586702132, 52:A=1748443586702138,B=1748443586702137, 56:A=1748443586702194,B=1748443586702193, 66:A=1748443586702440,B=1748443586702439, 67:A=1748443586702440,B=1748443586702439, 68:A=1748443586702442,B=1748443586702441
+
+--- DIFF for timestamp 1748443586900487 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443586900487.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443586900487.bin
+- Field 'x' mismatch: max_abs_diff=3.325e+01, mean_abs_diff=1.210e-02, num_diff=22 (showing first 10 idx: 1088, 1089, 1164, 1165, 2002, 2003, 2169, 2170, 2285, 2286)
+- Field 'y' mismatch: max_abs_diff=4.599e+01, mean_abs_diff=1.170e-02, num_diff=22 (showing first 10 idx: 1088, 1089, 1164, 1165, 2002, 2003, 2169, 2170, 2285, 2286)
+- Field 'z' mismatch: max_abs_diff=7.760e+00, mean_abs_diff=2.495e-03, num_diff=22 (showing first 10 idx: 1088, 1089, 1164, 1165, 2002, 2003, 2169, 2170, 2285, 2286)
+- Field 'intensity' mismatch: max_abs_diff=4.100e+01, mean_abs_diff=4.710e-02, num_diff=22 (showing first 10 idx: 1088, 1089, 1164, 1165, 2002, 2003, 2169, 2170, 2285, 2286)
+- Field 'ring' mismatch: num_diff=22 (first indices: 1088, 1089, 1164, 1165, 2002, 2003, 2169, 2170, 2285, 2286); values: 1088:A=30,B=25, 1089:A=25,B=30, 1164:A=24,B=31, 1165:A=31,B=24, 2002:A=25,B=29, 2003:A=29,B=25, 2169:A=24,B=29, 2170:A=29,B=24, 2285:A=28,B=27, 2286:A=27,B=28
+- Field 'timestamp' mismatch: num_diff=1178 (first indices: 11, 14, 19, 32, 49, 53, 56, 63, 77, 83); values: 11:A=1748443586900958,B=1748443586900957, 14:A=1748443586901193,B=1748443586901192, 19:A=1748443586901375,B=1748443586901374, 32:A=1748443586901907,B=1748443586901906, 49:A=1748443586902133,B=1748443586902132, 53:A=1748443586902153,B=1748443586902152, 56:A=1748443586902196,B=1748443586902195, 63:A=1748443586902378,B=1748443586902377, 77:A=1748443586902612,B=1748443586902611, 83:A=1748443586902695,B=1748443586902694
+
+--- DIFF for timestamp 1748443587000483 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443587000483.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443587000483.bin
+- Field 'x' mismatch: max_abs_diff=3.018e-01, mean_abs_diff=1.077e-04, num_diff=4 (showing first 4 idx: 7245, 7246, 7502, 7503)
+- Field 'y' mismatch: max_abs_diff=5.453e-02, mean_abs_diff=1.714e-05, num_diff=4 (showing first 4 idx: 7245, 7246, 7502, 7503)
+- Field 'z' mismatch: max_abs_diff=6.348e-02, mean_abs_diff=2.719e-05, num_diff=4 (showing first 4 idx: 7245, 7246, 7502, 7503)
+- Field 'intensity' mismatch: max_abs_diff=4.400e+01, mean_abs_diff=1.163e-02, num_diff=4 (showing first 4 idx: 7245, 7246, 7502, 7503)
+- Field 'ring' mismatch: num_diff=4 (first indices: 7245, 7246, 7502, 7503); values: 7245:A=29,B=25, 7246:A=25,B=29, 7502:A=31,B=26, 7503:A=26,B=31
+- Field 'timestamp' mismatch: num_diff=1149 (first indices: 5, 9, 18, 24, 29, 31, 50, 73, 78, 81); values: 5:A=1748443587000733,B=1748443587000732, 9:A=1748443587000902,B=1748443587000901, 18:A=1748443587001401,B=1748443587001400, 24:A=1748443587001703,B=1748443587001702, 29:A=1748443587001870,B=1748443587001869, 31:A=1748443587001936,B=1748443587001935, 50:A=1748443587002173,B=1748443587002172, 73:A=1748443587002537,B=1748443587002536, 78:A=1748443587002637,B=1748443587002636, 81:A=1748443587002663,B=1748443587002662
+
+--- DIFF for timestamp 1748443587200470 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443587200470.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443587200470.bin
+- Field 'x' mismatch: max_abs_diff=2.517e+00, mean_abs_diff=1.423e-03, num_diff=19 (showing first 10 idx: 2009, 2010, 5147, 5148, 5149, 5230, 5231, 5232, 7219, 7220)
+- Field 'y' mismatch: max_abs_diff=1.176e+00, mean_abs_diff=8.806e-04, num_diff=19 (showing first 10 idx: 2009, 2010, 5147, 5148, 5149, 5230, 5231, 5232, 7219, 7220)
+- Field 'z' mismatch: max_abs_diff=1.483e-01, mean_abs_diff=1.239e-04, num_diff=19 (showing first 10 idx: 2009, 2010, 5147, 5148, 5149, 5230, 5231, 5232, 7219, 7220)
+- Field 'intensity' mismatch: max_abs_diff=6.100e+01, mean_abs_diff=3.224e-02, num_diff=15 (showing first 10 idx: 2009, 2010, 5147, 5148, 5230, 5231, 7595, 7596, 8081, 8082)
+- Field 'ring' mismatch: num_diff=19 (first indices: 2009, 2010, 5147, 5148, 5149, 5230, 5231, 5232, 7219, 7220); values: 2009:A=29,B=26, 2010:A=26,B=29, 5147:A=24,B=29, 5148:A=29,B=30, 5149:A=30,B=24, 5230:A=26,B=28, 5231:A=28,B=31, 5232:A=31,B=26, 7219:A=24,B=31, 7220:A=31,B=24
+- Field 'timestamp' mismatch: num_diff=1192 (first indices: 13, 14, 17, 18, 19, 42, 47, 74, 79, 91); values: 13:A=1748443587201010,B=1748443587201009, 14:A=1748443587201187,B=1748443587201186, 17:A=1748443587201288,B=1748443587201287, 18:A=1748443587201364,B=1748443587201363, 19:A=1748443587201364,B=1748443587201363, 42:A=1748443587202076,B=1748443587202075, 47:A=1748443587202139,B=1748443587202138, 74:A=1748443587202576,B=1748443587202575, 79:A=1748443587202648,B=1748443587202647, 91:A=1748443587202858,B=1748443587202857
+
+--- DIFF for timestamp 1748443587300465 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443587300465.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443587300465.bin
+- Field 'x' mismatch: max_abs_diff=5.685e+00, mean_abs_diff=1.950e-03, num_diff=12 (showing first 10 idx: 403, 404, 3552, 3553, 4255, 4256, 5667, 5668, 7392, 7393)
+- Field 'y' mismatch: max_abs_diff=4.112e+00, mean_abs_diff=1.160e-03, num_diff=12 (showing first 10 idx: 403, 404, 3552, 3553, 4255, 4256, 5667, 5668, 7392, 7393)
+- Field 'z' mismatch: max_abs_diff=5.957e-01, mean_abs_diff=1.726e-04, num_diff=12 (showing first 10 idx: 403, 404, 3552, 3553, 4255, 4256, 5667, 5668, 7392, 7393)
+- Field 'intensity' mismatch: max_abs_diff=5.700e+01, mean_abs_diff=3.693e-02, num_diff=12 (showing first 10 idx: 403, 404, 3552, 3553, 4255, 4256, 5667, 5668, 7392, 7393)
+- Field 'ring' mismatch: num_diff=12 (first indices: 403, 404, 3552, 3553, 4255, 4256, 5667, 5668, 7392, 7393); values: 403:A=26,B=28, 404:A=28,B=26, 3552:A=25,B=29, 3553:A=29,B=25, 4255:A=30,B=26, 4256:A=26,B=30, 5667:A=30,B=25, 5668:A=25,B=30, 7392:A=26,B=28, 7393:A=28,B=26
+- Field 'timestamp' mismatch: num_diff=1177 (first indices: 16, 27, 45, 49, 53, 70, 71, 78, 79, 89); values: 16:A=1748443587301300,B=1748443587301299, 27:A=1748443587301854,B=1748443587301853, 45:A=1748443587302162,B=1748443587302161, 49:A=1748443587302183,B=1748443587302182, 53:A=1748443587302235,B=1748443587302234, 70:A=1748443587302523,B=1748443587302522, 71:A=1748443587302536,B=1748443587302535, 78:A=1748443587302662,B=1748443587302661, 79:A=1748443587302675,B=1748443587302674, 89:A=1748443587302826,B=1748443587302825
+
+--- DIFF for timestamp 1748443587500452 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443587500452.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443587500452.bin
+- Field 'x' mismatch: max_abs_diff=1.552e+00, mean_abs_diff=7.677e-04, num_diff=6 (showing first 6 idx: 6594, 6595, 6842, 6843, 8114, 8115)
+- Field 'y' mismatch: max_abs_diff=2.461e-01, mean_abs_diff=1.306e-04, num_diff=6 (showing first 6 idx: 6594, 6595, 6842, 6843, 8114, 8115)
+- Field 'z' mismatch: max_abs_diff=1.019e-01, mean_abs_diff=4.607e-05, num_diff=6 (showing first 6 idx: 6594, 6595, 6842, 6843, 8114, 8115)
+- Field 'intensity' mismatch: max_abs_diff=2.400e+01, mean_abs_diff=9.637e-03, num_diff=6 (showing first 6 idx: 6594, 6595, 6842, 6843, 8114, 8115)
+- Field 'ring' mismatch: num_diff=6 (first indices: 6594, 6595, 6842, 6843, 8114, 8115); values: 6594:A=28,B=26, 6595:A=26,B=28, 6842:A=27,B=29, 6843:A=29,B=27, 8114:A=26,B=30, 8115:A=30,B=26
+- Field 'timestamp' mismatch: num_diff=1190 (first indices: 2, 9, 17, 22, 23, 36, 39, 40, 45, 54); values: 2:A=1748443587500541,B=1748443587500540, 9:A=1748443587500893,B=1748443587500892, 17:A=1748443587501289,B=1748443587501288, 22:A=1748443587501439,B=1748443587501438, 23:A=1748443587501447,B=1748443587501446, 36:A=1748443587501951,B=1748443587501950, 39:A=1748443587502020,B=1748443587502019, 40:A=1748443587502051,B=1748443587502050, 45:A=1748443587502131,B=1748443587502130, 54:A=1748443587502207,B=1748443587502206
+
+--- DIFF for timestamp 1748443587700493 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443587700493.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443587700493.bin
+- Field 'x' mismatch: max_abs_diff=1.228e+00, mean_abs_diff=4.823e-04, num_diff=6 (showing first 6 idx: 5907, 5908, 6050, 6051, 7295, 7296)
+- Field 'y' mismatch: max_abs_diff=1.764e+00, mean_abs_diff=6.689e-04, num_diff=6 (showing first 6 idx: 5907, 5908, 6050, 6051, 7295, 7296)
+- Field 'z' mismatch: max_abs_diff=6.215e-02, mean_abs_diff=2.075e-05, num_diff=6 (showing first 6 idx: 5907, 5908, 6050, 6051, 7295, 7296)
+- Field 'intensity' mismatch: max_abs_diff=2.300e+01, mean_abs_diff=1.140e-02, num_diff=6 (showing first 6 idx: 5907, 5908, 6050, 6051, 7295, 7296)
+- Field 'ring' mismatch: num_diff=6 (first indices: 5907, 5908, 6050, 6051, 7295, 7296); values: 5907:A=28,B=27, 5908:A=27,B=28, 6050:A=27,B=30, 6051:A=30,B=27, 7295:A=27,B=29, 7296:A=29,B=27
+- Field 'timestamp' mismatch: num_diff=1163 (first indices: 10, 21, 23, 29, 38, 65, 72, 76, 90, 104); values: 10:A=1748443587700949,B=1748443587700948, 21:A=1748443587701491,B=1748443587701490, 23:A=1748443587701520,B=1748443587701519, 29:A=1748443587701907,B=1748443587701906, 38:A=1748443587702067,B=1748443587702066, 65:A=1748443587702494,B=1748443587702493, 72:A=1748443587702568,B=1748443587702567, 76:A=1748443587702673,B=1748443587702672, 90:A=1748443587702900,B=1748443587702899, 104:A=1748443587703186,B=1748443587703185
+
+--- DIFF for timestamp 1748443587800461 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443587800461.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443587800461.bin
+- Field 'x' mismatch: max_abs_diff=1.146e+00, mean_abs_diff=2.831e-04, num_diff=4 (showing first 4 idx: 1987, 1988, 7498, 7499)
+- Field 'y' mismatch: max_abs_diff=2.745e-01, mean_abs_diff=9.205e-05, num_diff=4 (showing first 4 idx: 1987, 1988, 7498, 7499)
+- Field 'z' mismatch: max_abs_diff=4.214e-02, mean_abs_diff=1.340e-05, num_diff=4 (showing first 4 idx: 1987, 1988, 7498, 7499)
+- Field 'intensity' mismatch: max_abs_diff=4.500e+01, mean_abs_diff=1.859e-02, num_diff=4 (showing first 4 idx: 1987, 1988, 7498, 7499)
+- Field 'ring' mismatch: num_diff=4 (first indices: 1987, 1988, 7498, 7499); values: 1987:A=29,B=25, 1988:A=25,B=29, 7498:A=27,B=29, 7499:A=29,B=27
+- Field 'timestamp' mismatch: num_diff=1242 (first indices: 2, 8, 10, 17, 22, 46, 47, 48, 56, 58); values: 2:A=1748443587800551,B=1748443587800550, 8:A=1748443587800884,B=1748443587800883, 10:A=1748443587800902,B=1748443587800901, 17:A=1748443587801297,B=1748443587801296, 22:A=1748443587801446,B=1748443587801445, 46:A=1748443587802130,B=1748443587802129, 47:A=1748443587802132,B=1748443587802131, 48:A=1748443587802141,B=1748443587802140, 56:A=1748443587802218,B=1748443587802217, 58:A=1748443587802310,B=1748443587802309
+
+--- DIFF for timestamp 1748443588000465 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443588000465.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443588000465.bin
+- Field 'x' mismatch: max_abs_diff=1.092e+00, mean_abs_diff=7.174e-04, num_diff=10 (showing first 10 idx: 1451, 1452, 2502, 2503, 2744, 2745, 2837, 2838, 8288, 8289)
+- Field 'y' mismatch: max_abs_diff=1.482e+00, mean_abs_diff=5.154e-04, num_diff=10 (showing first 10 idx: 1451, 1452, 2502, 2503, 2744, 2745, 2837, 2838, 8288, 8289)
+- Field 'z' mismatch: max_abs_diff=4.512e-02, mean_abs_diff=3.042e-05, num_diff=10 (showing first 10 idx: 1451, 1452, 2502, 2503, 2744, 2745, 2837, 2838, 8288, 8289)
+- Field 'intensity' mismatch: max_abs_diff=1.700e+01, mean_abs_diff=8.292e-03, num_diff=8 (showing first 8 idx: 1451, 1452, 2744, 2745, 2837, 2838, 8288, 8289)
+- Field 'ring' mismatch: num_diff=10 (first indices: 1451, 1452, 2502, 2503, 2744, 2745, 2837, 2838, 8288, 8289); values: 1451:A=24,B=30, 1452:A=30,B=24, 2502:A=31,B=25, 2503:A=25,B=31, 2744:A=25,B=28, 2745:A=28,B=25, 2837:A=27,B=29, 2838:A=29,B=27, 8288:A=31,B=24, 8289:A=24,B=31
+- Field 'timestamp' mismatch: num_diff=1220 (first indices: 7, 11, 12, 23, 25, 26, 29, 32, 35, 40); values: 7:A=1748443588000733,B=1748443588000732, 11:A=1748443588000906,B=1748443588000905, 12:A=1748443588000908,B=1748443588000907, 23:A=1748443588001406,B=1748443588001405, 25:A=1748443588001460,B=1748443588001459, 26:A=1748443588001467,B=1748443588001466, 29:A=1748443588001715,B=1748443588001714, 32:A=1748443588001849,B=1748443588001848, 35:A=1748443588001906,B=1748443588001905, 40:A=1748443588001960,B=1748443588001959
+
+--- DIFF for timestamp 1748443588100499 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443588100499.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443588100499.bin
+- Field 'x' mismatch: max_abs_diff=1.048e+00, mean_abs_diff=2.825e-04, num_diff=4 (showing first 4 idx: 4376, 4377, 4775, 4776)
+- Field 'y' mismatch: max_abs_diff=2.338e+00, mean_abs_diff=8.184e-04, num_diff=4 (showing first 4 idx: 4376, 4377, 4775, 4776)
+- Field 'z' mismatch: max_abs_diff=2.419e-02, mean_abs_diff=5.585e-06, num_diff=4 (showing first 4 idx: 4376, 4377, 4775, 4776)
+- Field 'intensity' mismatch: max_abs_diff=5.100e+01, mean_abs_diff=1.134e-02, num_diff=4 (showing first 4 idx: 4376, 4377, 4775, 4776)
+- Field 'ring' mismatch: num_diff=4 (first indices: 4376, 4377, 4775, 4776); values: 4376:A=28,B=26, 4377:A=26,B=28, 4775:A=27,B=28, 4776:A=28,B=27
+- Field 'timestamp' mismatch: num_diff=1212 (first indices: 7, 12, 28, 32, 36, 42, 58, 60, 63, 78); values: 7:A=1748443588100746,B=1748443588100745, 12:A=1748443588100925,B=1748443588100924, 28:A=1748443588101758,B=1748443588101757, 32:A=1748443588101865,B=1748443588101864, 36:A=1748443588101955,B=1748443588101954, 42:A=1748443588102073,B=1748443588102072, 58:A=1748443588102303,B=1748443588102302, 60:A=1748443588102316,B=1748443588102315, 63:A=1748443588102372,B=1748443588102371, 78:A=1748443588102577,B=1748443588102576
+
+--- DIFF for timestamp 1748443588200512 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443588200512.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443588200512.bin
+- Field 'x' mismatch: max_abs_diff=1.678e+00, mean_abs_diff=6.342e-04, num_diff=6 (showing first 6 idx: 3035, 3036, 3865, 3866, 5223, 5224)
+- Field 'y' mismatch: max_abs_diff=1.953e+00, mean_abs_diff=6.800e-04, num_diff=6 (showing first 6 idx: 3035, 3036, 3865, 3866, 5223, 5224)
+- Field 'z' mismatch: max_abs_diff=9.936e-02, mean_abs_diff=4.313e-05, num_diff=6 (showing first 6 idx: 3035, 3036, 3865, 3866, 5223, 5224)
+- Field 'intensity' mismatch: max_abs_diff=2.900e+01, mean_abs_diff=8.288e-03, num_diff=4 (showing first 4 idx: 3035, 3036, 5223, 5224)
+- Field 'ring' mismatch: num_diff=6 (first indices: 3035, 3036, 3865, 3866, 5223, 5224); values: 3035:A=26,B=31, 3036:A=31,B=26, 3865:A=29,B=25, 3866:A=25,B=29, 5223:A=27,B=28, 5224:A=28,B=27
+- Field 'timestamp' mismatch: num_diff=1166 (first indices: 15, 25, 38, 42, 53, 58, 68, 72, 75, 79); values: 15:A=1748443588201038,B=1748443588201037, 25:A=1748443588201478,B=1748443588201477, 38:A=1748443588201978,B=1748443588201977, 42:A=1748443588202090,B=1748443588202089, 53:A=1748443588202200,B=1748443588202199, 58:A=1748443588202329,B=1748443588202328, 68:A=1748443588202478,B=1748443588202477, 72:A=1748443588202534,B=1748443588202533, 75:A=1748443588202591,B=1748443588202590, 79:A=1748443588202645,B=1748443588202644
+
+--- DIFF for timestamp 1748443588300503 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443588300503.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443588300503.bin
+- Field 'x' mismatch: max_abs_diff=8.254e+00, mean_abs_diff=2.458e-03, num_diff=10 (showing first 10 idx: 1961, 1962, 3689, 3690, 5979, 5980, 6113, 6114, 7409, 7410)
+- Field 'y' mismatch: max_abs_diff=9.864e+00, mean_abs_diff=2.358e-03, num_diff=10 (showing first 10 idx: 1961, 1962, 3689, 3690, 5979, 5980, 6113, 6114, 7409, 7410)
+- Field 'z' mismatch: max_abs_diff=1.018e+00, mean_abs_diff=2.557e-04, num_diff=10 (showing first 10 idx: 1961, 1962, 3689, 3690, 5979, 5980, 6113, 6114, 7409, 7410)
+- Field 'intensity' mismatch: max_abs_diff=3.400e+01, mean_abs_diff=1.568e-02, num_diff=8 (showing first 8 idx: 1961, 1962, 5979, 5980, 6113, 6114, 7409, 7410)
+- Field 'ring' mismatch: num_diff=10 (first indices: 1961, 1962, 3689, 3690, 5979, 5980, 6113, 6114, 7409, 7410); values: 1961:A=25,B=29, 1962:A=29,B=25, 3689:A=29,B=25, 3690:A=25,B=29, 5979:A=24,B=30, 5980:A=30,B=24, 6113:A=29,B=26, 6114:A=26,B=29, 7409:A=31,B=26, 7410:A=26,B=31
+- Field 'timestamp' mismatch: num_diff=1164 (first indices: 2, 21, 22, 28, 29, 35, 54, 60, 61, 71); values: 2:A=1748443588300564,B=1748443588300563, 21:A=1748443588301363,B=1748443588301362, 22:A=1748443588301365,B=1748443588301364, 28:A=1748443588301745,B=1748443588301744, 29:A=1748443588301802,B=1748443588301801, 35:A=1748443588301909,B=1748443588301908, 54:A=1748443588302175,B=1748443588302174, 60:A=1748443588302303,B=1748443588302302, 61:A=1748443588302310,B=1748443588302309, 71:A=1748443588302474,B=1748443588302473
+
+--- DIFF for timestamp 1748443588400499 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443588400499.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443588400499.bin
+- Field 'x' mismatch: max_abs_diff=6.945e-01, mean_abs_diff=3.318e-04, num_diff=7 (showing first 7 idx: 1578, 1579, 4573, 4574, 4617, 4618, 4619)
+- Field 'y' mismatch: max_abs_diff=8.854e-01, mean_abs_diff=3.845e-04, num_diff=7 (showing first 7 idx: 1578, 1579, 4573, 4574, 4617, 4618, 4619)
+- Field 'z' mismatch: max_abs_diff=4.684e-02, mean_abs_diff=1.460e-05, num_diff=7 (showing first 7 idx: 1578, 1579, 4573, 4574, 4617, 4618, 4619)
+- Field 'intensity' mismatch: max_abs_diff=4.300e+01, mean_abs_diff=9.585e-03, num_diff=4 (showing first 4 idx: 1578, 1579, 4617, 4619)
+- Field 'ring' mismatch: num_diff=7 (first indices: 1578, 1579, 4573, 4574, 4617, 4618, 4619); values: 1578:A=25,B=29, 1579:A=29,B=25, 4573:A=25,B=28, 4574:A=28,B=25, 4617:A=24,B=28, 4618:A=25,B=24, 4619:A=28,B=25
+- Field 'timestamp' mismatch: num_diff=1220 (first indices: 10, 16, 22, 24, 27, 30, 32, 33, 59, 66); values: 10:A=1748443588400893,B=1748443588400892, 16:A=1748443588401226,B=1748443588401225, 22:A=1748443588401393,B=1748443588401392, 24:A=1748443588401438,B=1748443588401437, 27:A=1748443588401744,B=1748443588401743, 30:A=1748443588401854,B=1748443588401853, 32:A=1748443588401906,B=1748443588401905, 33:A=1748443588401923,B=1748443588401922, 59:A=1748443588402319,B=1748443588402318, 66:A=1748443588402408,B=1748443588402407
+
+--- DIFF for timestamp 1748443588500501 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443588500501.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443588500501.bin
+- Field 'x' mismatch: max_abs_diff=1.335e+00, mean_abs_diff=1.422e-03, num_diff=14 (showing first 10 idx: 1149, 1150, 2545, 2546, 3878, 3879, 4864, 4865, 6872, 6873)
+- Field 'y' mismatch: max_abs_diff=7.179e+00, mean_abs_diff=1.721e-03, num_diff=14 (showing first 10 idx: 1149, 1150, 2545, 2546, 3878, 3879, 4864, 4865, 6872, 6873)
+- Field 'z' mismatch: max_abs_diff=2.007e+00, mean_abs_diff=4.849e-04, num_diff=14 (showing first 10 idx: 1149, 1150, 2545, 2546, 3878, 3879, 4864, 4865, 6872, 6873)
+- Field 'intensity' mismatch: max_abs_diff=6.100e+01, mean_abs_diff=4.666e-02, num_diff=14 (showing first 10 idx: 1149, 1150, 2545, 2546, 3878, 3879, 4864, 4865, 6872, 6873)
+- Field 'ring' mismatch: num_diff=14 (first indices: 1149, 1150, 2545, 2546, 3878, 3879, 4864, 4865, 6872, 6873); values: 1149:A=24,B=31, 1150:A=31,B=24, 2545:A=5,B=123, 2546:A=123,B=5, 3878:A=26,B=29, 3879:A=29,B=26, 4864:A=30,B=26, 4865:A=26,B=30, 6872:A=29,B=26, 6873:A=26,B=29
+- Field 'timestamp' mismatch: num_diff=1202 (first indices: 15, 21, 24, 45, 48, 55, 58, 64, 65, 83); values: 15:A=1748443588501062,B=1748443588501061, 21:A=1748443588501428,B=1748443588501427, 24:A=1748443588501443,B=1748443588501442, 45:A=1748443588502153,B=1748443588502152, 48:A=1748443588502182,B=1748443588502181, 55:A=1748443588502245,B=1748443588502244, 58:A=1748443588502334,B=1748443588502333, 64:A=1748443588502409,B=1748443588502408, 65:A=1748443588502410,B=1748443588502409, 83:A=1748443588502696,B=1748443588502695
+
+--- DIFF for timestamp 1748443588600502 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443588600502.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443588600502.bin
+- Field 'x' mismatch: max_abs_diff=2.212e+00, mean_abs_diff=1.121e-03, num_diff=10 (showing first 10 idx: 686, 687, 3409, 3410, 3458, 3459, 5705, 5706, 8443, 8444)
+- Field 'y' mismatch: max_abs_diff=6.027e-01, mean_abs_diff=2.645e-04, num_diff=10 (showing first 10 idx: 686, 687, 3409, 3410, 3458, 3459, 5705, 5706, 8443, 8444)
+- Field 'z' mismatch: max_abs_diff=1.326e-01, mean_abs_diff=5.650e-05, num_diff=10 (showing first 10 idx: 686, 687, 3409, 3410, 3458, 3459, 5705, 5706, 8443, 8444)
+- Field 'intensity' mismatch: max_abs_diff=2.800e+01, mean_abs_diff=1.416e-02, num_diff=10 (showing first 10 idx: 686, 687, 3409, 3410, 3458, 3459, 5705, 5706, 8443, 8444)
+- Field 'ring' mismatch: num_diff=10 (first indices: 686, 687, 3409, 3410, 3458, 3459, 5705, 5706, 8443, 8444); values: 686:A=26,B=31, 687:A=31,B=26, 3409:A=27,B=28, 3410:A=28,B=27, 3458:A=27,B=30, 3459:A=30,B=27, 5705:A=30,B=25, 5706:A=25,B=30, 8443:A=26,B=31, 8444:A=31,B=26
+- Field 'timestamp' mismatch: num_diff=1125 (first indices: 6, 15, 32, 34, 37, 38, 39, 40, 49, 69); values: 6:A=1748443588600730,B=1748443588600729, 15:A=1748443588601063,B=1748443588601062, 32:A=1748443588601910,B=1748443588601909, 34:A=1748443588601969,B=1748443588601968, 37:A=1748443588601987,B=1748443588601986, 38:A=1748443588602001,B=1748443588602000, 39:A=1748443588602025,B=1748443588602024, 40:A=1748443588602074,B=1748443588602073, 49:A=1748443588602197,B=1748443588602196, 69:A=1748443588602501,B=1748443588602500
+
+--- DIFF for timestamp 1748443588900495 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443588900495.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443588900495.bin
+- Field 'x' mismatch: max_abs_diff=2.609e+00, mean_abs_diff=8.962e-04, num_diff=11 (showing first 10 idx: 2093, 2094, 3270, 3271, 3429, 3430, 3431, 4829, 4830, 7227)
+- Field 'y' mismatch: max_abs_diff=3.959e+01, mean_abs_diff=9.515e-03, num_diff=11 (showing first 10 idx: 2093, 2094, 3270, 3271, 3429, 3430, 3431, 4829, 4830, 7227)
+- Field 'z' mismatch: max_abs_diff=5.708e+00, mean_abs_diff=1.694e-03, num_diff=11 (showing first 10 idx: 2093, 2094, 3270, 3271, 3429, 3430, 3431, 4829, 4830, 7227)
+- Field 'intensity' mismatch: max_abs_diff=6.200e+01, mean_abs_diff=2.939e-02, num_diff=8 (showing first 8 idx: 2093, 2094, 3429, 3430, 4829, 4830, 7227, 7228)
+- Field 'ring' mismatch: num_diff=11 (first indices: 2093, 2094, 3270, 3271, 3429, 3430, 3431, 4829, 4830, 7227); values: 2093:A=4,B=123, 2094:A=123,B=4, 3270:A=31,B=26, 3271:A=26,B=31, 3429:A=25,B=29, 3430:A=29,B=30, 3431:A=30,B=25, 4829:A=28,B=25, 4830:A=25,B=28, 7227:A=123,B=7
+- Field 'timestamp' mismatch: num_diff=1147 (first indices: 6, 9, 12, 13, 14, 19, 29, 37, 38, 39); values: 6:A=1748443588900723,B=1748443588900722, 9:A=1748443588900842,B=1748443588900841, 12:A=1748443588901000,B=1748443588900999, 13:A=1748443588901022,B=1748443588901021, 14:A=1748443588901049,B=1748443588901048, 19:A=1748443588901341,B=1748443588901340, 29:A=1748443588901851,B=1748443588901850, 37:A=1748443588901962,B=1748443588901961, 38:A=1748443588901980,B=1748443588901979, 39:A=1748443588902022,B=1748443588902021
+
+--- DIFF for timestamp 1748443589200519 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443589200519.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443589200519.bin
+- Field 'x' mismatch: max_abs_diff=1.082e+00, mean_abs_diff=4.993e-04, num_diff=10 (showing first 10 idx: 1863, 1864, 2891, 2892, 3163, 3164, 8432, 8433, 8596, 8597)
+- Field 'y' mismatch: max_abs_diff=7.537e-01, mean_abs_diff=4.962e-04, num_diff=10 (showing first 10 idx: 1863, 1864, 2891, 2892, 3163, 3164, 8432, 8433, 8596, 8597)
+- Field 'z' mismatch: max_abs_diff=3.791e-02, mean_abs_diff=2.071e-05, num_diff=10 (showing first 10 idx: 1863, 1864, 2891, 2892, 3163, 3164, 8432, 8433, 8596, 8597)
+- Field 'intensity' mismatch: max_abs_diff=2.600e+01, mean_abs_diff=1.153e-02, num_diff=10 (showing first 10 idx: 1863, 1864, 2891, 2892, 3163, 3164, 8432, 8433, 8596, 8597)
+- Field 'ring' mismatch: num_diff=10 (first indices: 1863, 1864, 2891, 2892, 3163, 3164, 8432, 8433, 8596, 8597); values: 1863:A=28,B=25, 1864:A=25,B=28, 2891:A=29,B=27, 2892:A=27,B=29, 3163:A=24,B=29, 3164:A=29,B=24, 8432:A=25,B=30, 8433:A=30,B=25, 8596:A=26,B=31, 8597:A=31,B=26
+- Field 'timestamp' mismatch: num_diff=1244 (first indices: 3, 21, 29, 37, 44, 45, 56, 58, 66, 71); values: 3:A=1748443589200585,B=1748443589200584, 21:A=1748443589201450,B=1748443589201449, 29:A=1748443589201877,B=1748443589201876, 37:A=1748443589201990,B=1748443589201989, 44:A=1748443589202152,B=1748443589202151, 45:A=1748443589202165,B=1748443589202164, 56:A=1748443589202323,B=1748443589202322, 58:A=1748443589202346,B=1748443589202345, 66:A=1748443589202441,B=1748443589202440, 71:A=1748443589202548,B=1748443589202547
+
+--- DIFF for timestamp 1748443589300472 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443589300472.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443589300472.bin
+- Field 'x' mismatch: max_abs_diff=8.328e-01, mean_abs_diff=3.836e-04, num_diff=8 (showing first 8 idx: 1687, 1688, 3128, 3129, 4209, 4210, 4997, 4998)
+- Field 'y' mismatch: max_abs_diff=8.587e-01, mean_abs_diff=4.642e-04, num_diff=8 (showing first 8 idx: 1687, 1688, 3128, 3129, 4209, 4210, 4997, 4998)
+- Field 'z' mismatch: max_abs_diff=4.275e-02, mean_abs_diff=2.111e-05, num_diff=8 (showing first 8 idx: 1687, 1688, 3128, 3129, 4209, 4210, 4997, 4998)
+- Field 'intensity' mismatch: max_abs_diff=5.700e+01, mean_abs_diff=1.370e-02, num_diff=6 (showing first 6 idx: 1687, 1688, 3128, 3129, 4997, 4998)
+- Field 'ring' mismatch: num_diff=8 (first indices: 1687, 1688, 3128, 3129, 4209, 4210, 4997, 4998); values: 1687:A=25,B=31, 1688:A=31,B=25, 3128:A=31,B=26, 3129:A=26,B=31, 4209:A=26,B=29, 4210:A=29,B=26, 4997:A=27,B=30, 4998:A=30,B=27
+- Field 'timestamp' mismatch: num_diff=1142 (first indices: 10, 14, 17, 18, 33, 34, 57, 67, 77, 94); values: 10:A=1748443589300895,B=1748443589300894, 14:A=1748443589301022,B=1748443589301021, 17:A=1748443589301290,B=1748443589301289, 18:A=1748443589301300,B=1748443589301299, 33:A=1748443589301874,B=1748443589301873, 34:A=1748443589301905,B=1748443589301904, 57:A=1748443589302290,B=1748443589302289, 67:A=1748443589302407,B=1748443589302406, 77:A=1748443589302579,B=1748443589302578, 94:A=1748443589302862,B=1748443589302861
+
+--- DIFF for timestamp 1748443589400496 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443589400496.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443589400496.bin
+- Field 'x' mismatch: max_abs_diff=2.470e+00, mean_abs_diff=1.151e-03, num_diff=10 (showing first 10 idx: 1214, 1215, 1263, 1264, 4257, 4258, 6215, 6216, 8649, 8650)
+- Field 'y' mismatch: max_abs_diff=1.844e+00, mean_abs_diff=4.928e-04, num_diff=10 (showing first 10 idx: 1214, 1215, 1263, 1264, 4257, 4258, 6215, 6216, 8649, 8650)
+- Field 'z' mismatch: max_abs_diff=1.009e-01, mean_abs_diff=3.980e-05, num_diff=10 (showing first 10 idx: 1214, 1215, 1263, 1264, 4257, 4258, 6215, 6216, 8649, 8650)
+- Field 'intensity' mismatch: max_abs_diff=5.100e+01, mean_abs_diff=2.716e-02, num_diff=8 (showing first 8 idx: 1214, 1215, 1263, 1264, 6215, 6216, 8649, 8650)
+- Field 'ring' mismatch: num_diff=10 (first indices: 1214, 1215, 1263, 1264, 4257, 4258, 6215, 6216, 8649, 8650); values: 1214:A=26,B=31, 1215:A=31,B=26, 1263:A=25,B=31, 1264:A=31,B=25, 4257:A=30,B=26, 4258:A=26,B=30, 6215:A=27,B=29, 6216:A=29,B=27, 8649:A=30,B=27, 8650:A=27,B=30
+- Field 'timestamp' mismatch: num_diff=1230 (first indices: 6, 9, 16, 31, 36, 48, 60, 89, 96, 97); values: 6:A=1748443589400713,B=1748443589400712, 9:A=1748443589400859,B=1748443589400858, 16:A=1748443589401245,B=1748443589401244, 31:A=1748443589401842,B=1748443589401841, 36:A=1748443589401939,B=1748443589401938, 48:A=1748443589402132,B=1748443589402131, 60:A=1748443589402324,B=1748443589402323, 89:A=1748443589402793,B=1748443589402792, 96:A=1748443589402899,B=1748443589402898, 97:A=1748443589402930,B=1748443589402929
+
+--- DIFF for timestamp 1748443589500517 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443589500517.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443589500517.bin
+- Field 'x' mismatch: max_abs_diff=1.010e+00, mean_abs_diff=7.037e-04, num_diff=8 (showing first 8 idx: 3108, 3109, 4238, 4239, 4380, 4381, 8519, 8520)
+- Field 'y' mismatch: max_abs_diff=1.272e+00, mean_abs_diff=6.952e-04, num_diff=8 (showing first 8 idx: 3108, 3109, 4238, 4239, 4380, 4381, 8519, 8520)
+- Field 'z' mismatch: max_abs_diff=6.820e-02, mean_abs_diff=2.522e-05, num_diff=8 (showing first 8 idx: 3108, 3109, 4238, 4239, 4380, 4381, 8519, 8520)
+- Field 'intensity' mismatch: max_abs_diff=5.100e+01, mean_abs_diff=1.326e-02, num_diff=8 (showing first 8 idx: 3108, 3109, 4238, 4239, 4380, 4381, 8519, 8520)
+- Field 'ring' mismatch: num_diff=8 (first indices: 3108, 3109, 4238, 4239, 4380, 4381, 8519, 8520); values: 3108:A=24,B=31, 3109:A=31,B=24, 4238:A=27,B=29, 4239:A=29,B=27, 4380:A=25,B=29, 4381:A=29,B=25, 8519:A=27,B=29, 8520:A=29,B=27
+- Field 'timestamp' mismatch: num_diff=1261 (first indices: 10, 15, 19, 22, 30, 36, 39, 40, 41, 42); values: 10:A=1748443589500922,B=1748443589500921, 15:A=1748443589501262,B=1748443589501261, 19:A=1748443589501351,B=1748443589501350, 22:A=1748443589501428,B=1748443589501427, 30:A=1748443589501863,B=1748443589501862, 36:A=1748443589501957,B=1748443589501956, 39:A=1748443589501989,B=1748443589501988, 40:A=1748443589502037,B=1748443589502036, 41:A=1748443589502055,B=1748443589502054, 42:A=1748443589502086,B=1748443589502085
+
+--- DIFF for timestamp 1748443589600519 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443589600519.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443589600519.bin
+- Field 'x' mismatch: max_abs_diff=7.796e+00, mean_abs_diff=2.281e-03, num_diff=8 (showing first 8 idx: 2946, 2947, 5213, 5214, 5935, 5936, 6040, 6041)
+- Field 'y' mismatch: max_abs_diff=7.946e+00, mean_abs_diff=2.256e-03, num_diff=8 (showing first 8 idx: 2946, 2947, 5213, 5214, 5935, 5936, 6040, 6041)
+- Field 'z' mismatch: max_abs_diff=8.780e-01, mean_abs_diff=2.540e-04, num_diff=8 (showing first 8 idx: 2946, 2947, 5213, 5214, 5935, 5936, 6040, 6041)
+- Field 'intensity' mismatch: max_abs_diff=5.400e+01, mean_abs_diff=1.588e-02, num_diff=8 (showing first 8 idx: 2946, 2947, 5213, 5214, 5935, 5936, 6040, 6041)
+- Field 'ring' mismatch: num_diff=8 (first indices: 2946, 2947, 5213, 5214, 5935, 5936, 6040, 6041); values: 2946:A=31,B=25, 2947:A=25,B=31, 5213:A=30,B=25, 5214:A=25,B=30, 5935:A=24,B=28, 5936:A=28,B=24, 6040:A=24,B=30, 6041:A=30,B=24
+- Field 'timestamp' mismatch: num_diff=1177 (first indices: 6, 21, 25, 26, 47, 56, 59, 69, 84, 85); values: 6:A=1748443589600751,B=1748443589600750, 21:A=1748443589601448,B=1748443589601447, 25:A=1748443589601511,B=1748443589601510, 26:A=1748443589601754,B=1748443589601753, 47:A=1748443589602164,B=1748443589602163, 56:A=1748443589602254,B=1748443589602253, 59:A=1748443589602345,B=1748443589602344, 69:A=1748443589602500,B=1748443589602499, 84:A=1748443589602759,B=1748443589602758, 85:A=1748443589602759,B=1748443589602758
+
+--- DIFF for timestamp 1748443589700522 ---
+OUTPUT:   /home/samqiao/ASRL/fomo-public-sdk/output/rslidar128/1748443589700522.bin
+SOLUTION: /home/samqiao/ASRL/fomo-public-sdk/solution/red3/rslidar128/1748443589700522.bin
+- Field 'x' mismatch: max_abs_diff=1.460e+00, mean_abs_diff=1.456e-03, num_diff=20 (showing first 10 idx: 64, 65, 634, 635, 636, 974, 975, 1570, 1571, 2212)
+- Field 'y' mismatch: max_abs_diff=4.436e+00, mean_abs_diff=1.600e-03, num_diff=20 (showing first 10 idx: 64, 65, 634, 635, 636, 974, 975, 1570, 1571, 2212)
+- Field 'z' mismatch: max_abs_diff=2.742e-01, mean_abs_diff=1.036e-04, num_diff=20 (showing first 10 idx: 64, 65, 634, 635, 636, 974, 975, 1570, 1571, 2212)
+- Field 'intensity' mismatch: max_abs_diff=5.300e+01, mean_abs_diff=3.480e-02, num_diff=19 (showing first 10 idx: 64, 65, 635, 636, 974, 975, 1570, 1571, 2212, 2213)
+- Field 'ring' mismatch: num_diff=20 (first indices: 64, 65, 634, 635, 636, 974, 975, 1570, 1571, 2212); values: 64:A=30,B=24, 65:A=24,B=30, 634:A=25,B=30, 635:A=27,B=25, 636:A=30,B=27, 974:A=28,B=27, 975:A=27,B=28, 1570:A=24,B=31, 1571:A=31,B=24, 2212:A=26,B=30
+- Field 'timestamp' mismatch: num_diff=1195 (first indices: 16, 19, 40, 41, 43, 45, 56, 65, 69, 75); values: 16:A=1748443589701277,B=1748443589701276, 19:A=1748443589701364,B=1748443589701363, 40:A=1748443589702057,B=1748443589702056, 41:A=1748443589702088,B=1748443589702087, 43:A=1748443589702108,B=1748443589702107, 45:A=1748443589702159,B=1748443589702158, 56:A=1748443589702263,B=1748443589702262, 65:A=1748443589702426,B=1748443589702425, 69:A=1748443589702502,B=1748443589702501, 75:A=1748443589702620,B=1748443589702619
