@@ -719,7 +719,7 @@ class BagToDir():
                     # raw data here should be consistent with float64 only a problem becayse the type is wrong in the rosbag
                     raw = data[:, offset:offset + num_bytes].ravel()
                     col = np.frombuffer(raw, dtype=ls_lidar_ts_type)
-                    arr[name] = (nano_timestamp + col.astype(ls_lidar_ts_type)*1000_000_000).astype(np.uint64) // 1_000
+                    arr[name] = ((np.uint64(nano_timestamp) + (col*1000_000_000).astype(np.uint64)) // 1_000).astype(np.uint64) # in microseconds # (here matej does 1e9 as int) then / 1_000
                 else:
                     raw = data[:, offset:offset + num_bytes].ravel()
                     col = np.frombuffer(raw, dtype=type)
