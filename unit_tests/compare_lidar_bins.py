@@ -26,7 +26,7 @@ def setup_logger(log_path: str):
 
 DEFAULT_OUTPUT_ROOT   = os.path.join(os.getcwd(), "output")
 DEFAULT_SOLUTION_ROOT = os.path.join(os.getcwd(), "solution", "red3")
-DEFAULT_VERIFY_RSLIDAR = True  # True: rslidar128, False: lslidar128
+DEFAULT_VERIFY_RSLIDAR = False  # True: rslidar128, False: lslidar128
 
 POINT_DTYPE = np.dtype([
     ('x',         np.float32),

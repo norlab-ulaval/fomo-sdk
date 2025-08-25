@@ -694,7 +694,7 @@ class BagToDir():
 
             timestamp = msg.header.stamp
             nano_timestamp = timestamp.sec * 1_000_000_000 + timestamp.nanosec # original timestamp in nano secs
-            micro_timestamp = np.uint64(nano_timestamp // 1_000)
+            micro_timestamp = np.floor(np.uint64(nano_timestamp) // 1_000).astype(np.uint64) # added here to be consistent with matej (otherwise will miss by 1 sometimes)
 
                # 3) View the buffer as that structured array
             data = np.frombuffer(msg.data, dtype=np.uint8).reshape(-1,msg.point_step)
@@ -719,7 +719,7 @@ class BagToDir():
                     # raw data here should be consistent with float64 only a problem becayse the type is wrong in the rosbag
                     raw = data[:, offset:offset + num_bytes].ravel()
                     col = np.frombuffer(raw, dtype=ls_lidar_ts_type)
-                    arr[name] = ((nano_timestamp + col.astype(ls_lidar_ts_type)*1000_000_000)//1_000).astype(np.uint64) 
+                    arr[name] = (nano_timestamp + col.astype(ls_lidar_ts_type)*1000_000_000).astype(np.uint64) // 1_000
                 else:
                     raw = data[:, offset:offset + num_bytes].ravel()
                     col = np.frombuffer(raw, dtype=type)
@@ -781,7 +781,7 @@ class BagToDir():
                 col = np.frombuffer(raw, dtype=type)
 
                 if name == 'timestamp':
-                    arr[name] = (col * 1_000_000).astype(np.uint64) # in microseconds # (here matej does 1e9 as int) then / 1_000
+                    arr[name] = ((col * 1_000_000_000) // 1_000).astype(np.uint64) # in microseconds # (here matej does 1e9 as int) then / 1_000
                 else:
                     arr[name] = col
 
@@ -791,7 +791,7 @@ class BagToDir():
                 arr = arr[mask]
 
             # print("10 data:", arr[0:50])
-            export_timestamp = np.min(arr['timestamp']).astype(np.uint64) # microseconds # first point timestamp
+            export_timestamp = np.min(arr['timestamp']) # microseconds # first point timestamp
 
             # Save to binary file
             bin_filename = os.path.join(output_dir, f'{export_timestamp}.bin')
