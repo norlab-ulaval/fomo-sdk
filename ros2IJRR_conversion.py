@@ -866,12 +866,12 @@ class BagToDir():
             h,w = img.shape[:2]
 
             # define camera intrinsic matrices
-            K_cal = np.array([[734.789,   0.    , 930.358],
-                        [  0.    , 734.854, 606.359],
-                        [  0.    ,   0.   ,   1.   ]], dtype=np.float64)
-            D_cal = np.array([-0.0107462, -0.0354004, -0.00023542, 0.000173096, 0.00980669],
-                        dtype=np.float64)
-            
+            K_cal = np.array([[376.31326302, 0. , 936.33256844],
+                        [ 0. , 376.31326302, 628.93459367],
+                        [ 0. , 0. , 1. ]], dtype=np.float64)
+            D_cal = np.array([0.00840481, -0.00601427, -0.00062722, 0.0007329, 0.00042214],
+                        dtype=np.float64) # updated camera intrinsic parameters
+
             newK, roi = cv2.getOptimalNewCameraMatrix(K_cal, D_cal, (w, h), alpha=0)
             undist = cv2.undistort(img, K_cal, D_cal, None, newK)
 
