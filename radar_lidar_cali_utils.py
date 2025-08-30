@@ -263,3 +263,58 @@ def icp_multistage(radar_pts, lidar_pts, T_init=None, crop_margin=2.0, verbose=T
         print("Fitness:", reg_eval.fitness, "RMSE:", reg_eval.inlier_rmse)
 
     return T, float(reg_eval.fitness), float(reg_eval.inlier_rmse)
+
+
+# for multi-frame ICP where we take the mean of the output se3 pose
+def se3_log(T):
+    R = T[:3,:3]; t = T[:3,3]
+    theta = np.arccos(np.clip((np.trace(R)-1)/2, -1, 1))
+    if theta < 1e-9:
+        w = np.zeros(3); V_inv = np.eye(3)
+    else:
+        wx = (1/(2*np.sin(theta))) * np.array([
+            R[2,1]-R[1,2], R[0,2]-R[2,0], R[1,0]-R[0,1]
+        ])
+        w = theta * wx
+        A = np.sin(theta)/theta
+        B = (1-np.cos(theta))/(theta**2)
+        V_inv = np.eye(3) - 0.5*skew(w) + (1/(theta**2))*(1 - A/(2*B))*(skew(w)@skew(w))
+    v = V_inv @ t
+    return np.r_[v, w]
+
+def se3_exp(xi):
+    v, w = xi[:3], xi[3:]
+    th = np.linalg.norm(w)
+    if th < 1e-9:
+        R = np.eye(3); V = np.eye(3)
+    else:
+        k = w/th
+        K = skew(k)
+        R = np.eye(3) + np.sin(th)*K + (1-np.cos(th))*(K@K)
+        A = np.sin(th)/th
+        B = (1-np.cos(th))/(th**2)
+        V = np.eye(3) + B*(K) + ((1-A)/ (th**2))*(K@K)
+    T = np.eye(4); T[:3,:3]=R; T[:3,3]=V@v
+    return T
+
+def skew(w): 
+    return np.array([[0,-w[2],w[1]],[w[2],0,-w[0]],[-w[1],w[0],0]])
+
+def se3_mean(T_list, iters=10):
+    X = np.eye(4)
+    for _ in range(iters):
+        xi_sum = np.zeros(6)
+        for T in T_list:
+            delta = np.linalg.inv(X) @ T
+            xi_sum += se3_log(delta)
+        X = X @ se3_exp(xi_sum/len(T_list))
+    return X
+
+# usage:
+# Ts = []
+# for (radar_xy_k, lidar_xyz_k) in submaps:
+#     T_k, fit_k, rmse_k = icp_refine_robust(radar_xy_k, lidar_xyz_k, T_init)
+#     Ts.append(T_k)
+# T_avg = se3_mean(Ts)
+# print("Averaged T_lidar<-radar:\n", T_avg)
+

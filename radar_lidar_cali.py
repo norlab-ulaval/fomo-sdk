@@ -210,22 +210,32 @@ if __name__ == "__main__":
 
     nb_radar_msgs = polar.shape[0]
 
+    T_icp = []
+
+
     for radar_idx in range(nb_radar_msgs):
-        polar = polar[radar_idx]
+        print("processing radar_idx:", radar_idx)
+        polar_img = polar[radar_idx]
         azimuth = azimuths[radar_idx]
         timestamp = timestamps[radar_idx]
-        msg_timestamp = msg_timestamp[radar_idx]
+        radar_msg_timestamp = msg_timestamp[radar_idx]
+
+        print("shape info")
+        print("polar shape:", polar_img.shape)
+        print("azimuth shape:", azimuth.shape)
+        print("timestamp shape:", timestamp.shape)
+        print("radar_msg_timestamp shape:", radar_msg_timestamp.shape)
 
         if DISPLAY:
             # lets viusalize the polar img in grey scale
-            plt.imshow(polar, cmap='gray')
+            plt.imshow(polar_img, cmap='gray')
             plt.colorbar()
             plt.title(f'Polar Image at Timestamp: {timestamp[radar_idx]}')
             plt.xlabel('Range Bin')
             plt.show()
 
         # lets extract points from the polar img
-        k_strong_targets = KStrong(polar,minr=2,maxr=300,res=radar_resolution, K=8, static_threshold=0.30)
+        k_strong_targets = KStrong(polar_img,minr=2,maxr=300,res=radar_resolution, K=8, static_threshold=0.30)
 
         radar_pts = []
 
@@ -235,7 +245,7 @@ if __name__ == "__main__":
             
             x = range_idx * radar_resolution * math.cos(2 * math.pi * azimuth[azimuth_idx] / encoder_size)
             y = range_idx * radar_resolution * math.sin(2 * math.pi * azimuth[azimuth_idx] / encoder_size)
-            intensity = polar[azimuth_idx, range_idx]
+            intensity = polar_img[azimuth_idx, range_idx]
 
             radar_pts.append([x,y,intensity])
 
@@ -243,7 +253,7 @@ if __name__ == "__main__":
         radar_pts = radar_pts[:,0:2]
 
 
-        radar_cart_img = pb.utils.radar.radar_polar_to_cartesian(azimuth/encoder_size*2*np.pi,polar,radar_resolution,cart_resolution=0.224,cart_pixel_width=3000)
+        radar_cart_img = pb.utils.radar.radar_polar_to_cartesian(azimuth/encoder_size*2*np.pi,polar_img,radar_resolution,cart_resolution=0.224,cart_pixel_width=3000)
 
         print(f'Radar points shape: {radar_pts.shape}')
 
@@ -263,7 +273,7 @@ if __name__ == "__main__":
         # print(f'K-strong targets shape: {k_strong_targets.shape}')
 
 
-        closest_lidar_timestamp = min(lidar_timestamp2pts.keys(), key=lambda x: abs(x - msg_timestamp))
+        closest_lidar_timestamp = min(lidar_timestamp2pts.keys(), key=lambda x: abs(x - radar_msg_timestamp))
         lidar_pts = lidar_timestamp2pts[closest_lidar_timestamp]
 
         # lets remove ground in the lidar pts
@@ -309,5 +319,12 @@ if __name__ == "__main__":
         print("Δt (m):", dt, "  ‖Δt‖ =", np.linalg.norm(dt), "m")
         print("ΔR (deg):", angle)
 
-        break # can unbreak it if using multiple frames
+        T_icp.append(T_ref)
+
+        if radar_idx == 5:
+            T_avg = se3_mean(T_icp)
+            print("Averaged T_icp:\n", T_avg)
+            break # can unbreak it if using multiple frames
+
+
 
