@@ -160,6 +160,12 @@ def KStrong(
 
 
 import open3d as o3d
+import matplotlib.pyplot as plt
+
+def apply_T(T, P):
+    P = np.asarray(P, dtype=np.float64)
+    return (P @ T[:3, :3].T) + T[:3, 3]
+
 def icp_multistage(radar_pts, lidar_pts, T_init=None, crop_margin=2.0, verbose=True):
     """
     Multi-stage ICP to estimate T_lidar<-radar.
@@ -176,13 +182,6 @@ def icp_multistage(radar_pts, lidar_pts, T_init=None, crop_margin=2.0, verbose=T
            - Switch to point-to-plane after “contact”.
       4) Return refined T, fitness, rmse (Open3D definitions).
     """
-    import numpy as np
-    import open3d as o3d
-
-    def apply_T(T, P):
-        P = np.asarray(P, dtype=np.float64)
-        return (P @ T[:3, :3].T) + T[:3, 3]
-
     def to_o3d_pcd(P, estimate_normals=False, voxel=None):
         pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(np.asarray(P, dtype=np.float64)))
         if voxel and voxel > 0.0:
@@ -310,11 +309,85 @@ def se3_mean(T_list, iters=10):
         X = X @ se3_exp(xi_sum/len(T_list))
     return X
 
-# usage:
-# Ts = []
-# for (radar_xy_k, lidar_xyz_k) in submaps:
-#     T_k, fit_k, rmse_k = icp_refine_robust(radar_xy_k, lidar_xyz_k, T_init)
-#     Ts.append(T_k)
-# T_avg = se3_mean(Ts)
-# print("Averaged T_lidar<-radar:\n", T_avg)
+# checking alignement visualization
+def to_pcd(P, color=None, voxel=None, normals=False):
+    P = np.asarray(P, float)
+    pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(P))
+    if voxel and voxel > 0:
+        pcd = pcd.voxel_down_sample(voxel)
+    if color is not None:
+        pcd.paint_uniform_color(color)
+    if normals:
+        pcd.estimate_normals(o3d.geometry.KDTreeSearchParamKNN(knn=30))
+        pcd.orient_normals_consistent_tangent_plane(k=30)
+    return pcd
+
+def visualize_alignment_3d(radar_xy, lidar_xyz, T,
+                           voxel_lidar=0.05, voxel_radar=0.03, point_size=2.0,
+                           margin=1.0):
+    # Lift radar to z=0 and transform into LiDAR frame
+    radar_xyz = np.c_[np.asarray(radar_xy, float)[:, 0],
+                      np.asarray(radar_xy, float)[:, 1],
+                      np.zeros(len(radar_xy))]
+    radar_L = apply_T(np.asarray(T, float), radar_xyz)
+
+    # Build colored point clouds (optional downsample for speed)
+    lidar_pcd = to_pcd(lidar_xyz, color=[0.6, 0.6, 0.6], voxel=voxel_lidar)
+    radar_pcd = to_pcd(radar_L,    color=[1.0, 0.1, 0.1], voxel=voxel_radar)
+
+    axes = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0)
+
+    vis = o3d.visualization.Visualizer()
+    vis.create_window(window_name="Radar→LiDAR Alignment", width=1280, height=800, visible=True)
+    for g in [lidar_pcd, radar_pcd, axes]:
+        vis.add_geometry(g)
+
+    # Rendering options
+    opt = vis.get_render_option()
+    opt.point_size = float(point_size)
+    opt.background_color = np.array([1, 1, 1])  # white bg
+
+    # Compute a combined AABB and inflate it manually (no .expand())
+    aabb_L = lidar_pcd.get_axis_aligned_bounding_box()
+    aabb_R = radar_pcd.get_axis_aligned_bounding_box()
+    minb = np.minimum(aabb_L.get_min_bound(), aabb_R.get_min_bound()) - margin
+    maxb = np.maximum(aabb_L.get_max_bound(), aabb_R.get_max_bound()) + margin
+    combo = o3d.geometry.AxisAlignedBoundingBox(minb, maxb)
+
+    ctr = vis.get_view_control()
+    ctr.set_lookat(combo.get_center())
+    ctr.set_up([0, 0, 1])          # z-up
+    ctr.set_front([ -0.5, -0.5, -1 ])  # a reasonable viewing direction
+
+    # Set a zoom that scales with scene extent
+    extent = np.linalg.norm(combo.get_extent())
+    ctr.set_zoom(0.8 if extent < 20 else 0.9)
+
+    print("[Viz] LiDAR points (shown):", np.asarray(lidar_pcd.points).shape[0])
+    print("[Viz] Radar→LiDAR points (shown):", np.asarray(radar_pcd.points).shape[0])
+
+    vis.run()
+    vis.destroy_window()
+
+def visualize_xy_overlay(radar_xy, lidar_xyz, T, lidar_subsample=100000, radar_size=6, lidar_size=0.5):
+    """
+    Quick 2D XY plot (LiDAR XY in gray, radar→LiDAR XY in red).
+    """
+    radar_xyz = np.c_[np.asarray(radar_xy, float)[:,0], np.asarray(radar_xy, float)[:,1], np.zeros(len(radar_xy))]
+    radar_L = apply_T(np.asarray(T, float), radar_xyz)
+
+    L = np.asarray(lidar_xyz, float)
+    if L.shape[0] > lidar_subsample:
+        idx = np.random.choice(L.shape[0], lidar_subsample, replace=False)
+        L = L[idx]
+
+    plt.figure(figsize=(7,7))
+    plt.scatter(L[:,0], L[:,1], s=lidar_size, c='#999999', alpha=0.3, label="LiDAR XY")
+    plt.scatter(radar_L[:,0], radar_L[:,1], s=radar_size, c='r', alpha=0.9, label="Radar→LiDAR XY")
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.title("XY Overlay (after T_lidar<-radar)")
+    plt.legend(loc='upper right')
+    plt.grid(True, alpha=0.2)
+    plt.tight_layout()
+    plt.show()
 

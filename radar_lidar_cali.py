@@ -177,6 +177,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     DISPLAY = False
+    VISUALIZE = False
     # from navtech to rslidar
     T_lidar_radar_initial = np.array([[1,0,0,0.891],
                                 [0,-1,0,0],
@@ -235,7 +236,7 @@ if __name__ == "__main__":
             plt.show()
 
         # lets extract points from the polar img
-        k_strong_targets = KStrong(polar_img,minr=2,maxr=300,res=radar_resolution, K=8, static_threshold=0.30)
+        k_strong_targets = KStrong(polar_img,minr=2,maxr=300,res=radar_resolution, K=10, static_threshold=0.25)
 
         radar_pts = []
 
@@ -321,10 +322,16 @@ if __name__ == "__main__":
 
         T_icp.append(T_ref)
 
-        if radar_idx == 5:
+        if radar_idx == 10:
             T_avg = se3_mean(T_icp)
             print("Averaged T_icp:\n", T_avg)
             break # can unbreak it if using multiple frames
 
 
+
+    # check alignment
+    if VISUALIZE:
+        visualize_xy_overlay(radar_pts, lidar_pts_no_ground, T_avg)
+
+        visualize_alignment_3d(radar_pts, lidar_pts_no_ground, T_avg,voxel_lidar=0.05, voxel_radar=0.03, point_size=2.0)
 
