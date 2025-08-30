@@ -183,7 +183,7 @@ if __name__ == "__main__":
                                 [0,0,-1,0.121],
                                 [0,0,0,1]])
     # CIR-304H radar parameters
-    radar_resolution = 0.044
+    radar_resolution = 0.043809514
     encoder_size = 5600
     num_of_range_bins = 6848
     max_range = 330
@@ -213,7 +213,7 @@ if __name__ == "__main__":
     T_icp = []
 
 
-    for radar_idx in range(nb_radar_msgs):
+    for radar_idx in range(0, nb_radar_msgs):
         print("processing radar_idx:", radar_idx)
         polar_img = polar[radar_idx]
         azimuth = azimuths[radar_idx]
