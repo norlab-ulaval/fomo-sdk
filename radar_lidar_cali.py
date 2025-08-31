@@ -7,6 +7,7 @@ import argparse
 from rosbags.rosbag2 import Reader
 from rosbags.typesys import get_typestore, Stores, get_types_from_msg
 from rosbags.serde import deserialize_cdr
+import torch
 import tqdm
 from utils import *
 
@@ -172,12 +173,21 @@ def extract_lidar_from_bag(bag_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Calibrate radar and lidar data.")
-    parser.add_argument("--radar_bag", type=Path, default= "/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/radar-lidar/radar_lidar_calib_2025_08_26-10_16_46", help="Path to the radar ROS bag file.")
-    parser.add_argument("--lidar_bag", type=Path,default = "/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/radar-lidar/radar_lidar_calib_2025_08_26-10_16_46", help="Path to the lidar ROS bag file.")
+    parser.add_argument("--bag_dir", type=Path, default= "/home/samqiao/ASRL/fomo-public-sdk/raw_fomo_rosbags/static", help="Path to the radar ROS bag file.")
     args = parser.parse_args()
 
-    DISPLAY = False
-    VISUALIZE = False
+    bag_dir = args.bag_dir
+
+    # I want to see the subfolders within the parent folder
+    subfolders = [f for f in bag_dir.iterdir() if f.is_dir()]
+    print("Subfolders:")
+    for subfolder in subfolders:
+        print(f" - {subfolder.name}")
+
+    T_final = [] # stores the final result
+
+    DISPLAY = True
+    VISUALIZE = True
     # from navtech to rslidar
     T_lidar_radar_initial = np.array([[1,0,0,0.891],
                                 [0,-1,0,0],
@@ -187,151 +197,188 @@ if __name__ == "__main__":
     radar_resolution = 0.043809514
     encoder_size = 5600
     num_of_range_bins = 6848
-    max_range = 330
+    max_range = 300
 
-
-    # extract radar info
-    polar, azimuths, timestamps , msg_timestamp = extract_radar_from_bag(args.radar_bag, RADAR_SCAN_MSG)
-    # verify the shape
-    print(f'Polar shape: {polar.shape}, Azimuths shape: {azimuths.shape}, Timestamps shape: {timestamps.shape}, Msg timestamp: {msg_timestamp.shape}')
-
-
-    # extract lidar info
-    lidar_timestamp2pts = extract_lidar_from_bag(args.lidar_bag)
-    # the length of the dictionary is
-    print(f'Lidar timestamp to points dictionary length: {len(lidar_timestamp2pts)}')
-
-
-    keys_time_stamps = list(lidar_timestamp2pts.keys())
-
-    # verify the shape
-    print(f'Example lidar points shape: {lidar_timestamp2pts[keys_time_stamps[0]].shape}')
-
-    # lets do one frame 
-
-    nb_radar_msgs = polar.shape[0]
-
-    T_icp = []
-
-
-    for radar_idx in range(0, nb_radar_msgs):
-        print("processing radar_idx:", radar_idx)
-        polar_img = polar[radar_idx]
-        azimuth = azimuths[radar_idx]
-        timestamp = timestamps[radar_idx]
-        radar_msg_timestamp = msg_timestamp[radar_idx]
-
-        print("shape info")
-        print("polar shape:", polar_img.shape)
-        print("azimuth shape:", azimuth.shape)
-        print("timestamp shape:", timestamp.shape)
-        print("radar_msg_timestamp shape:", radar_msg_timestamp.shape)
-
-        if DISPLAY:
-            # lets viusalize the polar img in grey scale
-            plt.imshow(polar_img, cmap='gray')
-            plt.colorbar()
-            plt.title(f'Polar Image at Timestamp: {timestamp[radar_idx]}')
-            plt.xlabel('Range Bin')
-            plt.show()
-
-        # lets extract points from the polar img
-        k_strong_targets = KStrong(polar_img,minr=2,maxr=300,res=radar_resolution, K=10, static_threshold=0.25)
-
-        radar_pts = []
-
-        for target in k_strong_targets:
-            azimuth_idx = target[0]
-            range_idx = target[1]
-            
-            x = range_idx * radar_resolution * math.cos(2 * math.pi * azimuth[azimuth_idx] / encoder_size)
-            y = range_idx * radar_resolution * math.sin(2 * math.pi * azimuth[azimuth_idx] / encoder_size)
-            intensity = polar_img[azimuth_idx, range_idx]
-
-            radar_pts.append([x,y,intensity])
-
-        radar_pts = np.array(radar_pts)
-        radar_pts = radar_pts[:,0:2]
-
-
-        radar_cart_img = pb.utils.radar.radar_polar_to_cartesian(azimuth/encoder_size*2*np.pi,polar_img,radar_resolution,cart_resolution=0.224,cart_pixel_width=3000)
-
-        print(f'Radar points shape: {radar_pts.shape}')
-
-        # to visualize the radar_pts in 2d and its correponding cart image on the side
-        if DISPLAY:
-            plt.subplot(1, 2, 1)
-            plt.scatter(radar_pts[:, 0], radar_pts[:, 1], cmap='gray')
-            plt.xlabel('X')
-            plt.ylabel('Y')
-   
-
-            plt.subplot(1, 2, 2)
-            plt.imshow(radar_cart_img, cmap='gray')
-            plt.show()
-
-
-        # print(f'K-strong targets shape: {k_strong_targets.shape}')
-
-
-        closest_lidar_timestamp = min(lidar_timestamp2pts.keys(), key=lambda x: abs(x - radar_msg_timestamp))
-        lidar_pts = lidar_timestamp2pts[closest_lidar_timestamp]
-
-        # lets remove ground in the lidar pts
-        pc = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(lidar_pts))
-        plane, inliers = pc.segment_plane(0.05, 3, 2000)  # 5cm threshold
-        lidar_pts_no_ground = np.asarray(pc.select_by_index(inliers, invert=True).points)
-
-        print(f'Lidar points shape: {lidar_pts.shape}')
-        print(f'Lidar points no ground shape: {lidar_pts_no_ground.shape}')
-
-        # visualize lidar pts in 3d using matplot lib
-        if DISPLAY:
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection='3d')
-            ax.scatter(lidar_pts[:,0], lidar_pts[:,1], lidar_pts[:,2], c='gray')
-            ax.set_xlabel('X')
-            ax.set_ylabel('Y')
-            ax.set_zlabel('Z')
-            plt.show()
-
-
-        T_ref, fitness, rmse = icp_multistage(radar_pts, lidar_pts_no_ground,T_init=T_lidar_radar_initial)
-
-        print(f'ICP Result - T_ref: {T_ref}, Fitness: {fitness}, RMSE: {rmse}')
-
-
-
-        # do a check here
-        def invert_se3(T):
-            R, t = T[:3,:3], T[:3,3]
-            Ti = np.eye(4); Ti[:3,:3] = R.T; Ti[:3,3] = -R.T @ t
-            return Ti
+    for subfolder in subfolders:
+        subfolder_path = os.path.join(bag_dir, subfolder.name)
+        print(f"----------------------------------Processing subfolder path: {subfolder_path}")
+        # check if the subfolder name contains "static"
+        if not "static" in subfolder.name:
+            continue
         
-        T_lidar_radar_initial = np.array([[ 1., 0., 0., 0.891],
-                        [ 0.,-1., 0., 0.   ],
-                        [ 0., 0.,-1., 0.121],
-                        [ 0., 0., 0., 1.   ]])
-
-        # Delta transform: what ICP changed relative to CAD
-        Delta = T_ref @ invert_se3(T_lidar_radar_initial)
-        dR, dt = Delta[:3,:3], Delta[:3,3]
-        angle = np.degrees(np.arccos(np.clip((np.trace(dR)-1)/2, -1, 1)))
-        print("Δt (m):", dt, "  ‖Δt‖ =", np.linalg.norm(dt), "m")
-        print("ΔR (deg):", angle)
-
-        T_icp.append(T_ref)
-
-        if radar_idx == 10:
-            T_avg = se3_mean(T_icp)
-            print("Averaged T_icp:\n", T_avg)
-            break # can unbreak it if using multiple frames
+        # extract radar info
+        polar, azimuths, timestamps , msg_timestamp = extract_radar_from_bag(subfolder_path, RADAR_SCAN_MSG)
+        # verify the shape
+        print(f'Polar shape: {polar.shape}, Azimuths shape: {azimuths.shape}, Timestamps shape: {timestamps.shape}, Msg timestamp: {msg_timestamp.shape}')
 
 
+        # extract lidar info
+        lidar_timestamp2pts = extract_lidar_from_bag(subfolder_path)
+        # the length of the dictionary is
+        print(f'Lidar timestamp to points dictionary length: {len(lidar_timestamp2pts)}')
 
-    # check alignment
-    if VISUALIZE:
-        visualize_xy_overlay(radar_pts, lidar_pts_no_ground, T_avg)
 
-        visualize_alignment_3d(radar_pts, lidar_pts_no_ground, T_avg,voxel_lidar=0.05, voxel_radar=0.03, point_size=2.0)
+        keys_time_stamps = list(lidar_timestamp2pts.keys())
 
+        # verify the shape
+        print(f'Example lidar points shape: {lidar_timestamp2pts[keys_time_stamps[0]].shape}')
+
+        # lets do one frame 
+        nb_radar_msgs = polar.shape[0]
+        print(f'Number of radar messages: {nb_radar_msgs}')
+
+        T_icp = [] # stores each folder result 40 of them
+
+        for radar_idx in range(0, nb_radar_msgs):
+            print("processing radar_idx:", radar_idx)
+            polar_img = polar[radar_idx] / 255.0 
+            azimuth = azimuths[radar_idx]
+            timestamp = timestamps[radar_idx]
+            radar_msg_timestamp = msg_timestamp[radar_idx]
+
+            print("shape info")
+            print("polar shape:", polar_img.shape)
+            print("azimuth shape:", azimuth.shape)
+            print("timestamp shape:", timestamp.shape)
+            print("radar_msg_timestamp shape:", radar_msg_timestamp.shape)
+
+            import torch
+            import torchvision
+            # preprocessing steps
+            device = 'cpu'
+            polar_intensity = torch.tensor(polar_img).to(device)
+            polar_std = torch.std(polar_intensity, dim=1)
+            polar_mean = torch.mean(polar_intensity, dim=1)
+            polar_intensity -= (polar_mean.unsqueeze(1) + 2*polar_std.unsqueeze(1))
+            polar_intensity[polar_intensity < 0] = 0
+            polar_intensity = torchvision.transforms.functional.gaussian_blur(polar_intensity.unsqueeze(0), (9,1), 3).squeeze()
+            polar_intensity /= torch.max(polar_intensity, dim=1, keepdim=True)[0]
+            polar_intensity[torch.isnan(polar_intensity)] = 0
+
+
+            # if DISPLAY:
+            #     # lets viusalize the polar img in grey scale
+            #     plt.imshow(polar_img, cmap='gray')
+            #     plt.colorbar()
+            #     plt.title(f'Polar Image at Timestamp: {timestamp[radar_idx]}')
+            #     plt.xlabel('Range Bin')
+            #     plt.show()
+
+            # lets extract points from the polar img
+            KPEAKS = True # K-peaks is the best extractor
+            if KPEAKS:
+                targets = KPeaks(polar_intensity.numpy(),minr=5,maxr=300,res=radar_resolution, K=10, static_threshold=0.25)
+            else:
+                targets = modifiedCACFAR(polar_intensity.numpy(),minr=5,maxr=300,res=radar_resolution, width=137, guard=7, threshold=0.50, threshold2=0.0, threshold3=0.30)
+
+            radar_pts = []
+
+            for target in targets:
+                azimuth_idx = int(target[0])
+                range_idx = int(target[1])
+
+                x = range_idx * radar_resolution * math.cos(2 * math.pi * azimuth[azimuth_idx] / encoder_size)
+                y = range_idx * radar_resolution * math.sin(2 * math.pi * azimuth[azimuth_idx] / encoder_size)
+                intensity = polar_intensity[azimuth_idx, range_idx]
+
+                radar_pts.append([x,y,intensity])
+
+            radar_pts = np.array(radar_pts)
+            radar_pts = radar_pts[:,0:2]
+
+
+            radar_cart_img = pb.utils.radar.radar_polar_to_cartesian(azimuth/encoder_size*2*np.pi,polar_intensity,radar_resolution,cart_resolution=0.224,cart_pixel_width=3000)
+
+            print(f'Radar points shape: {radar_pts.shape}')
+
+            # # # # to visualize the radar_pts in 2d and its correponding cart image on the side
+            # if DISPLAY:
+            #     plt.subplot(1, 2, 1)
+            #     plt.scatter(radar_pts[:, 0], radar_pts[:, 1], cmap='gray',s=1)
+            #     plt.xlabel('X')
+            #     plt.ylabel('Y')
+            #     plt.axis('equal')
+
+            #     plt.subplot(1, 2, 2)
+            #     plt.imshow(radar_cart_img, cmap='gray')
+            #     plt.show()
+
+
+            # print(f'K-strong targets shape: {k_strong_targets.shape}')
+
+
+            closest_lidar_timestamp = min(lidar_timestamp2pts.keys(), key=lambda x: abs(x - radar_msg_timestamp))
+            lidar_pts = lidar_timestamp2pts[closest_lidar_timestamp]
+
+            # lets remove ground in the lidar pts
+            pc = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(lidar_pts))
+            plane, inliers = pc.segment_plane(0.05, 3, 2000)  # 5cm threshold
+            lidar_pts_no_ground = np.asarray(pc.select_by_index(inliers, invert=True).points)
+
+            print(f'Lidar points shape: {lidar_pts.shape}')
+            print(f'Lidar points no ground shape: {lidar_pts_no_ground.shape}')
+
+            # visualize lidar pts in 3d using matplot lib
+            # if DISPLAY:
+            #     fig = plt.figure()
+            #     ax = fig.add_subplot(111, projection='3d')
+            #     ax.scatter(lidar_pts[:,0], lidar_pts[:,1], lidar_pts[:,2], c='gray')
+            #     ax.set_xlabel('X')
+            #     ax.set_ylabel('Y')
+            #     ax.set_zlabel('Z')
+            #     plt.show()
+
+
+            T_ref, fitness, rmse = icp_multistage(radar_pts, lidar_pts_no_ground,T_init=T_lidar_radar_initial) # I update this initial guess later on
+
+
+            # print(f'ICP Result - T_ref: {T_ref}, Fitness: {fitness}, RMSE: {rmse}')
+
+
+            # do a check here
+            def invert_se3(T):
+                R, t = T[:3,:3], T[:3,3]
+                Ti = np.eye(4); Ti[:3,:3] = R.T; Ti[:3,3] = -R.T @ t
+                return Ti
+            
+            T_lidar_radar_initial = np.array([[ 1., 0., 0., 0.891],
+                            [ 0.,-1., 0., 0.   ],
+                            [ 0., 0.,-1., 0.121],
+                            [ 0., 0., 0., 1.   ]])
+
+            # Delta transform: what ICP changed relative to CAD
+            Delta = T_ref @ invert_se3(T_lidar_radar_initial)
+            dR, dt = Delta[:3,:3], Delta[:3,3]
+            angle = np.degrees(np.arccos(np.clip((np.trace(dR)-1)/2, -1, 1)))
+            print("Δt (m):", dt, "  ‖Δt‖ =", np.linalg.norm(dt), "m")
+            print("ΔR (deg):", angle)
+
+            # reject outliners
+            if angle > 10 or np.linalg.norm(dt) > 1.0:
+                print("Rejected due to large change from initial guess.")
+                continue
+
+            T_icp.append(T_ref)
+
+            # T_lidar_radar_initial = T_ref # update initial guess
+
+            if radar_idx == 10:
+                T_avg = se3_mean(T_icp)
+                print("Averaged T_icp:\n", T_avg)
+        
+                # # check alignment
+                if VISUALIZE:
+                    visualize_xy_overlay(radar_pts, lidar_pts_no_ground, T_avg)
+
+                    # visualize_alignment_3d(radar_pts, lidar_pts_no_ground, T_avg,voxel_lidar=0.05, voxel_radar=0.03, point_size=2.0)
+
+                break
+
+        T_final.append(T_avg)
+    
+
+    
+
+    T_final_avg = se3_mean(T_final)
+
+    print(f'Final average transformation matrix:\n{T_final_avg}')
