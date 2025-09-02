@@ -298,6 +298,45 @@ def apply_T(T, P):
     P = np.asarray(P, dtype=np.float64)
     return (P @ T[:3, :3].T) + T[:3, 3]
 
+def rpy_from_R_xyz(R):
+    # XYZ (roll,pitch,yaw) with R = Rz(yaw) @ Ry(pitch) @ Rx(roll)
+    pitch = -np.arcsin(np.clip(R[2, 0], -1.0, 1.0))
+    roll  = np.arctan2(R[2, 1], R[2, 2])
+    yaw   = np.arctan2(R[1, 0], R[0, 0])
+    return roll, pitch, yaw
+
+def Rx(a):
+    c, s = np.cos(a), np.sin(a)
+    return np.array([[1,0,0],[0,c,-s],[0,s,c]], dtype=np.float64)
+
+def Ry(a):
+    c, s = np.cos(a), np.sin(a)
+    return np.array([[c,0,s],[0,1,0],[-s,0,c]], dtype=np.float64)
+
+def Rz(a):
+    c, s = np.cos(a), np.sin(a)
+    return np.array([[c,-s,0],[s,c,0],[0,0,1]], dtype=np.float64)
+
+def project_xy_yaw(T_cur, T_prior):
+    """Keep x,y and yaw from T_cur; keep z, roll, pitch from T_prior."""
+    R_prior = T_prior[:3, :3]
+    t_prior = T_prior[:3, 3]
+    r0, p0, _ = rpy_from_R_xyz(R_prior)  # keep roll, pitch from prior
+
+    R_cur = T_cur[:3, :3]
+    t_cur = T_cur[:3, 3]
+    _, _, y = rpy_from_R_xyz(R_cur)      # yaw from current
+
+    R_new = Rz(y) @ Ry(p0) @ Rx(r0)      # compose with yaw current, r/p prior
+    t_new = t_cur.copy()
+    t_new[2] = t_prior[2]                # z from prior
+
+    Tout = np.eye(4, dtype=np.float64)
+    Tout[:3, :3] = R_new
+    Tout[:3, 3] = t_new
+    return Tout
+
+
 def icp_multistage(radar_pts, lidar_pts, T_init=None, crop_margin=2.0, verbose=True):
     """
     Multi-stage ICP to estimate T_lidar<-radar, but constrained to x, y, yaw.
@@ -307,10 +346,6 @@ def icp_multistage(radar_pts, lidar_pts, T_init=None, crop_margin=2.0, verbose=T
       - lidar_pts: (M,3) [x,y,z]
       - T_init: 4x4 mapping radar->lidar (CAD). If None, identity (z=0, r=p=0).
     """
-    # ---------------- helpers ----------------
-    def apply_T(T, P):
-        P = np.asarray(P, dtype=np.float64)
-        return (P @ T[:3, :3].T) + T[:3, 3]
 
     def to_o3d_pcd(P, estimate_normals=False, voxel=None):
         pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(np.asarray(P, dtype=np.float64)))
@@ -321,43 +356,6 @@ def icp_multistage(radar_pts, lidar_pts, T_init=None, crop_margin=2.0, verbose=T
             pcd.orient_normals_consistent_tangent_plane(k=30)
         return pcd
 
-    def rpy_from_R_xyz(R):
-        # XYZ (roll,pitch,yaw) with R = Rz(yaw) @ Ry(pitch) @ Rx(roll)
-        pitch = -np.arcsin(np.clip(R[2, 0], -1.0, 1.0))
-        roll  = np.arctan2(R[2, 1], R[2, 2])
-        yaw   = np.arctan2(R[1, 0], R[0, 0])
-        return roll, pitch, yaw
-
-    def Rx(a):
-        c, s = np.cos(a), np.sin(a)
-        return np.array([[1,0,0],[0,c,-s],[0,s,c]], dtype=np.float64)
-
-    def Ry(a):
-        c, s = np.cos(a), np.sin(a)
-        return np.array([[c,0,s],[0,1,0],[-s,0,c]], dtype=np.float64)
-
-    def Rz(a):
-        c, s = np.cos(a), np.sin(a)
-        return np.array([[c,-s,0],[s,c,0],[0,0,1]], dtype=np.float64)
-
-    def project_xy_yaw(T_cur, T_prior):
-        """Keep x,y and yaw from T_cur; keep z, roll, pitch from T_prior."""
-        R_prior = T_prior[:3, :3]
-        t_prior = T_prior[:3, 3]
-        r0, p0, _ = rpy_from_R_xyz(R_prior)  # keep roll, pitch from prior
-
-        R_cur = T_cur[:3, :3]
-        t_cur = T_cur[:3, 3]
-        _, _, y = rpy_from_R_xyz(R_cur)      # yaw from current
-
-        R_new = Rz(y) @ Ry(p0) @ Rx(r0)      # compose with yaw current, r/p prior
-        t_new = t_cur.copy()
-        t_new[2] = t_prior[2]                # z from prior
-
-        Tout = np.eye(4, dtype=np.float64)
-        Tout[:3, :3] = R_new
-        Tout[:3, 3] = t_new
-        return Tout
 
     # ---------------- inputs ----------------
     radar_pts = np.asarray(radar_pts, dtype=np.float64)
@@ -562,7 +560,7 @@ def visualize_xy_overlay(radar_xy, lidar_xyz, T, lidar_subsample=100000, radar_s
         L = L[idx]
 
     plt.figure(figsize=(7,7))
-    plt.scatter(L[:,0], L[:,1], s=lidar_size, c='#999999', alpha=0.3, label="LiDAR XY")
+    plt.scatter(L[:,0], L[:,1], s=lidar_size, c='#999999', alpha=0.8, label="LiDAR XY")
     plt.scatter(radar_L[:,0], radar_L[:,1], s=radar_size, c='r', alpha=0.9, label="Radar→LiDAR XY")
     plt.gca().set_aspect('equal', adjustable='box')
     plt.title("XY Overlay (after T_lidar<-radar)")
@@ -571,3 +569,21 @@ def visualize_xy_overlay(radar_xy, lidar_xyz, T, lidar_subsample=100000, radar_s
     plt.tight_layout()
     plt.show()
 
+
+def crop_lidar_by_height(lidar_xyz, radar_height_m, lidar_height_m, tol=0.50):
+    """
+    Keep LiDAR points whose z is within ±tol of the radar plane height,
+    assuming z-up and level rig.
+
+    lidar_xyz: (M,3) points in LiDAR frame [x,y,z]
+    radar_height_m: radar height above ground (m), e.g., 1.235
+    lidar_height_m: lidar height above ground (m), e.g., 1.114
+    tol: half-thickness around the plane, in meters
+
+    Returns: cropped_points, mask (boolean)
+    """
+    lidar_xyz = np.asarray(lidar_xyz, float)
+    z_radar_in_lidar = float(radar_height_m - lidar_height_m)  # e.g., 0.121 m
+    z = lidar_xyz[:, 2]
+    mask = np.abs(z - z_radar_in_lidar) <= float(tol)
+    return lidar_xyz[mask]
