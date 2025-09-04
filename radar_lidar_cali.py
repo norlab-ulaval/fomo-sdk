@@ -394,5 +394,10 @@ if __name__ == "__main__":
     print(f'Final average transformation matrix:\n{T_final_avg}')
 
 
-   
+    # report the final correction compared to CAD
+    Delta_final = T_final_avg @ invert_se3(T_lidar_radar_initial)
+    dR, dt = Delta_final[:3,:3], Delta_final[:3,3]
+    angle = np.degrees(np.arccos(np.clip((np.trace(dR)-1)/2, -1, 1)))
+    print("Δt (m):", dt, "  ‖Δt‖ =", np.linalg.norm(dt), "m")
+    print("ΔR (deg):", angle)
 

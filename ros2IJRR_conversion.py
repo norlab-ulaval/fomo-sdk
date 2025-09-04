@@ -442,8 +442,8 @@ class BagToDir():
         
         # Create output directories
         self.radar_image_dir = os.path.join(output_dir, 'navtech')
-        self.ls_lidar_bin_dir = os.path.join(output_dir, 'lslidar128')
-        self.rs_lidar_bin_dir = os.path.join(output_dir, 'rslidar128')
+        self.ls_lidar_bin_dir = os.path.join(output_dir, 'leishen')
+        self.rs_lidar_bin_dir = os.path.join(output_dir, 'robosense')
         self.zed_node_right_dir = os.path.join(output_dir, 'zedx_right')
         self.zed_node_left_dir = os.path.join(output_dir, 'zedx_left')
         self.basler_mono_dir = os.path.join(output_dir, 'basler')
@@ -498,19 +498,19 @@ class BagToDir():
                         self.save_rslidar_bins(connection, rawdata, typestore, self.rs_lidar_bin_dir)
                     # for vn100 imu
                     if topic_name.startswith('/vn100/data_raw'):
-                        if not os.path.exists(os.path.join(self.output_dir, 'vn100.csv')):
-                            self.vn100_imu_file = open(os.path.join(self.output_dir, 'vn100.csv'), 'w')
-                            self.vn100_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
+                        if not os.path.exists(os.path.join(self.output_dir, 'vectornav.csv')):
+                            self.vn100_imu_file = open(os.path.join(self.output_dir, 'vectornav.csv'), 'w')
+                            self.vn100_imu_file.write("t,ax,ay,az,lx,ly,lz\n")
                             self.isvn100 = True
                         self.save_imu_data(connection, rawdata, typestore, self.vn100_imu_file)
                     # for mti30 imu
                     if topic_name.startswith('/mti30/data_raw'):
-                        if not os.path.exists(os.path.join(self.output_dir, 'mti30.csv')):
-                            self.mti30_imu_file = open(os.path.join(self.output_dir, 'mti30.csv'), 'w')
-                            self.mti30_imu_file.write("timestamp,ang_vel_x,ang_vel_y,ang_vel_z,lin_acc_x,lin_acc_y,lin_acc_z\n")
+                        if not os.path.exists(os.path.join(self.output_dir, 'xsens.csv')):
+                            self.mti30_imu_file = open(os.path.join(self.output_dir, 'xsens.csv'), 'w')
+                            self.mti30_imu_file.write("t,ax,ay,az,lx,ly,lz\n")
                             self.ismti30 = True
                         self.save_imu_data(connection, rawdata, typestore, self.mti30_imu_file)
-                    # # for zed node camera
+                    # for zed node camera
                     if topic_name in ['/zed_node/right_raw/image_raw_color', '/zed_node/left_raw/image_raw_color']:
                         if not os.path.exists(self.zed_node_right_dir) or not os.path.exists(self.zed_node_left_dir):
                             os.makedirs(self.zed_node_right_dir, exist_ok=True)
@@ -642,7 +642,7 @@ class BagToDir():
             timestamp_row = np.array(msg.timestamps, dtype=np.uint64) # possibly in nano-secs
 
             # put it in microsecs
-            timestamp_row = np.floor(timestamp_row / 1000).astype(np.uint64)  # convert to microseconds
+            timestamp_row = np.floor(timestamp_row // 1_000).astype(np.uint64)  # convert to microseconds
             # print("Timestamp row:", timestamp_row)
             encoder_values = np.array(msg.encoder_values, dtype=np.uint16)
 
@@ -652,9 +652,12 @@ class BagToDir():
             nano_sec = img_msg.header.stamp.nanosec
             stamp_in_micro = timestamp.sec * 1_000_000 + (nano_sec // 1_000)
 
+            # first azimuth timestamp
+            az_0_timestamp = timestamp_row[0]
+            print(f"Radar image timestamp: {stamp_in_micro}, first azimuth timestamp: {az_0_timestamp}")
+
             # floor the stamp in micro
             stamp_in_micro = math.floor(stamp_in_micro)
-            image_filename = os.path.join(self.radar_image_dir, f'{str(stamp_in_micro)}.png')
 
             timestamp_bytes = np.frombuffer(timestamp_row.tobytes(), dtype=np.uint8).reshape(-1, 8)
             encoder_bytes = np.frombuffer(encoder_values.tobytes(), dtype=np.uint8).reshape(-1, 2)
@@ -664,8 +667,8 @@ class BagToDir():
             final_data[:, 8:10] = encoder_bytes
             final_data[:, 11:] = radar_data
 
-            cv2.imwrite(image_filename, final_data)
-            print(f'Saved image: {image_filename}')
+            cv2.imwrite(os.path.join(self.radar_image_dir, f'{str(az_0_timestamp)}.png'), final_data)
+            print(f'Saved image: {str(az_0_timestamp)}.png')
 
         except Exception as e:
             print(f'Error saving radar image: {str(e)}')
