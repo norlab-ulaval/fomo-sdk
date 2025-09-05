@@ -1,0 +1,36 @@
+Topic: /warthog/platform/cmd_vel | Type: geometry_msgs/msg/Twist | Count: 19165 | Serialization Format: cdr
+Topic: /warthog/platform/odom | Type: nav_msgs/msg/Odometry | Count: 19168 | Serialization Format: cdr
+Topic: /emlid_old/right | Type: sensor_msgs/msg/NavSatFix | Count: 1917 | Serialization Format: cdr
+Topic: /warthog/velocity_controller/transition_event | Type: lifecycle_msgs/msg/TransitionEvent | Count: 0 | Serialization Format: cdr
+Topic: /warthog/platform/motor/left/status/fault | Type: std_msgs/msg/Bool | Count: 1526 | Serialization Format: cdr
+Topic: /emlid_new/left | Type: sensor_msgs/msg/NavSatFix | Count: 3833 | Serialization Format: cdr
+Topic: /parameter_events | Type: rcl_interfaces/msg/ParameterEvent | Count: 0 | Serialization Format: cdr
+Topic: /teleop/joy | Type: sensor_msgs/msg/Joy | Count: 19168 | Serialization Format: cdr
+Topic: /vn100/time_startup | Type: sensor_msgs/msg/TimeReference | Count: 76673 | Serialization Format: cdr
+Topic: /warthog/platform/motor/left/cmd_velocity | Type: std_msgs/msg/Float64 | Count: 19168 | Serialization Format: cdr
+Topic: /dps310_warthog/data | Type: rtf_sensors_msgs/msg/CustomPressureTemperature | Count: 38269 | Serialization Format: cdr
+// gps
+Topic: /emlid_old/left | Type: sensor_msgs/msg/NavSatFix | Count: 1917 | Serialization Format: cdr
+Topic: /emlid_old/front | Type: sensor_msgs/msg/NavSatFix | Count: 1917 | Serialization Format: cdr
+Topic: /emlid_new/right | Type: sensor_msgs/msg/NavSatFix | Count: 3833 | Serialization Format: cdr
+Topic: /warthog/platform/motor/left/status/velocity | Type: std_msgs/msg/Float64 | Count: 1526 | Serialization Format: cdr
+Topic: /warthog/platform/motor/right/cmd_velocity | Type: std_msgs/msg/Float64 | Count: 19168 | Serialization Format: cdr
+Topic: /warthog/platform/motor/right/status/temperature_motor | Type: std_msgs/msg/Int32 | Count: 381 | Serialization Format: cdr
+Topic: /vn100/time_syncin | Type: sensor_msgs/msg/TimeReference | Count: 76673 | Serialization Format: cdr
+Topic: /diagnostics | Type: diagnostic_msgs/msg/DiagnosticArray | Count: 1149 | Serialization Format: cdr
+Topic: /emlid_new/front | Type: sensor_msgs/msg/NavSatFix | Count: 3833 | Serialization Format: cdr
+Topic: /mti30/time_reference | Type: sensor_msgs/msg/TimeReference | Count: 76674 | Serialization Format: cdr
+Topic: /warthog/platform/motor/right/status/current_battery | Type: std_msgs/msg/Float64 | Count: 381 | Serialization Format: cdr
+Topic: /teleop/cmd_vel | Type: geometry_msgs/msg/Twist | Count: 19168 | Serialization Format: cdr
+Topic: /warthog/platform/motor/right/status/voltage_battery | Type: std_msgs/msg/Float64 | Count: 381 | Serialization Format: cdr
+Topic: /vn100/pressure | Type: sensor_msgs/msg/FluidPressure | Count: 76673 | Serialization Format: cdr
+Topic: /vn100/temperature | Type: sensor_msgs/msg/Temperature | Count: 76673 | Serialization Format: cdr
+Topic: /warthog/platform/motor/left/status/current_battery | Type: std_msgs/msg/Float64 | Count: 381 | Serialization Format: cdr
+
+// wartgog related
+Topic: /warthog/platform/motor/left/status/temperature_motor | Type: std_msgs/msg/Int32 | Count: 381 | Serialization Format: cdr
+Topic: /warthog/platform/motor/left/status/voltage_battery | Type: std_msgs/msg/Float64 | Count: 381 | Serialization Format: cdr
+Topic: /warthog/platform/motor/right/status/fault | Type: std_msgs/msg/Bool | Count: 1526 | Serialization Format: cdr
+Topic: /warthog/platform/motor/right/status/temperature_heatsink | Type: std_msgs/msg/Int32 | Count: 381 | Serialization Format: cdr
+Topic: /warthog/platform/motor/right/status/velocity | Type: std_msgs/msg/Float64 | Count: 1526 | Serialization Format: cdr
+
