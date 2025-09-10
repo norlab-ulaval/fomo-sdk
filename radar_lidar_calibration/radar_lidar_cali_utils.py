@@ -337,103 +337,185 @@ def project_xy_yaw(T_cur, T_prior):
     return Tout
 
 
-def icp_multistage(radar_pts, lidar_pts, T_init=None, crop_margin=2.0, verbose=True):
-    """
-    Multi-stage ICP to estimate T_lidar<-radar, but constrained to x, y, yaw.
-    z, roll, pitch are frozen to the prior (T_init).
-    Assumes:
-      - radar_pts: (N,2) [x,y]  (lifted to z=0 internally)
-      - lidar_pts: (M,3) [x,y,z]
-      - T_init: 4x4 mapping radar->lidar (CAD). If None, identity (z=0, r=p=0).
-    """
+import numpy as np
+import open3d as o3d
 
-    def to_o3d_pcd(P, estimate_normals=False, voxel=None):
-        pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(np.asarray(P, dtype=np.float64)))
+def icp_multistage(radar_pts, lidar_pts, T_init=None, crop_margin=5.0, verbose=True):
+    """
+    Radar->LiDAR ICP constrained to x, y, yaw. z/roll/pitch are frozen to T_init.
+    - radar_pts: (N,2) [x,y] in meters (radar frame)  -> lifted to z=0
+    - lidar_pts: (M,3) [x,y,z] in meters (LiDAR frame)
+    - T_init:    4x4 prior (CAD) mapping radar->LiDAR
+    """
+    def apply_T(T, P):
+        P = np.asarray(P, float)
+        return (P @ T[:3,:3].T) + T[:3,3]
+
+    def to_pcd(P, voxel=None, color=None):
+        P = np.asarray(P, float)
+        pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(P))
         if voxel and voxel > 0.0:
             pcd = pcd.voxel_down_sample(voxel)
-        if estimate_normals:
-            pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=30))
-            pcd.orient_normals_consistent_tangent_plane(k=30)
-        return pcd
+        if color is not None:
+            pcd.paint_uniform_color(color)
+        return pcd  # no normals (SE(2) ICP uses p2p)
 
+    def rpy_from_R_xyz(R):
+        pitch = -np.arcsin(np.clip(R[2,0], -1, 1))
+        roll  = np.arctan2(R[2,1], R[2,2])
+        yaw   = np.arctan2(R[1,0], R[0,0])
+        return roll, pitch, yaw
 
-    # ---------------- inputs ----------------
-    radar_pts = np.asarray(radar_pts, dtype=np.float64)
+    def yaw_from_R(R):
+        return np.arctan2(R[1,0], R[0,0])
+
+    def project_xy_yaw(T_cur, T_prior):
+        """Keep x,y,yaw from T_cur; keep z, roll, pitch from T_prior."""
+        R0, t0 = T_prior[:3,:3], T_prior[:3,3]
+        r0, p0, _ = rpy_from_R_xyz(R0)   # freeze roll/pitch from prior
+        _, _, y  = rpy_from_R_xyz(T_cur[:3,:3])  # take yaw from current
+        cy, sy = np.cos(y), np.sin(y)
+        Rz = np.array([[cy,-sy,0],[sy,cy,0],[0,0,1]])
+        Tout = np.eye(4)
+        Tout[:3,:3] = Rz @ (np.array([[1,0,0],[0,1,0],[0,0,1]]) @ R0)  # yaw(current) + prior r/p
+        # recompute with explicit r/p to be clear:
+        Rx = lambda a: np.array([[1,0,0],[0,np.cos(a),-np.sin(a)],[0,np.sin(a),np.cos(a)]])
+        Ry = lambda a: np.array([[np.cos(a),0,np.sin(a)],[0,1,0],[-np.sin(a),0,np.cos(a)]])
+        Tout[:3,:3] = Rz @ Ry(p0) @ Rx(r0)
+        Tout[:3,3]  = T_cur[:3,3]
+        Tout[2,3]   = t0[2]  # freeze z
+        return Tout
+
+    def clamp_xy_yaw_update(Delta, max_step_xy, max_step_yaw_deg):
+        """Clamp the incremental SE(3) 'Delta' to bounded SE(2) (dx,dy,dyaw)."""
+        dx, dy = float(Delta[0,3]), float(Delta[1,3])
+        dyaw = yaw_from_R(Delta[:3,:3])
+        # clamp yaw
+        max_yaw = np.deg2rad(max_step_yaw_deg)
+        dyaw = np.clip(dyaw, -max_yaw, max_yaw)
+        # clamp xy by norm
+        step = np.hypot(dx, dy)
+        if step > max_step_xy and step > 1e-12:
+            s = max_step_xy / step
+            dx *= s; dy *= s
+        # rebuild clamped SE(2) delta
+        c, s = np.cos(dyaw), np.sin(dyaw)
+        D = np.eye(4)
+        D[:3,:3] = np.array([[ c,-s,0],[ s, c,0],[0,0,1]])
+        D[0,3] = dx; D[1,3] = dy
+        return D
+
+    def shrink_toward_identity(Delta, shrink=0.6):
+        """Scale the incremental update toward identity (0..1)."""
+        dx, dy = float(Delta[0,3]), float(Delta[1,3])
+        dyaw = yaw_from_R(Delta[:3,:3])
+        dx *= shrink; dy *= shrink; dyaw *= shrink
+        c, s = np.cos(dyaw), np.sin(dyaw)
+        D = np.eye(4)
+        D[:3,:3] = np.array([[ c,-s,0],[ s, c,0],[0,0,1]])
+        D[0,3] = dx; D[1,3] = dy
+        return D
+
+    def bound_total_xy_yaw(T, T_prior, max_xy=0.30, max_yaw_deg=3.0):
+        """Clip final deviation from prior."""
+        yaw  = yaw_from_R(T[:3,:3])
+        yaw0 = yaw_from_R(T_prior[:3,:3])
+        # wrap to [-pi,pi]
+        dpsi = np.arctan2(np.sin(yaw-yaw0), np.cos(yaw-yaw0))
+        dpsi = np.clip(dpsi, -np.deg2rad(max_yaw_deg), np.deg2rad(max_yaw_deg))
+        c,s = np.cos(yaw0+dpsi), np.sin(yaw0+dpsi)
+        Rz = np.array([[ c,-s,0],[ s, c,0],[0,0,1]])
+        dx, dy = T[0,3]-T_prior[0,3], T[1,3]-T_prior[1,3]
+        r = np.hypot(dx,dy)
+        if r > max_xy and r > 1e-12:
+            s = max_xy/r
+            dx *= s; dy *= s
+        Tout = np.eye(4)
+        # keep prior r/p and z:
+        r0,p0,_ = rpy_from_R_xyz(T_prior[:3,:3])
+        Rx = lambda a: np.array([[1,0,0],[0,np.cos(a),-np.sin(a)],[0,np.sin(a),np.cos(a)]])
+        Ry = lambda a: np.array([[np.cos(a),0,np.sin(a)],[0,1,0],[-np.sin(a),0,np.cos(a)]])
+        Tout[:3,:3] = Rz @ Ry(p0) @ Rx(r0)
+        Tout[:3,3]  = T_prior[:3,3] + np.array([dx,dy,0.0])
+        return Tout
+
+    # inputs 
+    radar_pts = np.asarray(radar_pts, float)
     if radar_pts.ndim != 2 or radar_pts.shape[1] < 2:
         raise ValueError("radar_pts must be (N,2) or (N,>=2).")
-    radar_xyz = np.c_[radar_pts[:, 0], radar_pts[:, 1], np.zeros(len(radar_pts))]
-
-    lidar_xyz = np.asarray(lidar_pts, dtype=np.float64)
+    radar_xyz = np.c_[radar_pts[:,0], radar_pts[:,1], np.zeros(len(radar_pts))]
+    lidar_xyz = np.asarray(lidar_pts, float)
     if lidar_xyz.ndim != 2 or lidar_xyz.shape[1] != 3:
         raise ValueError("lidar_pts must be (M,3).")
 
-    # Clean NaNs/Infs
     radar_xyz = radar_xyz[np.isfinite(radar_xyz).all(axis=1)]
     lidar_xyz = lidar_xyz[np.isfinite(lidar_xyz).all(axis=1)]
 
-    # Prior (frozen z/r/p come from here)
-    T = np.eye(4, dtype=np.float64) if T_init is None else np.array(T_init, dtype=np.float64)
-    T_prior = T.copy()  # snapshot to keep z/roll/pitch
+    T = np.eye(4, dtype=float) if T_init is None else np.array(T_init, float)
+    T_prior = T.copy()
 
-    # ---------------- crop (XY only) ----------------
-    if crop_margin is not None and crop_margin > 0:
-        radar_in_lidar0 = apply_T(T, radar_xyz)
-        rx_min, ry_min = radar_in_lidar0[:, 0].min() - crop_margin, radar_in_lidar0[:, 1].min() - crop_margin
-        rx_max, ry_max = radar_in_lidar0[:, 0].max() + crop_margin, radar_in_lidar0[:, 1].max() + crop_margin
-        mask = (
-            (lidar_xyz[:, 0] >= rx_min) & (lidar_xyz[:, 0] <= rx_max) &
-            (lidar_xyz[:, 1] >= ry_min) & (lidar_xyz[:, 1] <= ry_max)
-        )
-        lidar_cropped = lidar_xyz[mask]
-        if len(lidar_cropped) >= 1000:
-            lidar_xyz = lidar_cropped
-            if verbose:
-                print(f"[ICP] XY-crop kept {len(lidar_xyz)} LiDAR points.")
+    # XY crop around transformed radar
+    if crop_margin and crop_margin > 0:
+        r0 = apply_T(T, radar_xyz)
+        rx_min, ry_min = r0[:,0].min()-crop_margin, r0[:,1].min()-crop_margin
+        rx_max, ry_max = r0[:,0].max()+crop_margin, r0[:,1].max()+crop_margin
+        m = (lidar_xyz[:,0]>=rx_min)&(lidar_xyz[:,0]<=rx_max)&(lidar_xyz[:,1]>=ry_min)&(lidar_xyz[:,1]<=ry_max)
+        cropped = lidar_xyz[m]
+        if len(cropped) >= 1000:
+            lidar_xyz = cropped
+            if verbose: print(f"[ICP] XY-crop kept {len(lidar_xyz)} LiDAR points.")
         elif verbose:
             print("[ICP] Skipping crop (too few points kept).")
 
-    # ---------------- base clouds ----------------
-    radar_pcd = to_o3d_pcd(radar_xyz, estimate_normals=False, voxel=0.10)
-    lidar_pcd = to_o3d_pcd(lidar_xyz, estimate_normals=True,  voxel=0.10)
+    # base clouds (no normals) 
+    radar_pcd = to_pcd(radar_xyz, voxel=0.10)
+    lidar_pcd = to_pcd(lidar_xyz, voxel=0.10)
 
-    est_pt2pt = o3d.pipelines.registration.TransformationEstimationPointToPoint()
-    est_pt2pl = o3d.pipelines.registration.TransformationEstimationPointToPlane()
+    est_p2p = o3d.pipelines.registration.TransformationEstimationPointToPoint()
 
+    # coarse -> fine, keep corr_dist ~ 3–5× voxel (radar is sparse!)
     stages = [
-        dict(voxel=0.25, max_corr_dist=1.50, iters=60, estimator=est_pt2pt),  # coarse grab
-        dict(voxel=0.15, max_corr_dist=0.80, iters=50, estimator=est_pt2pt),
-        dict(voxel=0.10, max_corr_dist=0.50, iters=60, estimator=est_pt2pl),  # plane refine
-        dict(voxel=0.05, max_corr_dist=0.25, iters=80, estimator=est_pt2pl),
-        dict(voxel=0.02, max_corr_dist=0.10, iters=100, estimator=est_pt2pl),
-        dict(voxel=0.01, max_corr_dist=0.05, iters=100, estimator=est_pt2pl),
+        dict(voxel=0.25, max_corr_dist=1.50, iters=60),
+        dict(voxel=0.15, max_corr_dist=0.80, iters=60),
+        dict(voxel=0.10, max_corr_dist=0.50, iters=80),
+        dict(voxel=0.05, max_corr_dist=0.25, iters=100),
+        dict(voxel=0.03, max_corr_dist=0.15, iters=120),
     ]
+    # per-stage trust region (coarse -> fine)
+    max_step_xy      = [0.20, 0.10, 0.05, 0.03, 0.02]
+    max_step_yaw_deg = [2.00, 1.00, 0.60, 0.40, 0.30]
+    shrink_factor    = [0.7,  0.6,  0.5,  0.5,  0.4]
 
-    for s in stages:
-        # Re-voxel for this stage; apply current T to radar before ICP
-        radar_stage = to_o3d_pcd(apply_T(T, np.asarray(radar_pcd.points)), estimate_normals=False, voxel=s["voxel"])
-        lidar_stage = to_o3d_pcd(np.asarray(lidar_pcd.points), estimate_normals=True, voxel=s["voxel"])
+    for k, s in enumerate(stages):
+        # re-voxelize each stage; pre-apply current T to radar
+        radar_stage = to_pcd(apply_T(T, np.asarray(radar_pcd.points)), voxel=s["voxel"])
+        lidar_stage = to_pcd(np.asarray(lidar_pcd.points),             voxel=s["voxel"])
 
         reg = o3d.pipelines.registration.registration_icp(
-            radar_stage,
-            lidar_stage,
-            s["max_corr_dist"],
-            np.eye(4),  # incremental ICP; we've pre-applied T
-            s["estimator"],
-            o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=s["iters"]),
+            radar_stage, lidar_stage,
+            s["max_corr_dist"], np.eye(4), est_p2p,
+            o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=s["iters"])
         )
 
-        # Compose increment, then PROJECT to (x,y,yaw) only
-        T = reg.transformation @ T
-        T = project_xy_yaw(T, T_prior=T_prior)
+        # incremental update
+        Delta = reg.transformation
+        # clamp step + shrink toward identity, then compose
+        Delta = clamp_xy_yaw_update(Delta, max_step_xy[k], max_step_yaw_deg[k])
+        Delta = shrink_toward_identity(Delta, shrink=shrink_factor[k])
+        T = Delta @ T
+        # enforce z/roll/pitch from prior
+        T = project_xy_yaw(T, T_prior)
 
         if verbose:
-            mode = "p2p" if s["estimator"] is est_pt2pt else "p2pl"
-            print(f"[ICP] stage voxel={s['voxel']:.2f} corr={s['max_corr_dist']:.2f} "
-                  f"mode={mode} fitness={reg.fitness:.3f} rmse={reg.inlier_rmse:.3f}")
+            print(f"[ICP] voxel={s['voxel']:.2f} corr={s['max_corr_dist']:.2f} "
+                  f"fit={reg.fitness:.3f} rmse={reg.inlier_rmse:.3f}")
 
-    # ---------------- final evaluation ----------------
-    radar_eval = to_o3d_pcd(apply_T(T, np.asarray(radar_pcd.points)), voxel=0.05)
-    lidar_eval = to_o3d_pcd(np.asarray(lidar_pcd.points), estimate_normals=True, voxel=0.05)
+    # bound final deviation from CAD 
+    T = bound_total_xy_yaw(T, T_prior, max_xy=0.30, max_yaw_deg=3.0)
+
+    # ---------- final eval ----------
+    radar_eval = to_pcd(apply_T(T, np.asarray(radar_pcd.points)), voxel=0.05)
+    lidar_eval = to_pcd(np.asarray(lidar_pcd.points),             voxel=0.05)
     reg_eval = o3d.pipelines.registration.evaluate_registration(radar_eval, lidar_eval, 0.20)
 
     if verbose:
@@ -441,6 +523,132 @@ def icp_multistage(radar_pts, lidar_pts, T_init=None, crop_margin=2.0, verbose=T
         print("Fitness:", reg_eval.fitness, "RMSE:", reg_eval.inlier_rmse)
 
     return T, float(reg_eval.fitness), float(reg_eval.inlier_rmse)
+
+
+# def icp_multistage(radar_pts, lidar_pts, T_init=None, crop_margin=2.0, verbose=True):
+#     """
+#     Multi-stage ICP to estimate T_lidar<-radar, but constrained to x, y, yaw.
+#     z, roll, pitch are frozen to the prior (T_init).
+#     Assumes:
+#       - radar_pts: (N,2) [x,y]  (lifted to z=0 internally)
+#       - lidar_pts: (M,3) [x,y,z]
+#       - T_init: 4x4 mapping radar->lidar (CAD). If None, identity (z=0, r=p=0).
+#     """
+
+#     def to_o3d_pcd(P, estimate_normals=False, voxel=None):
+#         pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(np.asarray(P, dtype=np.float64)))
+#         if voxel and voxel > 0.0:
+#             pcd = pcd.voxel_down_sample(voxel)
+#         if estimate_normals:
+#             pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=30))
+#             pcd.orient_normals_consistent_tangent_plane(k=30)
+#         return pcd
+
+
+#     # ---------------- inputs ----------------
+#     radar_pts = np.asarray(radar_pts, dtype=np.float64)
+#     if radar_pts.ndim != 2 or radar_pts.shape[1] < 2:
+#         raise ValueError("radar_pts must be (N,2) or (N,>=2).")
+#     radar_xyz = np.c_[radar_pts[:, 0], radar_pts[:, 1], np.zeros(len(radar_pts))]
+
+#     lidar_xyz = np.asarray(lidar_pts, dtype=np.float64)
+#     if lidar_xyz.ndim != 2 or lidar_xyz.shape[1] != 3:
+#         raise ValueError("lidar_pts must be (M,3).")
+
+#     # Clean NaNs/Infs
+#     radar_xyz = radar_xyz[np.isfinite(radar_xyz).all(axis=1)]
+#     lidar_xyz = lidar_xyz[np.isfinite(lidar_xyz).all(axis=1)]
+
+#     # Prior (frozen z/r/p come from here)
+#     T = np.eye(4, dtype=np.float64) if T_init is None else np.array(T_init, dtype=np.float64)
+#     T_prior = T.copy()  # snapshot to keep z/roll/pitch
+
+#     # ---------------- crop (XY only) ----------------
+#     if crop_margin is not None and crop_margin > 0:
+#         radar_in_lidar0 = apply_T(T, radar_xyz)
+#         rx_min, ry_min = radar_in_lidar0[:, 0].min() - crop_margin, radar_in_lidar0[:, 1].min() - crop_margin
+#         rx_max, ry_max = radar_in_lidar0[:, 0].max() + crop_margin, radar_in_lidar0[:, 1].max() + crop_margin
+#         mask = (
+#             (lidar_xyz[:, 0] >= rx_min) & (lidar_xyz[:, 0] <= rx_max) &
+#             (lidar_xyz[:, 1] >= ry_min) & (lidar_xyz[:, 1] <= ry_max)
+#         )
+#         lidar_cropped = lidar_xyz[mask]
+#         if len(lidar_cropped) >= 1000:
+#             lidar_xyz = lidar_cropped
+#             if verbose:
+#                 print(f"[ICP] XY-crop kept {len(lidar_xyz)} LiDAR points.")
+#         elif verbose:
+#             print("[ICP] Skipping crop (too few points kept).")
+
+#     # ---------------- base clouds ----------------
+#     radar_pcd = to_o3d_pcd(radar_xyz, estimate_normals=False, voxel=0.10)
+#     lidar_pcd = to_o3d_pcd(lidar_xyz, estimate_normals=True,  voxel=0.10)
+
+#     est_pt2pt = o3d.pipelines.registration.TransformationEstimationPointToPoint()
+#     # est_pt2pl = o3d.pipelines.registration.TransformationEstimationPointToPlane()
+#     def make_pt2pl_estimator(tukey_k=0.3):
+#         reg = o3d.pipelines.registration
+#         # Old API path (common on 0.14–0.16)
+#         if hasattr(reg, "RobustKernelType"):
+#             try:
+#                 rk = reg.RobustKernel(reg.RobustKernelType.Tukey, tukey_k)
+#                 return reg.TransformationEstimationPointToPlane(robust_kernel=rk)
+#             except Exception:
+#                 pass
+#         # Some builds expose only RobustKernel without the enum; try string method name
+#         try:
+#             rk = reg.RobustKernel(method="tukey", scaling=tukey_k)  # may exist on some versions
+#             return reg.TransformationEstimationPointToPlane(robust_kernel=rk)
+#         except Exception:
+#             pass
+#         # Fallback: no robust kernel available
+#         return reg.TransformationEstimationPointToPlane()
+
+#     est_pt2pl = make_pt2pl_estimator(tukey_k=0.3)
+
+
+#     stages = [
+#     dict(voxel=0.25, max_corr_dist=1.50, iters=60, estimator=est_pt2pt),
+#     dict(voxel=0.15, max_corr_dist=0.80, iters=60, estimator=est_pt2pt),
+#     dict(voxel=0.10, max_corr_dist=0.50, iters=80, estimator=est_pt2pl),   # with robust kernel*
+#     dict(voxel=0.05, max_corr_dist=0.25, iters=100, estimator=est_pt2pl),
+#     dict(voxel=0.03, max_corr_dist=0.15, iters=120, estimator=est_pt2pl),
+#     dict(voxel=0.02, max_corr_dist=0.10, iters=150, estimator=est_pt2pl),
+#     ]
+
+#     for s in stages:
+#         # Re-voxel for this stage; apply current T to radar before ICP
+#         radar_stage = to_o3d_pcd(apply_T(T, np.asarray(radar_pcd.points)), estimate_normals=False, voxel=s["voxel"])
+#         lidar_stage = to_o3d_pcd(np.asarray(lidar_pcd.points), estimate_normals=True, voxel=s["voxel"])
+
+#         reg = o3d.pipelines.registration.registration_icp(
+#             radar_stage,
+#             lidar_stage,
+#             s["max_corr_dist"],
+#             np.eye(4),  # incremental ICP; we've pre-applied T
+#             s["estimator"],
+#             o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=s["iters"]),
+#         )
+
+#         # Compose increment, then PROJECT to (x,y,yaw) only
+#         T = reg.transformation @ T
+#         T = project_xy_yaw(T, T_prior=T_prior)
+
+#         if verbose:
+#             mode = "p2p" if s["estimator"] is est_pt2pt else "p2pl"
+#             print(f"[ICP] stage voxel={s['voxel']:.2f} corr={s['max_corr_dist']:.2f} "
+#                   f"mode={mode} fitness={reg.fitness:.3f} rmse={reg.inlier_rmse:.3f}")
+
+#     # ---------------- final evaluation ----------------
+#     radar_eval = to_o3d_pcd(apply_T(T, np.asarray(radar_pcd.points)), voxel=0.05)
+#     lidar_eval = to_o3d_pcd(np.asarray(lidar_pcd.points), estimate_normals=True, voxel=0.05)
+#     reg_eval = o3d.pipelines.registration.evaluate_registration(radar_eval, lidar_eval, 0.20)
+
+#     if verbose:
+#         print("\nICP (x,y,yaw) Result - T_ref:\n", T)
+#         print("Fitness:", reg_eval.fitness, "RMSE:", reg_eval.inlier_rmse)
+
+#     return T, float(reg_eval.fitness), float(reg_eval.inlier_rmse)
 
 # for multi-frame ICP where we take the mean of the output se3 pose
 def se3_log(T):
@@ -547,7 +755,7 @@ def visualize_alignment_3d(radar_xy, lidar_xyz, T,
     vis.run()
     vis.destroy_window()
 
-def visualize_xy_overlay(radar_xy, lidar_xyz, T, lidar_subsample=100000, radar_size=6, lidar_size=0.5):
+def visualize_xy_overlay(radar_xy, lidar_xyz, T, lidar_subsample=100000, radar_size=5, lidar_size=0.8):
     """
     Quick 2D XY plot (LiDAR XY in gray, radar→LiDAR XY in red).
     """
@@ -560,7 +768,7 @@ def visualize_xy_overlay(radar_xy, lidar_xyz, T, lidar_subsample=100000, radar_s
         L = L[idx]
 
     plt.figure(figsize=(7,7))
-    plt.scatter(L[:,0], L[:,1], s=lidar_size, c='#999999', alpha=0.8, label="LiDAR XY")
+    plt.scatter(L[:,0], L[:,1], s=lidar_size, c='#999999', alpha=0.9, label="LiDAR XY")
     plt.scatter(radar_L[:,0], radar_L[:,1], s=radar_size, c='r', alpha=0.9, label="Radar→LiDAR XY")
     plt.gca().set_aspect('equal', adjustable='box')
     plt.title("XY Overlay (after T_lidar<-radar)")
@@ -570,7 +778,7 @@ def visualize_xy_overlay(radar_xy, lidar_xyz, T, lidar_subsample=100000, radar_s
     plt.show()
 
 
-def crop_lidar_by_height(lidar_xyz, radar_height_m, lidar_height_m, tol=0.50):
+def crop_lidar_by_height(lidar_xyz, radar_height_m, lidar_height_m, tol=0.25):
     """
     Keep LiDAR points whose z is within ±tol of the radar plane height,
     assuming z-up and level rig.
@@ -587,3 +795,51 @@ def crop_lidar_by_height(lidar_xyz, radar_height_m, lidar_height_m, tol=0.50):
     z = lidar_xyz[:, 2]
     mask = np.abs(z - z_radar_in_lidar) <= float(tol)
     return lidar_xyz[mask]
+
+def crop_lidar_by_range(lidar_xyz, r_max, r_min=0.0, use_xy=False,
+                        origin=None, return_mask=False):
+    """
+    Keep LiDAR points within [r_min, r_max] of 'origin'.
+
+    Args
+    ----
+    lidar_xyz : (N,3) float array  (points in LiDAR frame)
+    r_max     : float, outer radius in meters
+    r_min     : float, inner radius in meters (default 0)
+    use_xy    : bool, if True use horizontal (XY) range; else full 3D range
+    origin    : None or (3,) array, center of the ring (default [0,0,0])
+    return_mask : bool, if True also return the boolean mask
+
+    Returns
+    -------
+    cropped : (M,3) array of points inside the range (and mask if requested)
+    """
+    pts = np.asarray(lidar_xyz, dtype=np.float64)
+    if pts.ndim != 2 or pts.shape[1] != 3:
+        raise ValueError("lidar_xyz must be (N,3).")
+    if r_max <= 0 or r_min < 0 or r_min > r_max:
+        raise ValueError("Require 0 <= r_min <= r_max and r_max > 0.")
+
+    o = np.zeros(3) if origin is None else np.asarray(origin, float).reshape(3)
+
+    # Use squared distances (avoids sqrt for speed)
+    if use_xy:
+        v = pts[:, :2] - o[:2]
+        d2 = v[:, 0]**2 + v[:, 1]**2
+        rmin2, rmax2 = r_min**2, r_max**2
+    else:
+        v = pts - o
+        d2 = (v * v).sum(axis=1)
+        rmin2, rmax2 = r_min**2, r_max**2
+
+    finite = np.isfinite(pts).all(axis=1)
+    mask = finite & (d2 >= rmin2) & (d2 <= rmax2)
+    cropped = pts[mask]
+
+    return (cropped, mask) if return_mask else cropped
+
+# do a check here
+def invert_se3(T):
+    R, t = T[:3,:3], T[:3,3]
+    Ti = np.eye(4); Ti[:3,:3] = R.T; Ti[:3,3] = -R.T @ t
+    return Ti

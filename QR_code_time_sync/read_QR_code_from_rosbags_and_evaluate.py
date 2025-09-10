@@ -117,7 +117,7 @@ def main():
                             micro_qr_timestamps.append(qr_timestamp // 1_000) # convert to microsecs
                             micro_ros_timstamps.append(stamp_in_micro)
                         else:
-                            print("No QR code detected!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!No QR code detected!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
                 except Exception as e:
                     print(f'Error processing message: {str(e)}')
