@@ -76,6 +76,7 @@ def main():
     ap.add_argument("--auto-scale", action="store_true",
                     help="auto-fit QR to window using integer scaling (recommended)")
     ap.add_argument("--output", type=str, default="output", help="output folder")
+    ap.add_argument("--plot", action="store_true", help="plot the code execution delay look up")
     args = ap.parse_args()
 
     width, height = args.width, args.height
@@ -165,6 +166,19 @@ def main():
             w = csv.writer(f)
             w.writerow(["qr_encoded_value", "code_execution_time_in_ns"])
             w.writerows(code_execution_delay_look_up)
+
+        code_execution_delay_look_up = np.array(code_execution_delay_look_up)
+
+    if args.plot:
+        # lets plot the code execution delay look up
+        import matplotlib.pyplot as plt
+        plt.plot(code_execution_delay_look_up[:,0], code_execution_delay_look_up[:,1])
+        plt.xlabel("QR encoded value")
+        plt.ylabel("Code execution delay in ns")
+        plt.grid()
+        plt.tight_layout()
+        # plt.savefig(os.path.join(output_dir, "code_execution_delay_look_up.png"))
+        plt.show()
 
 if __name__ == "__main__":
     main()
