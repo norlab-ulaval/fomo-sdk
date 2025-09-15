@@ -273,10 +273,10 @@ def process_rosbag(bag_dir, CROPPED_LIDAR_PTS=True, DISPLAY=False, T_lidar_radar
         plane, inliers = pc.segment_plane(0.05, 3, 2000)  # 5cm threshold
         lidar_pts_no_ground = np.asarray(pc.select_by_index(inliers, invert=True).points)
 
-        # now I will only include lidar points that are almost at the plane of radar ``
+        # now I will only include lidar points that are almost at the plane of radar 
         # radar is 1.235 m off the ground
         # rslidar is 1.114 m off the ground
-        if CROP_LIDAR_PTS:
+        if CROPPED_LIDAR_PTS:
             radar_height = 1.235
             rslidar_height = 1.114 #m
 
@@ -302,7 +302,8 @@ def process_rosbag(bag_dir, CROPPED_LIDAR_PTS=True, DISPLAY=False, T_lidar_radar
             ax.set_zlabel('Z')
             plt.show()
 
-        T_ref, fitness, rmse = icp_multistage(radar_pts, lidar_pts_no_ground,T_init=T_lidar_radar_initial) # I update this initial guess later on
+        # Optimize x, y, yaw while keeping z/roll/pitch from CAD prior
+        T_ref, fitness, rmse = icp_multistage(radar_pts, lidar_pts_no_ground, T_init=T_lidar_radar_initial)
     
         # Delta transform: what ICP changed relative to CAD
         Delta = T_ref @ invert_se3(T_lidar_radar_initial)
@@ -318,13 +319,14 @@ def process_rosbag(bag_dir, CROPPED_LIDAR_PTS=True, DISPLAY=False, T_lidar_radar
 
         T_per_bag.append(T_ref)
 
-        if not CROP_LIDAR_PTS and radar_idx == 10: # only runs 10 frames since if we dont crop points ICP takes way too long
+        if not CROPPED_LIDAR_PTS and radar_idx == 10: # only runs 10 frames since if we dont crop points ICP takes way too long
             break
 
     # this is exit the radar frames loop
     print(f"finished all radar frames for this bag {bag_dir} and the number of T_per_bag is", len(T_per_bag))
 
-    T_per_bag_avg = se3_mean(T_per_bag)
+    # robust median over (x,y,yaw) around CAD prior
+    T_per_bag_avg = se2_median_robust(T_per_bag, T_lidar_radar_initial)
     # if VISUALIZE:
     #     # visualize the alignment for this bag
     #     visualize_xy_overlay(radar_pts, lidar_pts_no_ground, T_per_bag_avg)
@@ -380,7 +382,7 @@ if __name__ == "__main__":
 
             T_per_scene.append(T_icp_rosbag)
 
-        T_per_scene_avg = se3_mean(T_per_scene)
+        T_per_scene_avg = se2_median_robust(T_per_scene, T_lidar_radar_initial)
         T_final.append(T_per_scene_avg)
         if VISUALIZE:
             # ok I want to visualize the alignemnt per scene when I exit this inner for loop I just finish 5 rosbags
@@ -388,7 +390,7 @@ if __name__ == "__main__":
     #         # visualize_alignment_3d(radar_pts, lidar_pts_no_ground, T_final[-1],voxel_lidar=0.05, voxel_radar=0.03, point_size=2.0)
     
     print("finished all the scene and the number of T_final is", len(T_final))
-    T_final_avg = se3_mean(T_final)
+    T_final_avg = se2_median_robust(T_final, T_lidar_radar_initial)
     print("Final average T across all scenes is:\n", T_final_avg)
 
     # # T per scene should be shape of 5 as there are 5 scenes
