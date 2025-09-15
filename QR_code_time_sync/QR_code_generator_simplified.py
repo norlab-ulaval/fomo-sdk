@@ -7,6 +7,7 @@ import argparse
 import cv2
 import numpy as np
 import segno  # pip install segno
+import os
 
 # Window defaults 
 WINDOW_NAME = "Epoch QR"
@@ -74,6 +75,7 @@ def main():
     ap.add_argument("--scale", type=int, default=DEFAULT_SCALE, help="module pixel scale (ignored if --auto-scale)")
     ap.add_argument("--auto-scale", action="store_true",
                     help="auto-fit QR to window using integer scaling (recommended)")
+    ap.add_argument("--output", type=str, default="output", help="output folder")
     args = ap.parse_args()
 
     width, height = args.width, args.height
@@ -84,6 +86,11 @@ def main():
     cv2.resizeWindow(WINDOW_NAME, width, height)
 
     img = np.full((height, width, 3), BG_COLOR, dtype=np.uint8)
+    output_dir = args.output
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    output_file = os.path.join(output_dir, "qr_code_execution_delay_look_up.csv")
+    code_execution_delay_look_up = [] # {timestamp: time_elapsed_in_ns} maybe we can save as csv instead of dict
 
     # FPS tracking (only if requested)
     last_tick = time.perf_counter_ns()
@@ -93,6 +100,7 @@ def main():
     fps_accum_time = 0.0
 
     while True:
+        # I like to time the generation of the QR code
         loop_start = time.perf_counter_ns()
 
         # UTC epoch value (ns or us)
@@ -138,6 +146,8 @@ def main():
 
         # Pace to target FPS
         elapsed = time.perf_counter_ns() - loop_start
+        print(f"Code generation elapsed time: {elapsed / 1e6} milliseconds")
+        code_execution_delay_look_up.append([value, elapsed])
         remaining = frame_ns - elapsed
         if remaining > 0:
             time.sleep(remaining / 1e9)
@@ -147,6 +157,14 @@ def main():
             break
 
     cv2.destroyAllWindows()
+
+    # Save the code execution delay look up to a csv file
+    if args.output:
+        import csv
+        with open(output_file, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["qr_encoded_value", "code_execution_time_in_ns"])
+            w.writerows(code_execution_delay_look_up)
 
 if __name__ == "__main__":
     main()
