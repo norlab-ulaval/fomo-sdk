@@ -982,9 +982,9 @@ def visualize_alignment_3d(radar_xy, lidar_xyz, T,
     vis.run()
     vis.destroy_window()
 
-def visualize_xy_overlay(radar_xy, lidar_xyz, T, lidar_subsample=100000, radar_size=5, lidar_size=0.8):
+def visualize_xy_overlay(radar_xy, lidar_xyz, T, lidar_subsample=100000, radar_size=5, lidar_size=4.0):
     """
-    Quick 2D XY plot (LiDAR XY in gray, radar→LiDAR XY in red).
+    Quick 2D XY plot (LiDAR XY in bright blue, radar→LiDAR XY in red).
     """
     radar_xyz = np.c_[np.asarray(radar_xy, float)[:,0], np.asarray(radar_xy, float)[:,1], np.zeros(len(radar_xy))]
     radar_L = apply_T(np.asarray(T, float), radar_xyz)
@@ -995,8 +995,8 @@ def visualize_xy_overlay(radar_xy, lidar_xyz, T, lidar_subsample=100000, radar_s
         L = L[idx]
 
     plt.figure(figsize=(7,7))
-    plt.scatter(L[:,0], L[:,1], s=lidar_size, c='#999999', alpha=0.9, label="LiDAR XY")
-    plt.scatter(radar_L[:,0], radar_L[:,1], s=radar_size, c='r', alpha=0.9, label="Radar→LiDAR XY")
+    plt.scatter(L[:,0], L[:,1], s=lidar_size, c='#0066FF', alpha=0.7, label="LiDAR XY", edgecolors='#003399', linewidth=0.3)
+    plt.scatter(radar_L[:,0], radar_L[:,1], s=radar_size, c='r', alpha=0.9, label="Radar→LiDAR XY", edgecolors='darkred', linewidth=0.5)
     plt.gca().set_aspect('equal', adjustable='box')
     plt.title("XY Overlay (after T_lidar<-radar)")
     plt.legend(loc='upper right')
@@ -1005,7 +1005,7 @@ def visualize_xy_overlay(radar_xy, lidar_xyz, T, lidar_subsample=100000, radar_s
     plt.show()
 
 
-def crop_lidar_by_height(lidar_xyz, radar_height_m, lidar_height_m, tol=0.30):
+def crop_lidar_by_height(lidar_xyz, radar_height_m, lidar_height_m, tol=0.25):
     """
     Keep LiDAR points whose z is within ±tol of the radar plane height,
     assuming z-up and level rig.
