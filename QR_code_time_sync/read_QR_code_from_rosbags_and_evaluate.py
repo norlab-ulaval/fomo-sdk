@@ -105,6 +105,7 @@ def main():
 
     success_count = 0
     failure_count = 0
+    success_failure_pattern = []  # Track pattern: 1 for success, 0 for failure
 
     with Reader(ros_bag_path) as reader:
             # Create typestore for deserialization
@@ -126,6 +127,9 @@ def main():
                         print(f"Image timestamp (microsecs): {stamp_in_micro}")
                         img = image_to_numpy(msg)
 
+                        # import cv_bridge
+                        # bridge = cv_bridge.CvBridge()
+                        # img = bridge.imgmsg_to_cv2(msg, "bgr8")
                         # print(f"Image shape: {img.shape}, dtype: {img.dtype}")
 
                         # # # show this image as greyscale
@@ -134,6 +138,15 @@ def main():
                         #     cv2.waitKey(1)
                         qr_timestamp = process_img(img)
                         print(f"QR timestamp: {qr_timestamp}")
+                        
+                        # Debug: Track success/failure patterns
+                        if qr_timestamp is not None:
+                            print(f"✓ SUCCESS: Decoded QR at image {len(micro_ros_timstamps)}")
+                            success_failure_pattern.append(1)
+                        else:
+                            print(f"✗ FAILED: No QR detected at image {len(micro_ros_timstamps)}")
+                            success_failure_pattern.append(0)
+                        
                         if qr_timestamp is not None:
                             qr_timestamp = int(qr_timestamp)
 
@@ -168,6 +181,46 @@ def main():
     success_rate = success_count / (success_count + failure_count)
     print(f"Success rate: {success_rate}")
 
+    # Analyze success/failure pattern
+    if len(success_failure_pattern) > 0:
+        pattern_array = np.array(success_failure_pattern)
+        
+        # Find consecutive success/failure streaks
+        changes = np.diff(pattern_array)
+        change_indices = np.where(changes != 0)[0] + 1
+        
+        print(f"\n=== PATTERN ANALYSIS ===")
+        print(f"Total images processed: {len(pattern_array)}")
+        print(f"Success rate: {success_rate:.2%}")
+        
+        if len(change_indices) > 0:
+            # Calculate streak lengths
+            streaks = []
+            start = 0
+            for idx in change_indices:
+                streak_length = idx - start
+                streak_type = "SUCCESS" if pattern_array[start] == 1 else "FAILURE"
+                streaks.append((streak_type, streak_length))
+                start = idx
+            
+            # Add final streak
+            final_streak_length = len(pattern_array) - start
+            final_streak_type = "SUCCESS" if pattern_array[start] == 1 else "FAILURE"
+            streaks.append((final_streak_type, final_streak_length))
+            
+            print(f"Number of success/failure periods: {len(streaks)}")
+            print("Streak analysis:")
+            for i, (streak_type, length) in enumerate(streaks[:10]):  # Show first 10
+                print(f"  Period {i+1}: {streak_type} for {length} consecutive images")
+            
+            if len(streaks) > 10:
+                print(f"  ... and {len(streaks) - 10} more periods")
+        
+        # Check if pattern is related to timestamp length
+        if len(micro_qr_timestamps) > 0:
+            timestamp_lengths = [len(str(int(ts))) for ts in micro_qr_timestamps]
+            print(f"QR timestamp lengths: min={min(timestamp_lengths)}, max={max(timestamp_lengths)}")
+
     # I like to get the mean and std of the delays
     mean_delay = np.mean(delays)
     std_delay = np.std(delays)
@@ -176,26 +229,39 @@ def main():
 
     # plot the mean and std of the delays
     import matplotlib.pyplot as plt
-    plt.figure(figsize=(10, 6))
-    plt.plot(delays, marker='o', linestyle='-', markersize=3)
-    plt.axhline(mean_delay, color='r', linestyle='--', label=f'Mean Delay: {mean_delay:.1f} µs')
-    plt.fill_between(range(len(delays)), mean_delay - std_delay, mean_delay + std_delay, color='gray', alpha=0.5, label='±1 Std Dev')
-    plt.title('Delays between ROS Image Timestamps and QR Code Timestamps')
-    plt.xlabel('Image Index')
-    plt.ylabel('Delay (microseconds)')
-    plt.legend()
-    plt.grid()
+    
+    # Set global font parameters for better visibility
+    plt.rcParams.update({
+        'font.size': 14,
+        'axes.titlesize': 16,
+        'axes.labelsize': 14,
+        'xtick.labelsize': 12,
+        'ytick.labelsize': 12,
+        'legend.fontsize': 12,
+        'figure.titlesize': 18
+    })
+    
+    plt.figure(figsize=(12, 8))
+    plt.plot(delays, marker='o', linestyle='-', markersize=4, linewidth=2, alpha=0.7)
+    plt.axhline(mean_delay, color='r', linestyle='--', linewidth=3, label=f'Mean Delay: {mean_delay:.1f} µs')
+    plt.fill_between(range(len(delays)), mean_delay - std_delay, mean_delay + std_delay, 
+                     color='gray', alpha=0.3, label=f'±1 Std Dev ({std_delay:.1f} µs)')
+    plt.title('Delays between ROS Image Timestamps and QR Code Timestamps', fontweight='bold', pad=20)
+    plt.xlabel('Image Index', fontweight='bold')
+    plt.ylabel('Delay (microseconds)', fontweight='bold')
+    plt.legend(frameon=True, fancybox=True, shadow=True, loc='best')
+    plt.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
     plt.tight_layout()
     plt.show()
 
     # plot the offset
-    plt.figure(figsize=(10, 6))
-    plt.plot(offset_dict.keys(), offset_dict.values(), marker='o', linestyle='-', markersize=3)
-    plt.title('Offset between QR Code Timestamps and Code Execution Time')
-    plt.xlabel('QR Code Timestamp')
-    plt.ylabel('Offset (nanoseconds)')
-    plt.legend()
-    plt.grid()
+    plt.figure(figsize=(12, 8))
+    plt.plot(offset_dict.keys(), offset_dict.values(), marker='o', linestyle='-', markersize=4, linewidth=2, alpha=0.7)
+    plt.title('Offset between QR Code Timestamps and Code Execution Time', fontweight='bold', pad=20)
+    plt.xlabel('QR Code Timestamp', fontweight='bold')
+    plt.ylabel('Offset (nanoseconds)', fontweight='bold')
+    plt.legend(frameon=True, fancybox=True, shadow=True, loc='best')
+    plt.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
     plt.tight_layout()
     plt.show()
 

@@ -17,9 +17,9 @@ BG_COLOR = (18, 18, 18)
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 # QR defaults (tune as needed) 
-DEFAULT_ECL = "H"      # L/M/Q/H
+DEFAULT_ECL = "M"      # L/M/Q/H
 DEFAULT_BORDER = 4     # quiet zone in modules
-DEFAULT_SCALE = 10     # module pixel scale (only used if --auto-scale is off)
+DEFAULT_SCALE = 10    # module pixel scale (only used if --auto-scale is off)
 
 # UTC epoch (ns) anchored to a monotonic clock to avoid mid-run jumps 
 _BASE_EPOCH_NS = time.time_ns()
