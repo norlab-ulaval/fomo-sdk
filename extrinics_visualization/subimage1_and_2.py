@@ -351,25 +351,19 @@ def visualize_lidar_radar_overlay_simple(lidar_xyz, lidar_intensities, radar_xyz
     
     # Remove ground plane if requested
     if remove_ground:
-        # Improved ground plane removal using percentile-based threshold
-        z_values = lidar_xyz[:, 2]
-        z_min = np.min(z_values)
-        z_max = np.max(z_values)
-        z_median = np.median(z_values)
+        import open3d as o3d
         
-        # Use 10th percentile as ground threshold (more aggressive)
-        ground_threshold = np.percentile(z_values, 10)
-        
-        # Alternative: use median - 0.5m as threshold
-        # ground_threshold = z_median - 0.5
-        
-        # Filter out ground points
-        non_ground_mask = lidar_xyz[:, 2] > ground_threshold
+        # RANSAC ground plane removal
+        print("Applying RANSAC ground removal to lidar points...")
+        lidar_pc = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(lidar_xyz))
+        plane, inliers = lidar_pc.segment_plane(0.05, 3, 2000)  # 5cm threshold
+        non_ground_mask = np.ones(len(lidar_xyz), dtype=bool)
+        non_ground_mask[inliers] = False
         lidar_xyz = lidar_xyz[non_ground_mask]
         lidar_intensities = lidar_intensities[non_ground_mask]
         
-        print(f"Ground plane removal: Z range [{z_min:.2f}, {z_max:.2f}], threshold={ground_threshold:.2f}")
-        print(f"Removed {np.sum(~non_ground_mask)} ground points, kept {np.sum(non_ground_mask)} points")
+        print(f"RANSAC ground removal: removed {len(inliers)} ground points, kept {len(lidar_xyz)} points")
+        print(f"After RANSAC ground removal - Lidar Z range: [{np.min(lidar_xyz[:, 2]):.2f}, {np.max(lidar_xyz[:, 2]):.2f}]")
     
     # Crop lidar range if requested
     if crop_range:
