@@ -5,12 +5,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from pathlib import Path
 import numpy as np
 import math
-import cv2
 import argparse
 from rosbags.rosbag2 import Reader
 from rosbags.typesys import get_typestore, Stores, get_types_from_msg
-from rosbags.serde import deserialize_cdr
-import torch
 import tqdm
 from utils import *
 
@@ -56,8 +53,6 @@ def extract_radar_from_bag(bag_path, radar_msg):
     timestamps = []
 
     with Reader(bag_path) as reader:
-        connections = list(reader.connections)
-
         # loop through all the connections
         for connection, timestamp, rawdata in tqdm.tqdm(reader.messages(), total=reader.message_count, desc="Processing data"):
             try:
@@ -96,13 +91,9 @@ def extract_radar_from_bag(bag_path, radar_msg):
 def extract_lidar_from_bag(bag_path):
     typestore = get_fomo_typestore()
 
-    lidar_pts = []
-    timestamps = []
     dict = {}
 
     with Reader(bag_path) as reader:
-        connections = list(reader.connections)
-
         # loop through all the connections
         for connection, timestamp, rawdata in tqdm.tqdm(reader.messages(), total=reader.message_count, desc="Processing data"):
             try:
@@ -128,8 +119,7 @@ def extract_lidar_from_bag(bag_path):
 
                     arr = np.zeros(num_points, dtype=array_dtype)
 
-                    timestamp = msg.header.stamp
-                    micro_timestamp = timestamp.sec * 1_000_000 + (timestamp.nanosec // 1_000) # for rslidar this refers to the end of the scan 
+                    # for rslidar this refers to the end of the scan 
 
                     # 3) View the buffer as that structured array
                     data = np.frombuffer(msg.data, dtype=np.uint8).reshape(-1,msg.point_step)
@@ -169,7 +159,7 @@ def extract_lidar_from_bag(bag_path):
         return dict
     
 # wrap the core logic of the script in a 
-def process_rosbag(bag_dir, CROPPED_LIDAR_PTS=True, DISPLAY=False, T_lidar_radar_initial=None, radar_resolution=0.043809514, encoder_size=5600):
+def process_rosbag(bag_dir, CROPPED_LIDAR_PTS=True, DISPLAY=False, T_lidar_radar_initial=None, radar_resolution=0.043809514, encoder_size=5600, verbose=True):
     print("--------------Processing ros bag dir:------------", bag_dir)
 
     # extract radar info
@@ -200,15 +190,16 @@ def process_rosbag(bag_dir, CROPPED_LIDAR_PTS=True, DISPLAY=False, T_lidar_radar
         timestamp = timestamps[radar_idx]
         radar_msg_timestamp = msg_timestamp[radar_idx]
 
-        print("shape info")
-        print("polar shape:", polar_img.shape)
-        print("azimuth shape:", azimuth.shape)
-        print("timestamp shape:", timestamp.shape)
-        print("radar_msg_timestamp shape:", radar_msg_timestamp.shape)
+        if verbose:
+            print("shape info")
+            print("polar shape:", polar_img.shape)
+            print("azimuth shape:", azimuth.shape)
+            print("timestamp shape:", timestamp.shape)
+            print("radar_msg_timestamp shape:", radar_msg_timestamp.shape)
 
+        # preprocessing steps
         import torch
         import torchvision
-        # preprocessing steps
         device = 'cpu'
         polar_intensity = torch.tensor(polar_img).to(device)
         polar_std = torch.std(polar_intensity, dim=1)
@@ -312,14 +303,14 @@ def process_rosbag(bag_dir, CROPPED_LIDAR_PTS=True, DISPLAY=False, T_lidar_radar
         print("Δt (m):", dt, "  ‖Δt‖ =", np.linalg.norm(dt), "m")
         print("ΔR (deg):", angle)
 
-        # reject outliners
+        # reject outliers
         if angle > 10 or np.linalg.norm(dt) > 0.8:
             print("Rejected due to large change from initial guess.")
             continue
 
         T_per_bag.append(T_ref)
 
-        if not CROPPED_LIDAR_PTS and radar_idx == 10: # only runs 10 frames since if we dont crop points ICP takes way too long
+        if not CROPPED_LIDAR_PTS and radar_idx == 10: # only runs 10 frames since if we don't crop points ICP takes way too long
             break
 
     # this is exit the radar frames loop
@@ -327,10 +318,6 @@ def process_rosbag(bag_dir, CROPPED_LIDAR_PTS=True, DISPLAY=False, T_lidar_radar
 
     # robust median over (x,y,yaw) around CAD prior
     T_per_bag_avg = se2_median_robust(T_per_bag, T_lidar_radar_initial)
-    # if VISUALIZE:
-    #     # visualize the alignment for this bag
-    #     visualize_xy_overlay(radar_pts, lidar_pts_no_ground, T_per_bag_avg)
-    #     # visualize_alignment_3d(radar_pts, lidar_pts_no_ground, T_per_bag_avg,voxel_lidar=0.05, voxel_radar=0.03, point_size=2.0)
 
     # return the average of T_per_bag
     print("----------------Exiting prcess_rosbag: for rosbag folder:", bag_dir, "the average T is:\n", T_per_bag_avg)
@@ -385,20 +372,13 @@ if __name__ == "__main__":
         T_per_scene_avg = se2_median_robust(T_per_scene, T_lidar_radar_initial)
         T_final.append(T_per_scene_avg)
         if VISUALIZE:
-            # ok I want to visualize the alignemnt per scene when I exit this inner for loop I just finish 5 rosbags
+            # visualize the alignment per scene when exiting this inner loop after processing 5 rosbags
             visualize_xy_overlay(radar_pts, lidar_pts_no_ground, T_per_scene_avg)
-    #         # visualize_alignment_3d(radar_pts, lidar_pts_no_ground, T_final[-1],voxel_lidar=0.05, voxel_radar=0.03, point_size=2.0)
     
     print("finished all the scene and the number of T_final is", len(T_final))
     T_final_avg = se2_median_robust(T_final, T_lidar_radar_initial)
     print("Final average T across all scenes is:\n", T_final_avg)
 
-    # # T per scene should be shape of 5 as there are 5 scenes
-    # print("finished all the scene and T_per_scene shape is", len(T_per_scene_avg))
-    # T_final = se3_mean(T_per_scene_avg)
-    # print("T_final shape is", T_final.shape)
-
-    # print(f'Final average transformation matrix:\n{T_final}')
 
     # report the final correction compared to CAD
     Delta_final = T_final_avg @ invert_se3(T_lidar_radar_initial)

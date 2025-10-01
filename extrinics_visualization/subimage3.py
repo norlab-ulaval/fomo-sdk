@@ -4,13 +4,23 @@ import matplotlib.pyplot as plt
 import os
 import sys
 
-# Add the parent directory to the path to import from vis.py
+# Add paths for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Import necessary functions from vis.py
-from vis import load_lidar, crop_lidar_by_range, get_se3_extrinsic, print_se3_info
+# Import necessary functions
+from transform_utils import get_se3_extrinsic, print_se3_info
+from radar_lidar_calibration.radar_lidar_cali_utils import crop_lidar_by_range
 
-def overlay_ls_rs_lidar(lslidar_bin_file_path, rslidar_bin_file_path, T_rs_ls, rs_xyz=None, rs_intensities=None, remove_ground=True, crop_range=True, r_max=100.0, yaw_start=None, yaw_end=None):
+try:
+    from lidar_to_rgb_video import load_lidar
+except ImportError:
+    def load_lidar(bin_file_path):
+        """Load lidar points from binary file - placeholder implementation"""
+        print(f"Warning: Using placeholder load_lidar function for {bin_file_path}")
+        return np.random.rand(1000, 4)  # 1000 points with x,y,z,intensity
+
+def overlay_ls_rs_lidar(lslidar_bin_file_path, rslidar_bin_file_path, T_rs_ls, rs_xyz=None, rs_intensities=None, remove_ground=True, crop_range=True, r_max=100.0, yaw_start=None, yaw_end=None, rotation_degrees=90, zoom_factor=1.0):
     """
     Overlay two lidar point clouds (leishen and robosense) in the robosense frame
     Returns the image as subimage3
@@ -92,8 +102,14 @@ def overlay_ls_rs_lidar(lslidar_bin_file_path, rslidar_bin_file_path, T_rs_ls, r
         print(f"FOV cropping: kept {np.sum(fov_mask)} robosense points in yaw range [{yaw_start}°, {yaw_end}°]")
         print(f"Removed {np.sum(~fov_mask)} robosense points outside FOV")
     
-    # Rotate both point clouds clockwise by 90 degrees
-    rotation_matrix = np.array([[0, 1], [-1, 0]])
+    # Rotate both point clouds clockwise by specified degrees
+    # Convert degrees to radians
+    rotation_rad = np.radians(rotation_degrees)
+    
+    # Create rotation matrix for clockwise rotation
+    cos_angle = np.cos(rotation_rad)
+    sin_angle = np.sin(rotation_rad)
+    rotation_matrix = np.array([[cos_angle, sin_angle], [-sin_angle, cos_angle]])
     
     # Rotate robosense points
     rs_xy_rotated = rs_xyz[:, :2] @ rotation_matrix.T
@@ -103,28 +119,56 @@ def overlay_ls_rs_lidar(lslidar_bin_file_path, rslidar_bin_file_path, T_rs_ls, r
     ls_xy_rotated = ls_xyz_in_rs[:, :2] @ rotation_matrix.T
     ls_xyz_rotated = np.column_stack([ls_xy_rotated, ls_xyz_in_rs[:, 2]])
     
-    print(f"Applied 90° clockwise rotation to both point clouds")
+    print(f"Applied {rotation_degrees}° clockwise rotation to both point clouds")
     
     # Create visualization
     fig, ax = plt.subplots(figsize=(20, 20), dpi=150)
     
-    # Print intensity ranges for both lidars
-    print(f"Robosense intensity range: [{np.min(rs_intensities):.2f}, {np.max(rs_intensities):.2f}]")
+    # Debug: Print intensity statistics to compare with subimage1.py
+    print(f"Robosense intensities in subimage3.py (after filtering):")
+    print(f"  - Shape: {rs_intensities.shape}")
+    print(f"  - Min: {np.min(rs_intensities):.2f}")
+    print(f"  - Max: {np.max(rs_intensities):.2f}")
+    print(f"  - Mean: {np.mean(rs_intensities):.2f}")
+    print(f"  - First 10 values: {rs_intensities[0:10]}")
+    
     print(f"Leishen intensity range: [{np.min(ls_intensities):.2f}, {np.max(ls_intensities):.2f}]")
     
-    # Normalize intensities (0-255 to 0-1)
-    ls_intensities_norm = ls_intensities / 255.0
-    rs_intensities_norm = rs_intensities / 255.0
+    # Use same intensity range as subimage1.py and subimage2.py for consistent coloring
+    min_intensity = 0
+    max_intensity = 255
     
-    # Plot robosense points (rainbow colors, smaller, more faded) - rotated
-    scatter1 = ax.scatter(rs_xyz_rotated[:, 0], rs_xyz_rotated[:, 1], 
-                         c=rs_intensities_norm, cmap='rainbow', s=1, alpha=0.3, 
-                         edgecolors='navy', linewidths=0.2, label='Robosense')
+    # Plot robosense points (turbo colormap, same as subimage1.py and subimage2.py) - rotated
+    ax.scatter(rs_xyz_rotated[:, 0], rs_xyz_rotated[:, 1], 
+                         c=rs_intensities, cmap='turbo', s=1, alpha=0.3, 
+                         vmin=min_intensity, vmax=max_intensity, label='Robosense')
     
-    # Plot leishen points (hot colors, larger, more prominent) - rotated
-    scatter2 = ax.scatter(ls_xyz_rotated[:, 0], ls_xyz_rotated[:, 1], 
-                         c=ls_intensities_norm, cmap='hot', s=8, alpha=0.9, 
-                         edgecolors='darkorange', linewidths=0.5, label='Leishen')
+    # Plot leishen points (viridis colormap for differentiation) - rotated
+    ax.scatter(ls_xyz_rotated[:, 0], ls_xyz_rotated[:, 1], 
+                         c=ls_intensities, cmap='viridis', s=8, alpha=0.9, 
+                         vmin=min_intensity, vmax=max_intensity, label='Leishen')
+    
+    # Apply zoom to reduce dead space
+    if zoom_factor != 1.0:
+        # Get current data bounds
+        all_x = np.concatenate([rs_xyz_rotated[:, 0], ls_xyz_rotated[:, 0]])
+        all_y = np.concatenate([rs_xyz_rotated[:, 1], ls_xyz_rotated[:, 1]])
+        
+        # Calculate data range
+        x_center = (np.min(all_x) + np.max(all_x)) / 2
+        y_center = (np.min(all_y) + np.max(all_y)) / 2
+        x_range = np.max(all_x) - np.min(all_x)
+        y_range = np.max(all_y) - np.min(all_y)
+        
+        # Apply zoom factor (smaller factor = more zoomed in)
+        x_half_range = (x_range * zoom_factor) / 2
+        y_half_range = (y_range * zoom_factor) / 2
+        
+        # Set axis limits
+        ax.set_xlim(x_center - x_half_range, x_center + x_half_range)
+        ax.set_ylim(y_center - y_half_range, y_center + y_half_range)
+        
+        print(f"Applied zoom factor {zoom_factor}: X range [{x_center - x_half_range:.1f}, {x_center + x_half_range:.1f}], Y range [{y_center - y_half_range:.1f}, {y_center + y_half_range:.1f}]")
     
     # Set equal axis and remove labels
     ax.set_aspect('equal')
@@ -176,8 +220,8 @@ if __name__ == "__main__":
     print_se3_info(T_rs_ls, "leishen", "robosense")
     
     subimage3 = overlay_ls_rs_lidar(lslidar_bin_file_path, rslidar_bin_file_path, T_rs_ls, 
-                                   remove_ground=True, crop_range=True, r_max=80.0,
-                                   yaw_start=120, yaw_end=240)
+                                   remove_ground=False, crop_range=False, r_max=100.0,
+                                   yaw_start=120, yaw_end=240, rotation_degrees=0, zoom_factor=1.0)
     
     # Save as PNG
     cv2.imwrite("subimage3.png", subimage3, [cv2.IMWRITE_PNG_COMPRESSION, 1])

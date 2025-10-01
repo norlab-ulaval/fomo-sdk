@@ -1,0 +1,9 @@
+{
+    "key": "radar-lidar",
+    "name": "Navtech-Robosense",
+    "description": "Extrinsic calibration between the Navtech radar and the Robosense lidar.",
+    "link": "",
+    "linkLabel": "TODO",
+    "image": "assets/calibrations/radar-lidar.jpg",
+    "details": ["TODO"]
+  }
