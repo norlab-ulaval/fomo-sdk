@@ -1,4 +1,6 @@
-# fomo-sdk
+![FoMo orthophoto](resources/orthophoto.jpg)
+
+# FoMo SDK
 A public SDK for the FoMo dataset for autonomous driving in multiseasonal conditions
 
 This repository is work in progress.
