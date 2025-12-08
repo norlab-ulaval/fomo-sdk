@@ -214,9 +214,7 @@ def calibrate_camera(selected_images, checkerboard_size, square_size):
 
 def main():
     # Configuration
-    folder_path = (
-        "/Users/mbo/Desktop/FoMo-SDK/data/calibration/pylon_big_calibration_outside_2"
-    )
+    folder_path = "data/calibration/pylon_big_calibration_outside_2"
     CHECKERBOARD = (8, 11)
     square_size = 0.06  # 6 cm in meters
     ROI = (85, 112, 1815, 1015)  # (x1, y1, x2, y2)
