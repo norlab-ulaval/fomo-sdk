@@ -1,5 +1,4 @@
 import georinex as gr
-from datetime import datetime
 import pandas as pd
 
 # Load observation and navigation files

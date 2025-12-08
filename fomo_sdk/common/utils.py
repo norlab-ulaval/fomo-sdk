@@ -421,8 +421,10 @@ def notify_user(title: str, message: str):
                 """.format(message, title)
         )
     if plt == "Linux":
-        os.system(f"""
+        os.system(
+            f"""
         notify-send "{title}" "{message}"
-        """)
+        """
+        )
     else:
         return

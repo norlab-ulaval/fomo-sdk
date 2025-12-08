@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import os
 import glob
-from pathlib import Path
 
 
 class ROIVisualizer:

@@ -927,7 +927,7 @@ def create_individual_validation_plots(results):
         )
         ax1.set_xlabel("Residual (pixels)")
         ax1.set_ylabel("Frequency")
-        ax1.set_title(f"Reprojection Error Residuals")
+        ax1.set_title("Reprojection Error Residuals")
         ax1.grid(True, alpha=0.3)
         ax1.axvline(
             result["mean_reprojection_error"],
@@ -1198,7 +1198,7 @@ def analyze_existing_calibrations():
             print(f"File not found: {file_path}")
 
     if len(results) >= 2:
-        print(f"\n=== COMPARISON ===")
+        print("\n=== COMPARISON ===")
         r1, r2 = results[0], results[1]
 
         # Compare focal lengths

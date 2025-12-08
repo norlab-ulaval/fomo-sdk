@@ -1,17 +1,15 @@
 import os
 import sys
 
-import cartopy.crs as ccrs
 import numpy as np
 import pandas as pd
-from pyproj import Proj, Transformer, transform
+from pyproj import Transformer
 from tqdm import tqdm
 import argparse
+import matplotlib.pyplot as plt
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 # ----------------- GNSS Warthog's Coordinates ----------------------
 GNSS_COORDINATES = {

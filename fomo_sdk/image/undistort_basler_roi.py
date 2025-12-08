@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import os
 import glob
-from pathlib import Path
 
 
 def load_tiff_images(folder_path):
@@ -257,9 +256,9 @@ def main():
         print("\n" + "=" * 40)
         print("CALIBRATION RESULTS")
         print("=" * 40)
-        print(f"Camera Matrix:")
+        print("Camera Matrix:")
         print(camera_matrix)
-        print(f"\nDistortion Coefficients:")
+        print("\nDistortion Coefficients:")
         print(dist_coeffs)
         print(f"\nReprojection Error: {reprojection_error:.4f} pixels")
 
