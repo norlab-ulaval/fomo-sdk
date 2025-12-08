@@ -1,0 +1,44 @@
+[package]
+name = "fomo_rust"
+version = "1.0.4"
+edition = "2021"
+authors = [ "Matej Boxan <matej.boxan@norlab.ulaval.ca>" ]
+
+[dependencies]
+mcap="0.15.0"
+anyhow="1.0.98"
+camino="1.1.10"
+memmap="0.7.0"
+tqdm="0.8.0"
+clap = { version = "4.5.40", features = ["derive"] }
+byteorder = "1.5.0"
+num-traits = "0.2.19"
+hound = "3.5.1"
+ndarray = "0.16.1"
+image = "0.25.6"
+bayer = "0.1.5"
+opencv = { version = "0.95.1", default-features = false, features = ["highgui", "imgproc", "imgcodecs", "calib3d"]}
+criterion = { version= "0.7.0", features = ["html_reports"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde-big-array = "0.5"
+cdr-encoding = "0.10.2"
+serde_yaml = "0.9.34"
+serde_json = "1.0.143"
+configparser = "3.1.0"
+sha2 = "0.10.9"
+hex = "0.4.3"
+num-quaternion = "1.0.6"
+atty = "0.2.14"
+
+[lib]
+name = "fomo_rust_sdk"
+path = "src/lib.rs"
+
+
+[[bench]]
+name = "bench_write_ijrr"
+harness = false
+
+[[bench]]
+name = "bench_write_mcap"
+harness = false

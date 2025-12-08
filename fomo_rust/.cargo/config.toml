@@ -1,0 +1,6 @@
+[env]
+DYLD_FALLBACK_LIBRARY_PATH = { value = "/Library/Developer/CommandLineTools/usr/lib/", relative = false }
+SDKROOT = { value = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk", relative = false }
+
+[build]
+jobs = 8
