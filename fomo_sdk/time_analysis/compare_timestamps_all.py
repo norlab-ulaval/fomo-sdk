@@ -107,9 +107,7 @@ def main():
     fig, (ax1, ax2) = plt.subplots(
         2, 1, sharex=True, tight_layout=True, figsize=(19, 10)
     )
-    bp = ax1.boxplot(
-        dict_sorted.values(), showfliers=showfliers, labels=labels.values()
-    )
+    ax1.boxplot(dict_sorted.values(), showfliers=showfliers, labels=labels.values())
     ax1.set_ylabel("Difference from expected message delay [ms]")
     color_background(ax1, dict_sorted, df)
 

@@ -16,6 +16,7 @@ from fomo_sdk.ground_truth.utils import (
     point_to_point_minimization,
     timestamp_to_utc_s,
 )
+from fomo_sdk.ground_truth.visualize import visualize_trajectory_metrics
 
 
 def read_arguments():

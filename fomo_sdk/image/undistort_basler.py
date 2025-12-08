@@ -81,49 +81,46 @@ def load_calibration_from_yaml(yaml_file):
 def compute_reprojection_error_from_config(
     yaml_file, image_paths, show_results=True, method_name=""
 ):
-    def compute_reprojection_error_from_config(
-        yaml_file, image_paths, show_results=True, method_name=""
-    ):
-        """
-        Compute reprojection error using calibration from config file
+    """
+    Compute reprojection error using calibration from config file
 
-        Args:
-            yaml_file: Path to YAML calibration file
-            image_paths: List of paths to calibration images
-            show_results: Whether to show visualization
-            method_name: Name for this validation test
+    Args:
+        yaml_file: Path to YAML calibration file
+        image_paths: List of paths to calibration images
+        show_results: Whether to show visualization
+        method_name: Name for this validation test
 
-        Returns:
-            Dictionary with error statistics
-        """
+    Returns:
+        Dictionary with error statistics
+    """
 
-        # Load calibration parameters
-        camera_matrix, dist_coeffs, config = load_calibration_from_yaml(yaml_file)
+    # Load calibration parameters
+    camera_matrix, dist_coeffs, config = load_calibration_from_yaml(yaml_file)
 
-        print(f"\n=== {method_name} ===")
-        print(f"Loaded calibration from: {os.path.basename(yaml_file)}")
-        print(f"Camera matrix:\n{camera_matrix}")
-        print(f"Distortion coefficients: {dist_coeffs}")
+    print(f"\n=== {method_name} ===")
+    print(f"Loaded calibration from: {os.path.basename(yaml_file)}")
+    print(f"Camera matrix:\n{camera_matrix}")
+    print(f"Distortion coefficients: {dist_coeffs}")
 
-        # Load and process images to detect mixed board types
-        images = []
-        for path in image_paths:
-            images += glob.glob(path)
+    # Load and process images to detect mixed board types
+    images = []
+    for path in image_paths:
+        images += glob.glob(path)
 
-        print(f"Processing {len(images)} images...")
-        print("Auto-detecting board types from image paths...")
+    print(f"Processing {len(images)} images...")
+    print("Auto-detecting board types from image paths...")
 
-        # Check if we have mixed board types
-        has_big_board = any("big" in img_path for img_path in images)
-        has_small_board = any("small" in img_path for img_path in images)
-        is_mixed_boards = has_big_board and has_small_board
+    # Check if we have mixed board types
+    has_big_board = any("big" in img_path for img_path in images)
+    has_small_board = any("small" in img_path for img_path in images)
+    is_mixed_boards = has_big_board and has_small_board
 
-        if is_mixed_boards:
-            print("Testing on: MIXED board types (both SMALL and BIG)")
-        elif has_big_board:
-            print("Testing on: BIG checkerboard images")
-        else:
-            print("Testing on: SMALL checkerboard images")
+    if is_mixed_boards:
+        print("Testing on: MIXED board types (both SMALL and BIG)")
+    elif has_big_board:
+        print("Testing on: BIG checkerboard images")
+    else:
+        print("Testing on: SMALL checkerboard images")
 
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
 
@@ -1043,7 +1040,7 @@ def create_cross_validation_plots(results):
     if not results:
         return
 
-    n_results = len(results)
+    len(results)
     fig = plt.figure(figsize=(20, 12))
 
     # Create grid layout

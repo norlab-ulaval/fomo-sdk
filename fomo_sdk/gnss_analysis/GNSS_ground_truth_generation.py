@@ -42,7 +42,7 @@ GNSS_COORDINATES = {
 
 # ----------------- Point to point Minimisation ----------------------
 def minimisation(P, Q):
-    errors_before = Q - P  # Errors at the beginning
+    _errors_before = Q - P  # Errors at the beginning
     mu_p = np.mean(P[0:3, :], axis=1)  # Centroide of each pointcloud
     mu_q = np.mean(Q[0:3, :], axis=1)
     P_mu = np.ones((3, P.shape[1]))  # Centered each pointclouds

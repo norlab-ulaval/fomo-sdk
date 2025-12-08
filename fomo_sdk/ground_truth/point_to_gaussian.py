@@ -2,14 +2,10 @@ import os
 
 import numpy as np
 import pandas as pd
-
-# import jax
-# import jax.numpy as jnp
 import tqdm
 from matplotlib import pyplot as plt
 from pypointmatcher import pointmatcher as pm
 from pypointmatcher import pointmatchersupport as pms
-from scipy.optimize import minimize
 from scipy.spatial.transform import Rotation
 from utils import point_to_point_minimization
 
@@ -132,47 +128,6 @@ def plot_gnss_geom(
     )
 
 
-def transform(p, x, rotation_scale=1):
-    tx, ty, tz, rx, ry, rz = p
-    rx *= rotation_scale
-    ry *= rotation_scale
-    rz *= rotation_scale
-    # rotation matrices
-    Rx = jnp.array(
-        [[1, 0, 0], [0, jnp.cos(rx), -jnp.sin(rx)], [0, jnp.sin(rx), jnp.cos(rx)]]
-    )
-    Ry = jnp.array(
-        [[jnp.cos(ry), 0, jnp.sin(ry)], [0, 1, 0], [-jnp.sin(ry), 0, jnp.cos(ry)]]
-    )
-    Rz = jnp.array(
-        [[jnp.cos(rz), -jnp.sin(rz), 0], [jnp.sin(rz), jnp.cos(rz), 0], [0, 0, 1]]
-    )
-    R = Rx @ Ry @ Rz
-    return R @ x + jnp.array([tx, ty, tz])
-
-
-def objective(params, points, means, covs):
-    # input(f"Points: {points}, Means: {means}" )
-    score = 0
-    for k in range(points.shape[1]):
-        x_k = points[0:3, k]
-        mu_k = means[0:3, k]
-        y_k = transform(params, x_k)
-        r = y_k - mu_k
-
-        cov = covs[k, 0:3, 0:3]
-        inv = np.linalg.inv(cov)
-        score += 0.5 * r.T @ inv @ r
-        # score += -D1 * jnp.exp(-0.5*D2 * r.T @ inv @ r)
-        # score += 0.5 * r.T @ r
-    # print(score.item())
-    return score
-
-
-# gradient_obj = jax.grad(objective)
-# hessian_obj = jax.hessian(objective)
-
-
 def create_transform_matrix_from_trans_euler(params) -> np.ndarray:
     """
     Args:
@@ -189,32 +144,6 @@ def create_transform_matrix_from_trans_euler(params) -> np.ndarray:
     T[:3, :3] = Rotation.from_euler("zyx", euler).as_matrix()
     T[:3, 3] = translation
     return T
-
-
-def point_to_gaussian_minimization(p, mu, cov):
-    initial_guess = np.zeros(6)
-    bounds = [
-        (-0.1, 0.1),
-        (-0.1, 0.1),
-        (-0.1, 0.1),  # translation bounds (meters)
-        (-0.5, 0.5),
-        (-0.5, 0.5),
-        (-0.5, 0.5),
-    ]  # rotation bounds (radians)
-
-    result = minimize(
-        fun=objective,
-        x0=initial_guess,
-        jac=gradient_obj,
-        hess=hessian_obj,
-        args=(p, mu, cov),
-        method="trust-exact",
-        bounds=bounds,
-        # method='L-BFGS-B',
-        options={"maxiter": 100, "ftol": 1e-9, "gtol": 1e-9},
-    )
-
-    return create_transform_matrix_from_trans_euler(result.x)
 
 
 def point_to_gaussian_minimization_lpm(p, mu, cov, icp):
@@ -284,7 +213,7 @@ def point_to_gaussian_df(
                 print("Skipping to the next frame")
                 continue
         else:
-            T_optim = point_to_gaussian_minimization(gnss_geometry, row_mu_tf, row_cov)
+            raise ValueError("Invalid method. Only LPM is supported")
         T = T_init @ T_optim
         t = T[:3, 3]
         # quat = Rotation.from_matrix(T[:3, :3]).as_quat()
@@ -347,63 +276,3 @@ def point_to_gaussian_df(
         ],
     )
     return df_traj, df_covs
-
-
-def test_point_to_gaussian():
-    np.random.seed(42)
-    number_of_measurements = 10
-
-    gnss_geometry = np.array(read_tf_file(TF_FILE, 3))
-    gnss_geometry[2, :] = np.array([0, 0, 0])
-    shift = np.array([[2, 2, 2], [1, 1, 1], [0, 0, 0]])
-
-    # Test case 1: Simple 3D case with single point
-    means = gnss_geometry + shift
-    means = np.tile(means, (1, number_of_measurements))  # 3x9
-    some_noise = np.random.normal(0, 0.05, means.shape)
-    means = means + some_noise
-
-    covs = np.array(
-        [0.29 * np.eye(4), 0.25 * np.eye(4), 0.35 * np.eye(4)]
-    )  # 1x3x3 identity matrix
-    covs = np.tile(covs, (number_of_measurements, 1, 1))  # 3x3x3 identity matrix
-
-    gnss_geometry = np.vstack((gnss_geometry, np.ones((1, 3))))
-    means = np.vstack((means, np.ones((1, means.shape[1]))))
-
-    plt.figure()
-    plt.scatter(means[0], means[1], c="r", label="Means")
-    plt.scatter(gnss_geometry[0], gnss_geometry[1], c="b", label="Gnss geometry")
-
-    # plot covariance as ellipsis around means
-    for i in range(means.shape[1]):
-        mean = means[:, i]
-        cov = covs[i]
-        # Note: This needs to be updated to use 3D plotting context
-        # For now, this 2D case might need special handling
-        pass  # Placeholder - consider creating a 2D version or converting to 3D
-
-    # print(point_to_gaussian(gnss_geometry, means, covs))
-
-    res = register_points_to_gaussian(gnss_geometry, means, covs)
-    print(res)
-    T = create_transform_matrix_from_trans_quat(res.x)
-    print(T)
-
-    transformed_gnss_geometry = T @ gnss_geometry
-    plt.scatter(
-        transformed_gnss_geometry[0],
-        transformed_gnss_geometry[1],
-        c="y",
-        label="Transformed gnss geometry",
-    )
-    plt.legend()
-
-    plt.figure(2)
-    plt.plot(errors_history, label="Means")
-
-    plt.show()
-
-
-if __name__ == "__main__":
-    test_point_to_gaussian()
