@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fomo_sdk"
+description = "A public SDK for the FoMo dataset for autonomous driving in multiseasonal conditions"
+authors = [
+    {name = "Matej Boxan", email = "matej.boxan@norlab.ulaval.ca"},
+]
+dynamic = ["version"]
+requires-python = ">=3.10"
+dependencies = [
+    "asttokens==2.4.1",
+    "click==8.1.7",
+    "colorama==0.4.6",
+    "contourpy==1.1.1",
+    "cycler==0.12.1",
+    "executing==2.1.0",
+    "ffmpeg-python==0.2.0",
+    "fonttools==4.53.1",
+    "future==1.0.0",
+    "icecream==2.1.3",
+    "importlib_resources==6.4.5",
+    "kiwisolver==1.4.7",
+    "lz4==4.3.3",
+    "matplotlib==3.7.5",
+    "numpy<2.0",
+    "packaging==24.1",
+    "pandas",
+    "pillow==10.4.0",
+    "Pygments==2.18.0",
+    "pyparsing==3.1.4",
+    "python-dateutil==2.9.0.post0",
+    "pytz==2024.1",
+    "PyYAML",
+    "rosbag-tools",
+    "rosbags==0.10.10",
+    "ruamel.yaml==0.18.6",
+    "ruamel.yaml.clib==0.2.8",
+    "six==1.16.0",
+    "tqdm==4.66.5",
+    "typing_extensions==4.12.2",
+    "tzdata==2024.1",
+    "zipp==3.20.1",
+    "zstandard==0.23.0",
+    "scipy==1.14.1",
+    "cv_bridge",
+    "opencv-python",
+    "rosbags-image",
+    "flask",
+    "georinex",
+    "mcap-ros2-support==0.5.5",
+    "cartopy==0.24.1",
+    "tabulate==0.9.0",
+    "pylint",
+    "pre-commit",
+    "ruff==0.12.1",
+    "pytransform3d==3.14.3",
+    "jupyter>=1.1.1",
+]
+
+[project.urls]
+Homepage = "https://fomo.norlab.ulaval.ca"
+
+[tool.setuptools]
+packages = ["fomo_sdk"]
