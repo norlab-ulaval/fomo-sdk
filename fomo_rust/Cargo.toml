@@ -29,6 +29,7 @@ sha2 = "0.10.9"
 hex = "0.4.3"
 num-quaternion = "1.0.6"
 atty = "0.2.14"
+include_dir = "0.7.3"
 
 [lib]
 name = "fomo_rust_sdk"
