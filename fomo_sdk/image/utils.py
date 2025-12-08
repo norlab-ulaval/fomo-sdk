@@ -123,7 +123,7 @@ def project_lidar_on_image(
     return out_img
 
 
-def get_intrinsics(intrinsic_file: Path = "data/calib/zedx_left.json"):
+def get_intrinsics(intrinsic_file: Path):
     with open(intrinsic_file, "r") as f:
         calib = json.load(f)
 

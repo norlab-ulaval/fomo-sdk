@@ -8,8 +8,6 @@ from pytransform3d import transformations as pt
 from pytransform3d.transform_manager import TransformManager
 from scipy.spatial.transform import Rotation
 
-TF_FILE_PATH = "data/calib/transforms.json"
-
 
 class Format(Enum):
     MATRIX = "matrix"
@@ -18,15 +16,26 @@ class Format(Enum):
 
 
 class FoMoTFTree:
-    def __init__(self, filepath: str = TF_FILE_PATH):
+    def __init__(self, filepath: str = None):
         self.tm = TransformManager()
         self.load_transforms(filepath)
 
     def load_transforms(self, filepath):
-        if not os.path.exists(filepath):
-            raise FileNotFoundError(f"Transform file '{filepath}' not found")
-        with open(filepath, "r") as f:
-            transforms = json.load(f)
+        if filepath is None:
+            from importlib import resources
+
+            with (
+                resources.files("fomo_sdk.data")
+                .joinpath("calib/transforms.json")
+                .open("r") as f
+            ):
+                transforms = json.load(f)
+        else:
+            if not os.path.exists(filepath):
+                raise FileNotFoundError(f"Transform file '{filepath}' not found")
+            with open(filepath, "r") as f:
+                transforms = json.load(f)
+
         for tf in transforms:
             self.tm.add_transform(tf["from"], tf["to"], self.load_tf(tf))
 
