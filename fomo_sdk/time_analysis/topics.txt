@@ -1,0 +1,6 @@
+/mti30/data_raw, 100
+/vn100/data_raw, 100
+/lslidar128/points, 10
+/rslidar128/points, 10
+/zed_node/left_raw/image_raw_color, 60
+/basler/driver/image_raw, 10

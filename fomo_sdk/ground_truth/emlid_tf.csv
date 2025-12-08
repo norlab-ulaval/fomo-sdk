@@ -1,0 +1,7 @@
+# robosense optical center as origin (identical to base_link)
+# L2 Phase center of M2 emlid antennas
+# front, left, right
+x,y,z
+-0.066,0.329,-0.036
+-0.946503,0.389917,-0.023558
+-0.944645,-0.398145,-0.02341

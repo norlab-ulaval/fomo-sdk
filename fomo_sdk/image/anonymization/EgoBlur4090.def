@@ -1,0 +1,23 @@
+Bootstrap: docker
+From: python:3.10-slim
+
+%post
+    # Install system dependencies
+    apt-get update && apt-get install -y --no-install-recommends \
+        git wget ffmpeg libsm6 libxext6 libgl1 \
+        && rm -rf /var/lib/apt/lists/*
+
+    # Upgrade pip
+    pip install --no-cache-dir --upgrade pip setuptools wheel
+
+    pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 \
+      moviepy==1.0.3 numpy==1.24.3 ffmpeg-python==0.2.0 \
+      opencv-python-headless==4.7.0.72 \
+      --extra-index-url https://download.pytorch.org/whl/cu113
+
+%environment
+    export PYTHONPATH=/mnt/egoblur:$PYTHONPATH
+
+%runscript
+    cd /mnt/egoblur
+    bash
