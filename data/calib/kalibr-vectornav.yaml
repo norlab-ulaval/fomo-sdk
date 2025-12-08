@@ -1,0 +1,10 @@
+#Accelerometer
+accelerometer_noise_density: 0.0014475547298752243
+accelerometer_random_walk: 1.743080431796351e-05
+
+#Gyroscope
+gyroscope_noise_density: 6.170024194584988e-05
+gyroscope_random_walk: 1.2754866476100412e-06
+
+rostopic: "/vectornav/data_raw"
+update_rate: 200
