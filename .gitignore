@@ -443,3 +443,6 @@ target/
 
 
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode,pycharm,ros,ros2,macos,linux
+
+fomo_rust/.cargo/config.toml
+!fomo_rust/src/bin
