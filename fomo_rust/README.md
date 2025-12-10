@@ -46,6 +46,7 @@ Options:
   -i, --input <INPUT>
   -o, --output <OUTPUT>
   -s, --sensors <SENSORS>  Sensor types to process. Valid options: all, audio, basler, leishen, navtech, robosense, zedx_left, zedx_right
+  -c, --compress           Use Zstd compression. Default is true
   -h, --help               Print help
   -V, --version            Print version
 ```

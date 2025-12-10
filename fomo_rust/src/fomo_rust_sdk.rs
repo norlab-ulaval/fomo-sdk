@@ -637,13 +637,17 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
     input: P,
     output: P,
     sensors: &Vec<SensorType>,
+    compress: bool,
     prec: &TimestampPrecision,
 ) -> Result<(), anyhow::Error> {
     io::check_ijrr_input_path(input.as_ref())?;
     let output_path = io::check_mcap_output_path(output.as_ref())?;
 
     let calib_path = input.as_ref().join("calib");
-    let compression = Some(Compression::Zstd); // None
+    let mut compression = None;
+    if compress == true {
+        compression = Some(Compression::Zstd);
+    }
     let write_options = mcap::WriteOptions::new()
         .compression(compression)
         .profile("ros2")

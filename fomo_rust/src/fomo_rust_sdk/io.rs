@@ -95,7 +95,7 @@ pub(crate) fn check_mcap_output_path<P: AsRef<Utf8Path>>(
         }
         None => {
             if !output_path.exists() {
-                fs::create_dir(output_path)?;
+                fs::create_dir_all(output_path)?;
             }
             output.as_ref().join(format!("{}.mcap", directory_name))
         }
