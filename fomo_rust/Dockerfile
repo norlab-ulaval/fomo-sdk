@@ -10,12 +10,13 @@ RUN apt-get update && apt-get install -y \
     llvm-dev
 
 
-WORKDIR /usr/src/fomo_rust
-COPY src/ /usr/src/fomo_rust/src
-COPY benches/ /usr/src/fomo_rust/benches
-COPY tests/ /usr/src/fomo_rust/tests
-COPY Cargo.toml /usr/src/fomo_rust/Cargo.toml
-COPY Cargo.lock /usr/src/fomo_rust/Cargo.lock
+RUN git clone https://github.com/norlab-ulaval/fomo-sdk.git /usr/src/fomo-sdk
+WORKDIR /usr/src/fomo-sdk/fomo_rust
+COPY src/ /usr/src/fomo-sdk/fomo_rust/src
+COPY benches/ /usr/src/fomo-sdk/fomo_rust/benches
+COPY tests/ /usr/src/fomo-sdk/fomo_rust/tests
+COPY Cargo.toml /usr/src/fomo-sdk/fomo_rust/Cargo.toml
+COPY Cargo.lock /usr/src/fomo-sdk/fomo_rust/Cargo.lock
 
 RUN cargo install --path .
 
