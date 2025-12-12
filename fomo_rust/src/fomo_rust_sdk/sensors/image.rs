@@ -78,9 +78,9 @@ pub struct RosImage {
 impl RosImage {
     pub(crate) fn from_image(image: Image) -> Result<RosImage, Box<dyn std::error::Error>> {
         let multiplier = match image.image {
-            ImageData::RGBA(_) => 4,
-            ImageData::RGBFromBayer(_) => 3,
-            ImageData::Gray(_) => 1,
+            ImageData::RGBA(_, _, _) => 4,
+            ImageData::RGBFromBayer(_, _, _) => 3,
+            ImageData::Gray(_, _, _) => 1,
         };
         Ok(RosImage {
             header: image.header,
@@ -143,22 +143,15 @@ impl Image {
         let image_data = utils::load_png(path, true)?;
 
         match image_data {
-            utils::ImageData::RGBA(ref image_arr) => {
-                // Changed from BGRA
-                let (height, width, _) = image_arr.dim();
-                let height = height as u32;
-                let width = width as u32;
-
-                Ok(Image {
-                    header,
-                    height,
-                    width,
-                    encoding: "rgba8".to_string(), // Changed from bgra8
-                    is_bigendian: 0,
-                    step: width,
-                    image: image_data,
-                })
-            }
+            utils::ImageData::RGBA(_, width, height) => Ok(Image {
+                header,
+                height,
+                width,
+                encoding: "rgba8".to_string(),
+                is_bigendian: 0,
+                step: width,
+                image: image_data,
+            }),
             _ => Err("Failed to process image data".into()),
         }
     }

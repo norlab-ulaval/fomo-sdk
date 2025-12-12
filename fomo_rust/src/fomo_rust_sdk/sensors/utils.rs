@@ -5,6 +5,7 @@ use camino::Utf8Path;
 use image::{GrayImage, Luma, Rgb, RgbImage, Rgba, RgbaImage};
 use mcap::Schema;
 use ndarray::{s, Array2, Array3};
+
 use num_traits::ToBytes;
 use std::io::{Cursor, Read, Write};
 use std::{
@@ -132,27 +133,17 @@ pub fn construct_string(
 
 #[derive(Debug, PartialEq)]
 pub enum ImageData {
-    Gray(Array2<u8>),
-    RGBA(Array3<u8>), // Renamed from BGRA
-    RGBFromBayer(Array3<u8>),
+    Gray(Vec<u8>, u32, u32),
+    RGBA(Vec<u8>, u32, u32),
+    RGBFromBayer(Vec<u8>, u32, u32),
 }
 
 impl ImageData {
     pub fn len(&self) -> usize {
         match self {
-            ImageData::Gray(array_base) => {
-                let dim = array_base.dim();
-                dim.0 * dim.1 - (11 * dim.0) // image dimensions with the first 3 columns removed (encoders, timestamps, zero column)
-            }
-            ImageData::RGBA(array_base) => {
-                // Renamed from BGRA
-                let dim = array_base.dim();
-                dim.0 * dim.1 * dim.2
-            }
-            ImageData::RGBFromBayer(array_base) => {
-                let dim = array_base.dim();
-                dim.0 * dim.1
-            }
+            ImageData::Gray(data, _, _) => data.len(),
+            ImageData::RGBA(data, _, _) => data.len(),
+            ImageData::RGBFromBayer(data, _, _) => data.len(),
         }
     }
 }
@@ -168,10 +159,7 @@ pub fn image_from_bytes(
             if data.len() != width * height {
                 return Err("Invalid data size".into());
             }
-            // Convert flat Vec<u8> to Array2<u8>
-            let array = Array2::from_shape_vec((height, width), data.to_vec())
-                .map_err(|_| "Shape mismatch")?;
-            Ok(ImageData::Gray(array))
+            Ok(ImageData::Gray(data.to_vec(), width as u32, height as u32))
         }
         "bayer_bggr8" => {
             if data.len() != width * height {
@@ -191,18 +179,13 @@ pub fn image_from_bytes(
                 &mut dst,
             )?;
 
-            let array = Array3::from_shape_vec((height, width, 3), buf.to_vec())
-                .map_err(|_| "Shape mismatch")?;
-            Ok(ImageData::RGBFromBayer(array))
+            Ok(ImageData::RGBFromBayer(buf, width as u32, height as u32))
         }
         "rgba8" => {
-            // Renamed from bgra8
             if data.len() != width * height * 4 {
                 return Err("Invalid data size".into());
             }
-            let array = Array3::from_shape_vec((height, width, 4), data.to_vec())
-                .map_err(|_| "Shape mismatch")?;
-            Ok(ImageData::RGBA(array)) // Renamed from BGRA
+            Ok(ImageData::RGBA(data.to_vec(), width as u32, height as u32))
         }
         encoding => Err(format!("Unknown encoding {}", encoding).into()),
     }
@@ -210,16 +193,9 @@ pub fn image_from_bytes(
 
 pub fn bytes_from_image(image_data: &ImageData) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     match image_data {
-        ImageData::Gray(array_base) => {
-            let byte_arr = array_base
-                .slice(s![.., 11..]) // Skip first 11 columns, keep all rows
-                .iter()
-                .copied()
-                .collect();
-            Ok(byte_arr)
-        }
-        ImageData::RGBA(array_base) => Ok(array_base.iter().copied().collect()), // Renamed from BGRA
-        ImageData::RGBFromBayer(_) => todo!(),
+        ImageData::Gray(data, _, _) => Ok(data.clone()),
+        ImageData::RGBA(data, _, _) => Ok(data.clone()),
+        ImageData::RGBFromBayer(data, _, _) => Ok(data.clone()),
     }
 }
 
@@ -228,38 +204,16 @@ pub fn save_png<P: AsRef<std::path::Path>>(
     path: P,
 ) -> Result<(), image::ImageError> {
     match img {
-        ImageData::Gray(arr) => {
-            let (h, w) = arr.dim();
-            let mut gray = GrayImage::new(w as u32, h as u32);
-            for (y, row) in arr.outer_iter().enumerate() {
-                for (x, &val) in row.iter().enumerate() {
-                    gray.put_pixel(x as u32, y as u32, Luma([val]));
-                }
-            }
+        ImageData::Gray(data, w, h) => {
+            let gray = GrayImage::from_raw(*w, *h, data.clone()).unwrap();
             gray.save(path)
         }
-        ImageData::RGBA(arr) => {
-            // Renamed from BGRA
-            let (h, w, _) = arr.dim();
-            let mut out = RgbaImage::new(w as u32, h as u32);
-            for y in 0..h {
-                for x in 0..w {
-                    let px = arr.slice(s![y, x, ..]);
-                    out.put_pixel(x as u32, y as u32, Rgba([px[0], px[1], px[2], px[3]]));
-                    // Direct mapping RGBA
-                }
-            }
+        ImageData::RGBA(data, w, h) => {
+            let out = RgbaImage::from_raw(*w, *h, data.clone()).unwrap();
             out.save(path)
         }
-        ImageData::RGBFromBayer(arr) => {
-            let (h, w, _) = arr.dim();
-            let mut out = RgbImage::new(w as u32, h as u32);
-            for y in 0..h {
-                for x in 0..w {
-                    let px = arr.slice(s![y, x, ..]);
-                    out.put_pixel(x as u32, y as u32, Rgb([px[0], px[1], px[2]]));
-                }
-            }
+        ImageData::RGBFromBayer(data, w, h) => {
+            let out = RgbImage::from_raw(*w, *h, data.clone()).unwrap();
             out.save(path)
         }
     }
@@ -275,25 +229,14 @@ pub fn load_png<P: AsRef<std::path::Path>>(
         true => {
             let rgba_img = img.to_rgba8();
             let (w, h) = rgba_img.dimensions();
-            // Direct zero-ish copy (into_vec gives us buffer, then we make Array3)
             let data = rgba_img.into_vec();
-
-            // This assumes row-major layout which image crate provides.
-            // Array3::from_shape_vec takes a 1D vector and reshapes it.
-            let arr = Array3::from_shape_vec((h as usize, w as usize, 4), data)
-                .expect("Failed to create Array3 from image data");
-
-            Ok(ImageData::RGBA(arr)) // Renamed from BGRA
+            Ok(ImageData::RGBA(data, w, h))
         }
         false => {
             let gray_img = img.to_luma8();
             let (w, h) = gray_img.dimensions();
             let data = gray_img.into_vec();
-
-            let arr = Array2::from_shape_vec((h as usize, w as usize), data)
-                .expect("Failed to create Array2 from image data");
-
-            Ok(ImageData::Gray(arr))
+            Ok(ImageData::Gray(data, w, h))
         }
     }
 }

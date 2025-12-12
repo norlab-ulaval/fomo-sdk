@@ -26,26 +26,19 @@ pub(crate) struct CameraCalibration {
 // Helper function to convert ImageData to OpenCV Mat
 fn imagedata_to_mat(image_data: &ImageData) -> Result<Mat> {
     match image_data {
-        ImageData::RGBA(arr) => {
-            let (height, width, channels) = arr.dim();
-            let data: Vec<u8> = arr.iter().copied().collect();
-            let rows: Vec<&[u8]> = data.chunks(width * channels).collect();
-            let mat = Mat::from_slice_2d(&rows)?;
-            let reshaped = mat.reshape(channels as i32, height as i32)?;
+        ImageData::RGBA(data, width, height) => {
+            let mat = Mat::from_slice(data)?;
+            let reshaped = mat.reshape(4, *height as i32)?;
             reshaped.try_clone()
         }
-        ImageData::Gray(arr) => {
-            let (_, width) = arr.dim();
-            let data: Vec<u8> = arr.iter().copied().collect();
-            let rows: Vec<&[u8]> = data.chunks(width).collect();
-            Mat::from_slice_2d(&rows)
+        ImageData::Gray(data, width, height) => {
+            let mat = Mat::from_slice(data)?;
+            let reshaped = mat.reshape(1, *height as i32)?;
+            reshaped.try_clone()
         }
-        ImageData::RGBFromBayer(arr) => {
-            let (height, width, channels) = arr.dim();
-            let data: Vec<u8> = arr.iter().copied().collect();
-            let rows: Vec<&[u8]> = data.chunks(width * channels).collect();
-            let mat = Mat::from_slice_2d(&rows)?;
-            let reshaped = mat.reshape(channels as i32, height as i32)?;
+        ImageData::RGBFromBayer(data, width, height) => {
+            let mat = Mat::from_slice(data)?;
+            let reshaped = mat.reshape(3, *height as i32)?;
             reshaped.try_clone()
         }
     }
@@ -53,29 +46,17 @@ fn imagedata_to_mat(image_data: &ImageData) -> Result<Mat> {
 
 // Helper function to convert OpenCV Mat to ImageData
 fn mat_to_imagedata(mat: &Mat) -> Result<ImageData> {
-    let height = mat.rows() as usize;
-    let width = mat.cols() as usize;
+    let height = mat.rows() as u32;
+    let width = mat.cols() as u32;
     let channels = mat.channels() as usize;
 
     let data_bytes = mat.data_bytes()?;
     let data = data_bytes.to_vec();
 
     match channels {
-        1 => {
-            let arr = ndarray::Array2::from_shape_vec((height, width), data)
-                .map_err(|_| opencv::Error::new(opencv::core::StsError, "Shape mismatch"))?;
-            Ok(ImageData::Gray(arr))
-        }
-        3 => {
-            let arr = ndarray::Array3::from_shape_vec((height, width, channels), data)
-                .map_err(|_| opencv::Error::new(opencv::core::StsError, "Shape mismatch"))?;
-            Ok(ImageData::RGBFromBayer(arr))
-        }
-        4 => {
-            let arr = ndarray::Array3::from_shape_vec((height, width, channels), data)
-                .map_err(|_| opencv::Error::new(opencv::core::StsError, "Shape mismatch"))?;
-            Ok(ImageData::RGBA(arr)) // Changed from BGRA
-        }
+        1 => Ok(ImageData::Gray(data, width, height)),
+        3 => Ok(ImageData::RGBFromBayer(data, width, height)),
+        4 => Ok(ImageData::RGBA(data, width, height)),
         _ => Err(opencv::Error::new(
             opencv::core::StsError,
             "Unsupported channel count",
