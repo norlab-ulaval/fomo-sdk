@@ -30,6 +30,7 @@ hex = "0.4.3"
 num-quaternion = "1.0.6"
 atty = "0.2.14"
 include_dir = "0.7.3"
+crossbeam = "0.8"
 
 [lib]
 name = "fomo_rust_sdk"
