@@ -78,7 +78,7 @@ pub struct RosImage {
 impl RosImage {
     pub(crate) fn from_image(image: Image) -> Result<RosImage, Box<dyn std::error::Error>> {
         let multiplier = match image.image {
-            ImageData::BGRA(_) => 4,
+            ImageData::RGBA(_) => 4,
             ImageData::RGBFromBayer(_) => 3,
             ImageData::Gray(_) => 1,
         };
@@ -143,7 +143,8 @@ impl Image {
         let image_data = utils::load_png(path, true)?;
 
         match image_data {
-            utils::ImageData::BGRA(ref image_arr) => {
+            utils::ImageData::RGBA(ref image_arr) => {
+                // Changed from BGRA
                 let (height, width, _) = image_arr.dim();
                 let height = height as u32;
                 let width = width as u32;
@@ -152,7 +153,7 @@ impl Image {
                     header,
                     height,
                     width,
-                    encoding: "bgra8".to_string(),
+                    encoding: "rgba8".to_string(), // Changed from bgra8
                     is_bigendian: 0,
                     step: width,
                     image: image_data,

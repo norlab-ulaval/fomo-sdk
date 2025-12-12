@@ -26,7 +26,7 @@ pub(crate) struct CameraCalibration {
 // Helper function to convert ImageData to OpenCV Mat
 fn imagedata_to_mat(image_data: &ImageData) -> Result<Mat> {
     match image_data {
-        ImageData::BGRA(arr) => {
+        ImageData::RGBA(arr) => {
             let (height, width, channels) = arr.dim();
             let data: Vec<u8> = arr.iter().copied().collect();
             let rows: Vec<&[u8]> = data.chunks(width * channels).collect();
@@ -74,7 +74,7 @@ fn mat_to_imagedata(mat: &Mat) -> Result<ImageData> {
         4 => {
             let arr = ndarray::Array3::from_shape_vec((height, width, channels), data)
                 .map_err(|_| opencv::Error::new(opencv::core::StsError, "Shape mismatch"))?;
-            Ok(ImageData::BGRA(arr))
+            Ok(ImageData::RGBA(arr)) // Changed from BGRA
         }
         _ => Err(opencv::Error::new(
             opencv::core::StsError,

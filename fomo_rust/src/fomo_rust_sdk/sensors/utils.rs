@@ -133,7 +133,7 @@ pub fn construct_string(
 #[derive(Debug, PartialEq)]
 pub enum ImageData {
     Gray(Array2<u8>),
-    BGRA(Array3<u8>),
+    RGBA(Array3<u8>), // Renamed from BGRA
     RGBFromBayer(Array3<u8>),
 }
 
@@ -144,7 +144,8 @@ impl ImageData {
                 let dim = array_base.dim();
                 dim.0 * dim.1 - (11 * dim.0) // image dimensions with the first 3 columns removed (encoders, timestamps, zero column)
             }
-            ImageData::BGRA(array_base) => {
+            ImageData::RGBA(array_base) => {
+                // Renamed from BGRA
                 let dim = array_base.dim();
                 dim.0 * dim.1 * dim.2
             }
@@ -194,13 +195,14 @@ pub fn image_from_bytes(
                 .map_err(|_| "Shape mismatch")?;
             Ok(ImageData::RGBFromBayer(array))
         }
-        "bgra8" => {
+        "rgba8" => {
+            // Renamed from bgra8
             if data.len() != width * height * 4 {
                 return Err("Invalid data size".into());
             }
             let array = Array3::from_shape_vec((height, width, 4), data.to_vec())
                 .map_err(|_| "Shape mismatch")?;
-            Ok(ImageData::BGRA(array))
+            Ok(ImageData::RGBA(array)) // Renamed from BGRA
         }
         encoding => Err(format!("Unknown encoding {}", encoding).into()),
     }
@@ -216,7 +218,7 @@ pub fn bytes_from_image(image_data: &ImageData) -> Result<Vec<u8>, Box<dyn std::
                 .collect();
             Ok(byte_arr)
         }
-        ImageData::BGRA(array_base) => Ok(array_base.iter().copied().collect()),
+        ImageData::RGBA(array_base) => Ok(array_base.iter().copied().collect()), // Renamed from BGRA
         ImageData::RGBFromBayer(_) => todo!(),
     }
 }
@@ -236,13 +238,15 @@ pub fn save_png<P: AsRef<std::path::Path>>(
             }
             gray.save(path)
         }
-        ImageData::BGRA(arr) => {
+        ImageData::RGBA(arr) => {
+            // Renamed from BGRA
             let (h, w, _) = arr.dim();
             let mut out = RgbaImage::new(w as u32, h as u32);
             for y in 0..h {
                 for x in 0..w {
                     let px = arr.slice(s![y, x, ..]);
-                    out.put_pixel(x as u32, y as u32, Rgba([px[2], px[1], px[0], px[3]]));
+                    out.put_pixel(x as u32, y as u32, Rgba([px[0], px[1], px[2], px[3]]));
+                    // Direct mapping RGBA
                 }
             }
             out.save(path)
@@ -269,34 +273,25 @@ pub fn load_png<P: AsRef<std::path::Path>>(
 
     match is_color {
         true => {
-            let rgba_img = img.to_rgb8();
+            let rgba_img = img.to_rgba8();
             let (w, h) = rgba_img.dimensions();
-            let mut arr = Array3::<u8>::zeros((h as usize, w as usize, 4));
+            // Direct zero-ish copy (into_vec gives us buffer, then we make Array3)
+            let data = rgba_img.into_vec();
 
-            for y in 0..h {
-                for x in 0..w {
-                    let pixel = rgba_img.get_pixel(x, y);
-                    arr[[y as usize, x as usize, 0]] = pixel[2]; // B (blue from RGB)
-                    arr[[y as usize, x as usize, 1]] = pixel[1]; // G (green)
-                    arr[[y as usize, x as usize, 2]] = pixel[0]; // R (red from RGB)
-                    arr[[y as usize, x as usize, 3]] = 255; // A (alpha)
-                }
-            }
-            Ok(ImageData::BGRA(arr))
+            // This assumes row-major layout which image crate provides.
+            // Array3::from_shape_vec takes a 1D vector and reshapes it.
+            let arr = Array3::from_shape_vec((h as usize, w as usize, 4), data)
+                .expect("Failed to create Array3 from image data");
+
+            Ok(ImageData::RGBA(arr)) // Renamed from BGRA
         }
         false => {
             let gray_img = img.to_luma8();
-
             let (w, h) = gray_img.dimensions();
+            let data = gray_img.into_vec();
 
-            let mut arr = Array2::<u8>::zeros((h as usize, w as usize));
-
-            for y in 0..h {
-                for x in 0..w {
-                    let pixel = gray_img.get_pixel(x, y);
-                    arr[[y as usize, x as usize]] = pixel[0]
-                }
-            }
+            let arr = Array2::from_shape_vec((h as usize, w as usize), data)
+                .expect("Failed to create Array2 from image data");
 
             Ok(ImageData::Gray(arr))
         }
