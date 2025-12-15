@@ -44,8 +44,8 @@ use sensors::{
     imu::{VECTORANV_TOPIC, VECTORNAV_FRAME_ID, XSENS_FRAME_ID, XSENS_TOPIC},
     odom::DiffDrive,
 };
-use tqdm::tqdm;
 
+use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
 use mcap::{read, Compression};
 
 use crossbeam::channel::bounded;
@@ -228,11 +228,12 @@ pub fn process_rosbag<P: AsRef<Utf8Path>>(
     let is_tty = atty::is(atty::Stream::Stdout);
     let message_stream = read::MessageStream::new(&mapped)?;
     let iter: Box<dyn Iterator<Item = _>> = if is_tty {
-        Box::new(
-            tqdm(message_stream)
-                .desc(Some("Processing input data"))
-                .total(Some(msg_count)),
-        )
+        let pb = ProgressBar::new(msg_count as u64);
+        pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
+            .unwrap()
+            .progress_chars("#>-"));
+        pb.set_message("Processing input data");
+        Box::new(message_stream.progress_with(pb))
     } else {
         Box::new(message_stream)
     };
@@ -646,6 +647,13 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
     io::check_ijrr_input_path(input.as_ref())?;
     let output_path = io::check_mcap_output_path(output.as_ref())?;
 
+    // Configure rayon global thread pool to handle high latency I/O
+    // We ignore the error in case it was already initialized
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(50)
+        .build_global()
+        .ok();
+
     let calib_path = input.as_ref().join("calib");
     let mut compression = None;
     if compress == true {
@@ -669,7 +677,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
 
     let start = Instant::now();
 
-    let (tx, rx) = bounded(10000);
+    let m = indicatif::MultiProgress::new();
+    let (tx, rx) = bounded(100);
     let mut handles = vec![];
 
     // all output mcaps contain the IMU, odom and TF data
@@ -684,8 +693,16 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
     let channels = imu_mcap_writer.create_channels(&mut mcap_writer).unwrap();
     let tx_clone = tx.clone();
     let prec_clone = *prec;
+    let pb = m.add(ProgressBar::new(0));
+    pb.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
     handles.push(thread::spawn(move || {
-        produce_sensor_data(&mut imu_mcap_writer, channels, &prec_clone, tx_clone)
+        produce_sensor_data(&mut imu_mcap_writer, channels, &prec_clone, tx_clone, pb)
             .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", VECTORNAV_FRAME_ID, e))
             .unwrap()
     }));
@@ -700,8 +717,16 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
     let channels = imu_mcap_writer.create_channels(&mut mcap_writer).unwrap();
     let tx_clone = tx.clone();
     let prec_clone = *prec;
+    let pb = m.add(ProgressBar::new(0));
+    pb.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
     handles.push(thread::spawn(move || {
-        produce_sensor_data(&mut imu_mcap_writer, channels, &prec_clone, tx_clone)
+        produce_sensor_data(&mut imu_mcap_writer, channels, &prec_clone, tx_clone, pb)
             .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", XSENS_FRAME_ID, e))
             .unwrap()
     }));
@@ -716,8 +741,16 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
     let channels = odom_mcap_writer.create_channels(&mut mcap_writer).unwrap();
     let tx_clone = tx.clone();
     let prec_clone = *prec;
+    let pb = m.add(ProgressBar::new(0));
+    pb.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
     handles.push(thread::spawn(move || {
-        produce_sensor_data(&mut odom_mcap_writer, channels, &prec_clone, tx_clone)
+        produce_sensor_data(&mut odom_mcap_writer, channels, &prec_clone, tx_clone, pb)
             .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", ODOM_FRAME_ID, e))
             .unwrap()
     }));
@@ -741,10 +774,20 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                     .unwrap();
                 let tx_clone = tx.clone();
                 let prec_clone = *prec;
+                let pb = m.add(ProgressBar::new(0));
+                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"));
                 handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut navtech_mcap_writer, channels, &prec_clone, tx_clone)
-                        .inspect_err(|e| eprintln!("Failed to process navtech data: {}", e))
-                        .unwrap()
+                    produce_sensor_data(
+                        &mut navtech_mcap_writer,
+                        channels,
+                        &prec_clone,
+                        tx_clone,
+                        pb,
+                    )
+                    .inspect_err(|e| eprintln!("Failed to process navtech data: {}", e))
+                    .unwrap()
                 }));
             }
             SensorType::ZedXLeft => {
@@ -760,8 +803,12 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                 let channels = image_mcap_writer.create_channels(&mut mcap_writer).unwrap();
                 let tx_clone = tx.clone();
                 let prec_clone = *prec;
+                let pb = m.add(ProgressBar::new(0));
+                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"));
                 handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut image_mcap_writer, channels, &prec_clone, tx_clone)
+                    produce_sensor_data(&mut image_mcap_writer, channels, &prec_clone, tx_clone, pb)
                         .inspect_err(|e| eprintln!("Failed to process zedx_left data: {}", e))
                         .unwrap()
                 }));
@@ -779,8 +826,12 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                 let channels = image_mcap_writer.create_channels(&mut mcap_writer).unwrap();
                 let tx_clone = tx.clone();
                 let prec_clone = *prec;
+                let pb = m.add(ProgressBar::new(0));
+                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"));
                 handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut image_mcap_writer, channels, &prec_clone, tx_clone)
+                    produce_sensor_data(&mut image_mcap_writer, channels, &prec_clone, tx_clone, pb)
                         .inspect_err(|e| eprintln!("Failed to process zedx_right data: {}", e))
                         .unwrap()
                 }));
@@ -800,10 +851,20 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                     .unwrap();
                 let tx_clone = tx.clone();
                 let prec_clone = *prec;
+                let pb = m.add(ProgressBar::new(0));
+                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"));
                 handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut basler_mcap_writer, channels, &prec_clone, tx_clone)
-                        .inspect_err(|e| eprintln!("Failed to process basler data: {}", e))
-                        .unwrap()
+                    produce_sensor_data(
+                        &mut basler_mcap_writer,
+                        channels,
+                        &prec_clone,
+                        tx_clone,
+                        pb,
+                    )
+                    .inspect_err(|e| eprintln!("Failed to process basler data: {}", e))
+                    .unwrap()
                 }));
             }
             SensorType::RoboSense => {
@@ -818,8 +879,12 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                 let channels = lidar_mcap_writer.create_channels(&mut mcap_writer).unwrap();
                 let tx_clone = tx.clone();
                 let prec_clone = *prec;
+                let pb = m.add(ProgressBar::new(0));
+                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"));
                 handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut lidar_mcap_writer, channels, &prec_clone, tx_clone)
+                    produce_sensor_data(&mut lidar_mcap_writer, channels, &prec_clone, tx_clone, pb)
                         .inspect_err(|e| eprintln!("Failed to process robosense data: {}", e))
                         .unwrap()
                 }));
@@ -836,8 +901,12 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                 let channels = lidar_mcap_writer.create_channels(&mut mcap_writer).unwrap();
                 let tx_clone = tx.clone();
                 let prec_clone = *prec;
+                let pb = m.add(ProgressBar::new(0));
+                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"));
                 handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut lidar_mcap_writer, channels, &prec_clone, tx_clone)
+                    produce_sensor_data(&mut lidar_mcap_writer, channels, &prec_clone, tx_clone, pb)
                         .inspect_err(|e| eprintln!("Failed to process leishen data: {}", e))
                         .unwrap()
                 }));
@@ -855,8 +924,12 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                 let channels = audio_mcap_writer.create_channels(&mut mcap_writer).unwrap();
                 let tx_clone = tx.clone();
                 let prec_clone = *prec;
+                let pb = m.add(ProgressBar::new(0));
+                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"));
                 handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut audio_mcap_writer, channels, &prec_clone, tx_clone)
+                    produce_sensor_data(&mut audio_mcap_writer, channels, &prec_clone, tx_clone, pb)
                         .inspect_err(|e| eprintln!("Failed to process audio left data: {}", e))
                         .unwrap()
                 }));
@@ -873,8 +946,12 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                 let channels = audio_mcap_writer.create_channels(&mut mcap_writer).unwrap();
                 let tx_clone = tx.clone();
                 let prec_clone = *prec;
+                let pb = m.add(ProgressBar::new(0));
+                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"));
                 handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut audio_mcap_writer, channels, &prec_clone, tx_clone)
+                    produce_sensor_data(&mut audio_mcap_writer, channels, &prec_clone, tx_clone, pb)
                         .inspect_err(|e| eprintln!("Failed to process audio right data: {}", e))
                         .unwrap()
                 }));
@@ -939,8 +1016,7 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         .expect("Failed to save metadata.yaml");
 
     let duration = start.elapsed();
-    println!("Export finished in {:?}", duration);
-
+    println!("Export finished in {}s", duration.as_secs_f64());
     Ok(())
 }
 
@@ -962,10 +1038,17 @@ pub fn fix_wheel_odom_from_rosbag<P: AsRef<Utf8Path>>(
 
     let mut motor_vel: MotorVelocity;
     let mut diff_drive = DiffDrive::new(drivetrain, odom::DIFF_DRIVE_FREQUENCY);
-    for message in tqdm(read::MessageStream::new(&mapped)?)
-        .desc(Some("Processing input data"))
-        .total(Some(msg_count))
-    {
+    let pb = ProgressBar::new(msg_count as u64);
+    pb.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
+    pb.set_message("Processing input data");
+
+    for message in read::MessageStream::new(&mapped)?.progress_with(pb) {
         let message = message?;
 
         let schema = message

@@ -446,3 +446,4 @@ target/
 
 fomo_rust/.cargo/config.toml
 !fomo_rust/src/bin
+data/
