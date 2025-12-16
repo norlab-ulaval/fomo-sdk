@@ -2,6 +2,15 @@ from pathlib import Path
 from enum import Enum
 import re
 
+TRAJECTORIES = [
+    "blue",
+    "green",
+    "magenta",
+    "orange",
+    "red",
+    "yellow",
+]
+
 DEPLOYMENT_DATE_LABEL = {
     "2024-11-21": "Nov21",
     "2024-11-28": "Nov28",
@@ -21,6 +30,14 @@ DEPLOYMENT_DATE_LABEL = {
 DEPLOYMENT_LABEL_DATE = {v: k for k, v in DEPLOYMENT_DATE_LABEL.items()}
 
 
+def construct_path_from_filename(filename: str | Path) -> Path:
+    if isinstance(filename, Path):
+        filename = filename.name
+    localization_date = construct_localization_recording(filename)
+    deployment = "-".join(localization_date.split("_")[1].split("-")[:3])
+    return Path(deployment) / Path(localization_date)
+
+
 def construct_path(
     dataset_base_path: str | Path, deployment: str, trajectory: str
 ) -> Path:
@@ -28,6 +45,11 @@ def construct_path(
         deployment_date = deployment
     else:
         deployment_date = DEPLOYMENT_LABEL_DATE[deployment]
+
+    if trajectory not in TRAJECTORIES:
+        raise ValueError(
+            f"Trajectory {trajectory} is invalid. Valid trajectories are: {TRAJECTORIES}"
+        )
 
     path = Path(dataset_base_path) / deployment_date
     trajectory_full = None
@@ -39,6 +61,20 @@ def construct_path(
         raise ValueError(f"Trajectory {trajectory} not found in {path}")
 
     return path / trajectory_full
+
+
+def construct_evaluation_file_name(
+    recording_mapping: str, recording_localization: str, suffix: str = ".txt"
+) -> str:
+    return f"{recording_mapping}_{recording_localization}{suffix}"
+
+
+def construct_mapping_recording(filename: str) -> str:
+    return filename.split("_")[0] + "_" + filename.split("_")[1]
+
+
+def construct_localization_recording(filename: str) -> str:
+    return filename.split("_")[2] + "_" + filename.split("_")[3].split(".")[0]
 
 
 def parse_proprioceptive_file_name(file_name: Path | str):
@@ -80,7 +116,7 @@ def get_slam_title(slam: Slam):
     elif slam == Slam.VSLAM.value:
         return "Stereo-Inertial Visual SLAM"
     else:
-        raise ValueError(f"Unknown SLAM: {slam}")
+        return "Unknown"
 
 
 def check_recording_name(recording_name: str):

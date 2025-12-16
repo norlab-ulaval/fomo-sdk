@@ -276,7 +276,9 @@ def create_evaluation_figure(
     mapping_date: str,
     localization_date: str,
     slam: str,
-    is_zeroed: bool,
+    move_to_origin: bool,
+    plot_figure: bool = False,
+    export_figure: bool = False,
 ):
     """
     Create and save a figure with:
@@ -300,12 +302,15 @@ def create_evaluation_figure(
     plot_trajectory_timestamp(axs[2, 0], traj_ref, traj_est, "z")
 
     # XY Trajectory Plot
-    plot_trajectory_xy(axs[2, 1], traj_ref, traj_est, is_zeroed)
+    plot_trajectory_xy(axs[2, 1], traj_ref, traj_est, move_to_origin)
 
     # 3D Trajectory Plot (added as subplot 3)
     # ax_3d = fig.add_subplot(4, 2, 7, projection='3d')
     # plot_trajectory_3d(ax_3d, traj_ref, traj_est)
 
-    plt.tight_layout()
-    plt.savefig(f"{save_path}.jpg", format="jpg", dpi=300)
+    if plot_figure:
+        plt.show()
+    if export_figure:
+        plt.tight_layout()
+        plt.savefig(f"{save_path}.jpg", format="jpg", dpi=300)
     plt.close()
