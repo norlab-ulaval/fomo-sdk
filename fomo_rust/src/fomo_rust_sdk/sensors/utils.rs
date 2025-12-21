@@ -135,6 +135,7 @@ pub fn construct_string(
 pub enum ImageData {
     Gray(Vec<u8>, u32, u32),
     RGBA(Vec<u8>, u32, u32),
+    BGRA(Vec<u8>, u32, u32),
     RGBFromBayer(Vec<u8>, u32, u32),
 }
 
@@ -143,6 +144,7 @@ impl ImageData {
         match self {
             ImageData::Gray(data, _, _) => data.len(),
             ImageData::RGBA(data, _, _) => data.len(),
+            ImageData::BGRA(data, _, _) => data.len(),
             ImageData::RGBFromBayer(data, _, _) => data.len(),
         }
     }
@@ -187,6 +189,12 @@ pub fn image_from_bytes(
             }
             Ok(ImageData::RGBA(data.to_vec(), width as u32, height as u32))
         }
+        "bgra8" => {
+            if data.len() != width * height * 4 {
+                return Err("Invalid data size".into());
+            }
+            Ok(ImageData::BGRA(data.to_vec(), width as u32, height as u32))
+        }
         encoding => Err(format!("Unknown encoding {}", encoding).into()),
     }
 }
@@ -195,6 +203,7 @@ pub fn bytes_from_image(image_data: &ImageData) -> Result<Vec<u8>, Box<dyn std::
     match image_data {
         ImageData::Gray(data, _, _) => Ok(data.clone()),
         ImageData::RGBA(data, _, _) => Ok(data.clone()),
+        ImageData::BGRA(data, _, _) => Ok(data.clone()),
         ImageData::RGBFromBayer(data, _, _) => Ok(data.clone()),
     }
 }
@@ -212,6 +221,21 @@ pub fn save_png<P: AsRef<std::path::Path>>(
             let out = RgbaImage::from_raw(*w, *h, data.clone()).unwrap();
             out.save(path)
         }
+        ImageData::BGRA(data, w, h) => {
+            let mut rgba_buffer = vec![0u8; (w * h * 4) as usize];
+            for (src, dst) in data.chunks_exact(4).zip(rgba_buffer.chunks_exact_mut(4)) {
+                let [b, g, r, a] = src.try_into().unwrap();
+                dst.copy_from_slice(&[r, g, b, a]);
+            }
+            let out = RgbaImage::from_raw(*w, *h, rgba_buffer.clone()).unwrap();
+            // for y in 0..*h {
+            //     for x in 0..*w {
+            //         let px = data.slice(s![y, x, ..]);
+            //         out.put_pixel(x as u32, y as u32, Rgba([px[2], px[1], px[0], px[3]]));
+            //     }
+            // }
+            out.save(path)
+        }
         ImageData::RGBFromBayer(data, w, h) => {
             let out = RgbImage::from_raw(*w, *h, data.clone()).unwrap();
             out.save(path)
@@ -223,7 +247,9 @@ pub fn load_png<P: AsRef<std::path::Path>>(
     path: P,
     is_color: bool,
 ) -> Result<ImageData, image::ImageError> {
-    let img = image::open(path)?;
+    let file = std::fs::File::open(path)?;
+    let reader = std::io::BufReader::new(file);
+    let img = image::load(reader, image::ImageFormat::Png)?;
 
     match is_color {
         true => {

@@ -79,6 +79,7 @@ impl RosImage {
     pub(crate) fn from_image(image: Image) -> Result<RosImage, Box<dyn std::error::Error>> {
         let multiplier = match image.image {
             ImageData::RGBA(_, _, _) => 4,
+            ImageData::BGRA(_, _, _) => 4,
             ImageData::RGBFromBayer(_, _, _) => 3,
             ImageData::Gray(_, _, _) => 1,
         };

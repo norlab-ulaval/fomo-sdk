@@ -670,15 +670,17 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         .emit_message_indexes(true);
 
     let mut mcap_writer = write_options
-        .create(BufWriter::new(fs::File::create(&output_path).map_err(
-            |e| anyhow!("Failed to create output file {}: {}", &output_path, e),
-        )?))
+        .create(BufWriter::with_capacity(
+            1024 * 1024,
+            fs::File::create(&output_path)
+                .map_err(|e| anyhow!("Failed to create output file {}: {}", &output_path, e))?,
+        ))
         .map_err(|e| anyhow!("Failed to create write_options: {}", e))?;
 
     let start = Instant::now();
 
     let m = indicatif::MultiProgress::new();
-    let (tx, rx) = bounded(100);
+    let (tx, rx) = bounded(1000);
     let mut handles = vec![];
 
     // all output mcaps contain the IMU, odom and TF data

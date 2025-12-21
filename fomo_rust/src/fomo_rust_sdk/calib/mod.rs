@@ -2,7 +2,6 @@ use crate::fomo_rust_sdk::sensors::utils::ImageData;
 use crate::DATA_DIR;
 use configparser::ini::Ini;
 use opencv::{calib3d, core::Mat, imgproc, prelude::*, Result};
-use std::fs;
 
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -27,6 +26,11 @@ pub(crate) struct CameraCalibration {
 fn imagedata_to_mat(image_data: &ImageData) -> Result<Mat> {
     match image_data {
         ImageData::RGBA(data, width, height) => {
+            let mat = Mat::from_slice(data)?;
+            let reshaped = mat.reshape(4, *height as i32)?;
+            reshaped.try_clone()
+        }
+        ImageData::BGRA(data, width, height) => {
             let mat = Mat::from_slice(data)?;
             let reshaped = mat.reshape(4, *height as i32)?;
             reshaped.try_clone()
@@ -56,7 +60,7 @@ fn mat_to_imagedata(mat: &Mat) -> Result<ImageData> {
     match channels {
         1 => Ok(ImageData::Gray(data, width, height)),
         3 => Ok(ImageData::RGBFromBayer(data, width, height)),
-        4 => Ok(ImageData::RGBA(data, width, height)),
+        4 => Ok(ImageData::BGRA(data, width, height)),
         _ => Err(opencv::Error::new(
             opencv::core::StsError,
             "Unsupported channel count",
