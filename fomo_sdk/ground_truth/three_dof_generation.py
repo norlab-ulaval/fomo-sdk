@@ -16,7 +16,6 @@ from fomo_sdk.ground_truth.utils import (
     point_to_point_minimization,
     timestamp_to_utc_s,
 )
-from fomo_sdk.ground_truth.visualize import visualize_trajectory_metrics
 
 
 def read_arguments():
@@ -186,7 +185,7 @@ def save_trajectory(
         (os.path.join(output_folder, "gt_covariance.csv"), df_covariance, ","),
     ]
     if debug:
-        files_data.append((os.path.join(output_folder, "gt_p2p.txt"), df_traj_p2p, ""))
+        files_data.append((os.path.join(output_folder, "gt_p2p.txt"), df_traj_p2p, " "))
     for file, data, sep in files_data:
         if os.path.exists(file):
             if not overwrite:
@@ -264,8 +263,13 @@ def main():
         )
 
     if args.visualize:
-        visualize_trajectory_metrics(df_traj_out_p2g, df_cov_out, None)
-        plt.show()
+        try:
+            from fomo_sdk.ground_truth.visualize import visualize_trajectory_metrics
+
+            visualize_trajectory_metrics(df_traj_out_p2g, df_cov_out, None)
+            plt.show()
+        except ImportError:
+            print("Visualization module not found. Skipping visualization.")
 
 
 if __name__ == "__main__":

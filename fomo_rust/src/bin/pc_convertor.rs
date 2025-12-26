@@ -4,8 +4,8 @@ use clap::Parser;
 use fomo_rust_sdk::fomo_rust_sdk::sensors::{
     point_cloud::PointCloud, timestamp::TimestampPrecision,
 };
+use indicatif::ProgressIterator;
 use std::fs;
-use tqdm::tqdm;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -67,8 +67,9 @@ fn convert_point_clouds<P: AsRef<Utf8Path>>(
         fs::create_dir_all(output.as_ref())?;
     }
 
-    for subfile in tqdm(fs::read_dir(input.as_ref())?) {
-        let filepath = subfile.as_ref().unwrap().path();
+    let entries: Vec<_> = fs::read_dir(input.as_ref())?.collect::<Result<_, _>>()?;
+    for subfile in entries.into_iter().progress() {
+        let filepath = subfile.path();
         match filepath.extension().and_then(|s| s.to_str()) {
             Some("bin") | Some("csv") => {
                 let timestamp = filepath

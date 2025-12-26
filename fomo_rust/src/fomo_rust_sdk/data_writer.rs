@@ -7,7 +7,6 @@ use std::marker::PhantomData;
 
 use anyhow::Result;
 use camino::{Utf8Path, Utf8PathBuf};
-use tqdm::tqdm;
 
 use super::sensors::tf::{self, TFMessage};
 use super::sensors::timestamp::{Timestamp, TimestampPrecision};
@@ -16,6 +15,7 @@ use std::fmt::Debug;
 use super::qos::{
     create_sensor_qos_metadata, create_sensor_qos_metadata_string, create_tf_qos_metadata,
 };
+use crossbeam::channel::Sender;
 use mcap;
 use mcap::Writer;
 use std::io::BufReader;
@@ -25,6 +25,14 @@ use std::{
     io::BufRead,
 };
 use std::{io::BufWriter, u64};
+
+pub(super) struct McapLogMessage {
+    pub channel_id: u16,
+    pub sequence: u32,
+    pub log_time: u64,
+    pub publish_time: u64,
+    pub data: Vec<u8>,
+}
 
 pub(super) trait DataLoader: Iterator {
     fn new<P: AsRef<Utf8Path>>(
@@ -159,14 +167,13 @@ pub(super) trait SensorMcapWriter: Iterator {
         prec: &TimestampPrecision,
     ) -> Result<Self::DataType, Box<dyn std::error::Error>>;
 
-    fn write_message(
+    fn serialize_message(
         &self,
         data: Self::DataType,
         channels: &Vec<u16>,
-        mcap_writer: &mut Writer<BufWriter<File>>,
         sequence: u32,
         timestamp: &Timestamp,
-    ) -> Result<(), Box<dyn std::error::Error>>;
+    ) -> Result<Vec<McapLogMessage>, Box<dyn std::error::Error>>;
     fn get_topic(&self) -> &str;
 }
 
@@ -273,26 +280,22 @@ impl<T: ToRosMsg<L::Item>, L: DataLoader> SensorMcapWriter for MsgMcapWriter<T, 
         Self::DataType::from_item(item, self.frame_id.clone(), prec)
     }
 
-    fn write_message(
+    fn serialize_message(
         &self,
         data: Self::DataType,
         channels: &Vec<u16>,
-        mcap_writer: &mut Writer<BufWriter<File>>,
         sequence: u32,
         timestamp: &Timestamp,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let msg_header = mcap::records::MessageHeader {
+    ) -> Result<Vec<McapLogMessage>, Box<dyn std::error::Error>> {
+        let mut buffer: Vec<u8> = Vec::new();
+        Self::DataType::construct_msg(data, &mut buffer).unwrap();
+        Ok(vec![McapLogMessage {
             channel_id: channels[0],
             sequence,
             log_time: timestamp.timestamp,
             publish_time: timestamp.timestamp,
-        };
-        let mut buffer: Vec<u8> = Vec::new();
-        Self::DataType::construct_msg(data, &mut buffer).unwrap();
-        mcap_writer
-            .write_to_known_channel(&msg_header, &buffer)
-            .unwrap();
-        Ok(())
+            data: buffer,
+        }])
     }
 
     fn get_topic(&self) -> &str {
@@ -382,41 +385,36 @@ impl<T: ToRosMsgWithInfo<L::Item>, L: DataLoader> SensorMcapWriter for MsgWithIn
         Self::DataType::from_item(item, self.frame_id.clone(), prec)
     }
 
-    fn write_message(
+    fn serialize_message(
         &self,
         data: Self::DataType,
         channels: &Vec<u16>,
-        mcap_writer: &mut Writer<BufWriter<File>>,
         sequence: u32,
         timestamp: &Timestamp,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let info_msg_header = mcap::records::MessageHeader {
+    ) -> Result<Vec<McapLogMessage>, Box<dyn std::error::Error>> {
+        let mut messages = Vec::new();
+        let mut info_buffer: Vec<u8> = Vec::new();
+        Self::DataType::construct_info_msg(&data, &mut info_buffer, self.calib_path.as_path())
+            .unwrap();
+        messages.push(McapLogMessage {
             channel_id: channels[1],
             sequence,
             log_time: timestamp.timestamp,
             publish_time: timestamp.timestamp,
-        };
+            data: info_buffer,
+        });
 
-        let mut info_buffer: Vec<u8> = Vec::new();
-        Self::DataType::construct_info_msg(&data, &mut info_buffer, self.calib_path.as_path())
-            .unwrap();
-        mcap_writer
-            .write_to_known_channel(&info_msg_header, &info_buffer)
-            .unwrap();
-
-        let data_msg_header = mcap::records::MessageHeader {
+        let mut data_buffer: Vec<u8> = Vec::new();
+        Self::DataType::construct_msg(data, &mut data_buffer).unwrap();
+        messages.push(McapLogMessage {
             channel_id: channels[0],
             sequence,
             log_time: timestamp.timestamp,
             publish_time: timestamp.timestamp,
-        };
-        let mut data_buffer: Vec<u8> = Vec::new();
-        Self::DataType::construct_msg(data, &mut data_buffer).unwrap();
-        mcap_writer
-            .write_to_known_channel(&data_msg_header, &data_buffer)
-            .unwrap();
+            data: data_buffer,
+        });
 
-        Ok(())
+        Ok(messages)
     }
 
     fn get_topic(&self) -> &str {
@@ -431,53 +429,69 @@ impl<T, L: DataLoader> Iterator for MsgWithInfoMcapWriter<T, L> {
     }
 }
 
-pub(super) fn write_sensor_data<W: SensorMcapWriter>(
-    mcap_writer: &mut Writer<BufWriter<File>>,
+use indicatif::ProgressBar;
+use rayon::prelude::*;
+
+pub(super) fn produce_sensor_data<W: SensorMcapWriter + Sync>(
     sensor_writer: &mut W,
+    channels: Vec<u16>,
     prec: &TimestampPrecision,
+    tx: Sender<McapLogMessage>,
+    pb: ProgressBar,
 ) -> Result<Vec<TopicWithMessageCountWithTimestamps>, Box<dyn std::error::Error>>
 where
-    <W as Iterator>::Item: Debug,
+    <W as Iterator>::Item: Debug + Send + Sync,
 {
-    let mut start_time = u64::MAX;
-    let mut end_time = u64::MIN;
-
-    let channels = sensor_writer.create_channels(mcap_writer).unwrap();
+    // Collect all items first (sequential load of file paths/lines)
     let items: Vec<_> = sensor_writer.collect();
     let message_count = items.len();
-    let items = items.into_iter();
 
-    let description = format!("Processiong {}", sensor_writer.get_topic());
+    let writer_ref = &*sensor_writer;
 
-    let is_tty = atty::is(atty::Stream::Stdout);
+    pb.set_length(message_count as u64);
+    pb.set_message(format!("Processing {}", writer_ref.get_topic()));
 
-    let iter: Box<dyn Iterator<Item = _>> = if is_tty {
-        Box::new(
-            tqdm(items)
-                .desc(Some(description))
-                .total(Some(message_count)),
-        )
-    } else {
-        Box::new(items)
-    };
+    let (start_time, end_time) = items
+        .into_par_iter()
+        .enumerate()
+        .map(|(seq, item)| {
+            let data = writer_ref.process_item(&item, &prec).map_err(|e| {
+                format!(
+                    "{}: Failed to process sensor data with seq {}: {:?}",
+                    e, seq, item
+                )
+            })?;
 
-    for (seq, item) in iter.enumerate() {
-        let data = sensor_writer.process_item(&item, &prec).inspect_err(|e| {
-            eprintln!(
-                "{}: Failed to process sensor data with seq {}: {:?}",
-                e, seq, item,
-            )
-        })?;
-        let timestamp = data
-            .get_header()
-            .get_timestamp(&TimestampPrecision::NanoSecond);
-        start_time = cmp::min(timestamp.timestamp, start_time);
-        end_time = cmp::max(timestamp.timestamp, end_time);
-        sensor_writer
-            .write_message(data, &channels, mcap_writer, seq as u32, &timestamp)
-            .unwrap();
-    }
-    let topic_metadatas = sensor_writer.get_topic_metadatas().unwrap();
+            let timestamp = data
+                .get_header()
+                .get_timestamp(&TimestampPrecision::NanoSecond);
+
+            let messages = writer_ref
+                .serialize_message(data, &channels, seq as u32, &timestamp)
+                .map_err(|e| format!("Serialization failed: {}", e))?;
+
+            for msg in messages {
+                tx.send(msg).expect("Failed to send message to channel");
+            }
+
+            pb.inc(1);
+            Ok((timestamp.timestamp, timestamp.timestamp))
+        })
+        .reduce(
+            || -> Result<(u64, u64), String> { Ok((u64::MAX, u64::MIN)) },
+            |acc, res| match (acc, res) {
+                (Ok(a), Ok(b)) => Ok((cmp::min(a.0, b.0), cmp::max(a.1, b.1))),
+                (Err(e), _) => Err(e),
+                (_, Err(e)) => Err(e),
+            },
+        )?;
+
+    pb.finish_with_message("Done");
+
+    // We don't have easy access to topic_metadata here anymore unless we call writer (which is immutable).
+    // We can get topic metadata from writer_ref.
+    let topic_metadatas = writer_ref.get_topic_metadatas()?;
+
     let mut topics_with_timestamps: Vec<TopicWithMessageCountWithTimestamps> = vec![];
     for topic_metadata in topic_metadatas {
         let topic_with_msg_count = TopicWithMessageCount {

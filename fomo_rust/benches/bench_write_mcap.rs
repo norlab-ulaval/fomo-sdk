@@ -25,7 +25,15 @@ fn criterion_benchmark(c: &mut Criterion) {
     group_read.bench_function("write", |b| {
         b.iter_batched(
             || fs::remove_file(output_file), // Setup function (runs before each iteration)
-            |_| process_folder(input, output, &sensors, &TimestampPrecision::MicroSecond),
+            |_| {
+                process_folder(
+                    input,
+                    output,
+                    &sensors,
+                    false,
+                    &TimestampPrecision::MicroSecond,
+                )
+            },
             BatchSize::SmallInput,
         )
     });
