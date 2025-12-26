@@ -1,6 +1,6 @@
-from pathlib import Path
-from enum import Enum
 import re
+from enum import Enum
+from pathlib import Path
 
 TRAJECTORIES = [
     "blue",
@@ -19,7 +19,7 @@ DEPLOYMENT_DATE_LABEL = {
     "2025-01-30": "Jan29",
     "2025-03-10": "Mar10",
     "2025-03-14": "Mar10",
-    "2025-04-16": "Apr16",
+    "2025-04-15": "Apr16",
     "2025-05-28": "May28",
     "2025-06-26": "Jun26",
     "2025-08-20": "Aug20",
