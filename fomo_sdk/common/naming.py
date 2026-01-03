@@ -19,7 +19,7 @@ DEPLOYMENT_DATE_LABEL = {
     "2025-01-30": "Jan29",
     "2025-03-10": "Mar10",
     "2025-03-14": "Mar10",
-    "2025-04-15": "Apr16",
+    "2025-04-15": "Apr15",
     "2025-05-28": "May28",
     "2025-06-26": "Jun26",
     "2025-08-20": "Aug20",
@@ -77,6 +77,13 @@ def construct_localization_recording(filename: str) -> str:
     return filename.split("_")[2] + "_" + filename.split("_")[3].split(".")[0]
 
 
+def construct_deployment(recording: str) -> str:
+    deployment = "-".join(recording.split("_")[1].split("-")[:3])
+    if deployment == "2025-01-30":
+        return "2025-01-29"
+    return deployment
+
+
 def parse_proprioceptive_file_name(file_name: Path | str):
     if isinstance(file_name, Path):
         file_name = file_name.name
@@ -101,20 +108,26 @@ def parse_proprioceptive_file_name(file_name: Path | str):
 
 class Slam(Enum):
     PROPRIOCEPTIVE = "proprioceptive"
-    LIDAR = "lidar"
+    NORLAB_ICP_MAPPER = "norlab_icp_mapper"
     RTR = "rtr"
-    VSLAM = "vslam"
+    ORB_SLAM3 = "orb_slam3"
+    KISS = "kiss"
+    NAVTECH_RADAR_SLAM = "navtech_radar_slam"
 
 
 def get_slam_title(slam: Slam):
     if slam == Slam.PROPRIOCEPTIVE.value:
         return "Proprioceptive"
-    elif slam == Slam.LIDAR.value:
-        return "Lidar-Inertial Odometry"
+    elif slam == Slam.NORLAB_ICP_MAPPER.value:
+        return "Norlab ICP Mapper"
     elif slam == Slam.RTR.value:
         return "Radar-Gyro Teach and Repeat"
-    elif slam == Slam.VSLAM.value:
-        return "Stereo-Inertial Visual SLAM"
+    elif slam == Slam.ORB_SLAM3.value:
+        return "ORB-SLAM3"
+    elif slam == Slam.KISS.value:
+        return "KISS-ICP/SLAM"
+    elif slam == Slam.NAVTECH_RADAR_SLAM.value:
+        return "Kaist Radar SLAM"
     else:
         return "Unknown"
 

@@ -1,8 +1,11 @@
 from pathlib import Path
-import yaml
+
 import numpy as np
+import yaml
 
 from fomo_sdk.common.naming import DEPLOYMENT_DATE_LABEL
+
+EVALUATION_DELTAS = [5, 100, 200, 300, 400, 500, 600, 700, 800]
 
 
 def parse_evaluation_file_name(file_name: Path | str):
@@ -18,24 +21,26 @@ def parse_evaluation_file_name(file_name: Path | str):
     return file_name.split("_")[1], file_name.split("_")[3].split(".")[0]
 
 
-def compute_rpe(data: dict) -> tuple[float, float]:
+def compute_rte(data: dict, max_delta: int) -> tuple[float, float]:
     """
     Compute the relative translation drift for a given evaluation dictionary.
     """
     rpe = []
     std = []
-    # Calculate mean RPE across different deltas (100m to 800m)
-    for delta in range(100, 801, 100):
+    # Calculate mean RPE across different deltas
+    for delta in EVALUATION_DELTAS:
         relative_drift = 100 * data["rpe_details"][f"{delta}m"]["rmse_meters"] / delta
         relative_std = 100 * data["rpe_details"][f"{delta}m"]["std_meters"] / delta
         rpe.append(relative_drift)
         std.append(relative_std)
+        if delta == max_delta:
+            break
     rpe = np.mean(rpe)
     std = np.mean(std)
     return rpe, std
 
 
-def construct_matrix(path: str):
+def construct_matrix(path: str, max_delta: int = EVALUATION_DELTAS[-1]):
     # get the number of yaml files in the directory
     yaml_files = [f.name for f in Path(path).glob("*.yaml")]
     yaml_files.sort()
@@ -71,19 +76,15 @@ def construct_matrix(path: str):
             add_marker = False
             try:
                 ape = data["results"]["ape_rmse_meters"]
-                rpe, _std = compute_rpe(data)
+                rpe, _std = compute_rte(data, max_delta)
                 try:
                     add_marker = data["trajectories"]["shortened"]
                 except KeyError:
                     pass
-            except KeyError:
-                ape = np.nan
-                rpe = np.nan
             except Exception as e:
                 print(f"Error processing file {f}: {e}")
                 ape = np.nan
                 rpe = np.nan
-                continue
             map_idx = unique_map_name_index_map[map_traj]
             loc_idx = unique_loc_name_index_map[loc_traj]
             # Update the matrices

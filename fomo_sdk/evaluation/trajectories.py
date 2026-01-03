@@ -1,12 +1,14 @@
 import copy
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 from evo.core import lie_algebra as lie
-from evo.core import sync
+from evo.core import metrics, sync
 from evo.core.trajectory import PoseTrajectory3D
 from evo.tools import file_interface
-from evo.core import metrics
+
 from fomo_sdk.evaluation.io import export_results_to_yaml
+from fomo_sdk.evaluation.utils import EVALUATION_DELTAS
 from fomo_sdk.evaluation.visualization import create_evaluation_figure
 
 
@@ -166,6 +168,7 @@ def compute_rpe_set(traj_pair, delta_list):
             results[delta] = stats
         else:
             print(f"Skipping delta {delta} due to processing error.")
+            break
     return results
 
 
@@ -282,8 +285,6 @@ def evaluate(
 
     ape_rmse, ape_stats = compute_ape(traj_pair)
 
-    EVALUATION_DELTAS = [5, 100, 200, 300, 400, 500, 600, 700, 800]
-
     rpe_results = compute_rpe_set(traj_pair, EVALUATION_DELTAS)
 
     if len(rpe_results) == 0:
@@ -312,4 +313,5 @@ def evaluate(
             localization_date,
             slam,
             move_to_origin,
+            export_figure=True,
         )

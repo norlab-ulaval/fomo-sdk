@@ -3,7 +3,13 @@ import numpy as np
 
 
 def plot_evaluation_matrix(
-    matrix, add_marker_matrix, labels_maps, labels_locs, title, ax, cmap="Reds"
+    matrix,
+    add_marker_matrix,
+    labels_maps,
+    labels_locs,
+    title=None,
+    ax=None,
+    cmap="Reds",
 ):
     """
     Plot evaluation matrix with values and colors.
@@ -32,6 +38,7 @@ def plot_evaluation_matrix(
     ax.set_xticklabels(labels_locs)
     ax.set_yticklabels(labels_maps)
 
+    plt.xticks(rotation=90)
     # Add text annotations
     for i in range(matrix.shape[0]):
         for j in range(matrix.shape[1]):
@@ -52,6 +59,7 @@ def plot_evaluation_matrix(
                     va="center",
                     color=text_color,
                     fontweight="bold",
+                    fontsize=7,
                 )
             else:
                 ax.text(j, i, "N/A", ha="center", va="center", color="white")
@@ -59,7 +67,8 @@ def plot_evaluation_matrix(
     # Labels and title
     ax.set_xlabel("Localization Deployment", fontweight="bold")
     ax.set_ylabel("Mapping Deployment", fontweight="bold")
-    # ax.set_title(title, fontweight="bold")
+    if title is not None:
+        ax.set_title(title, fontweight="bold")
 
     # Add grid
     ax.set_xticks(np.arange(-0.5, len(labels_locs), 1), minor=True)
