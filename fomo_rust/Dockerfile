@@ -1,4 +1,4 @@
-FROM rust:1.85.1-bullseye
+FROM rust:1.89-bullseye
 
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -18,6 +18,7 @@ COPY tests/ /usr/src/fomo-sdk/fomo_rust/tests
 COPY Cargo.toml /usr/src/fomo-sdk/fomo_rust/Cargo.toml
 COPY Cargo.lock /usr/src/fomo-sdk/fomo_rust/Cargo.lock
 
+ENV RUSTFLAGS="-C target-cpu=generic"
 RUN cargo install --path .
 
 CMD ["ijrr_to_mcap", "--help"]
