@@ -10,7 +10,7 @@ struct Args {
     #[command(flatten)]
     common: CommonArgs,
 
-    /// Use Zstd compression. Default is true
+    /// Use Zstd compression. Default is false
     #[arg(short, long, action = clap::ArgAction::SetTrue)]
     pub compress: bool,
 }

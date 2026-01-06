@@ -71,7 +71,7 @@ use std::{
 };
 use std::{io::BufWriter, u64};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum SensorType {
     Navtech,
     ZedXLeft,
