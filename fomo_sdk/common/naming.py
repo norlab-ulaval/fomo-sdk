@@ -81,6 +81,8 @@ def construct_deployment(recording: str) -> str:
     deployment = "-".join(recording.split("_")[1].split("-")[:3])
     if deployment == "2025-01-30":
         return "2025-01-29"
+    if deployment == "2025-03-14":
+        return "2025-03-10"
     return deployment
 
 
