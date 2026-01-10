@@ -77,6 +77,80 @@ def plot_evaluation_matrix(
     ax.grid(which="minor", color="white", linestyle="-", linewidth=1)
 
 
+def plot_evaluation_diagonal(
+    matrix,
+    add_marker_matrix,
+    labels_maps,
+    labels_locs,
+    title=None,
+    ax=None,
+    cmap="Reds",
+):
+    """
+    Plot evaluation diagonal with values and colors.
+    """
+    # Create a masked array to handle NaN values
+    diagonal = np.diagonal(matrix)
+    add_marker_matrix = np.diagonal(add_marker_matrix)
+    masked_diagonal = np.ma.masked_where(np.isnan(diagonal), diagonal)
+    masked_diagonal_display = masked_diagonal.copy()
+    masked_diagonal_display[add_marker_matrix] = np.nanmax(diagonal)
+    masked_diagonal_display[np.isnan(diagonal)] = np.nanmax(diagonal)
+    masked_diagonal_display = masked_diagonal_display[..., np.newaxis].T
+    # Create heatmap
+    im = ax.imshow(
+        masked_diagonal_display,
+        cmap=cmap,
+        aspect="equal",
+        vmin=np.nanmin(diagonal),
+        vmax=np.nanmax(diagonal),
+    )
+
+    # Add colorbar
+    cbar = plt.colorbar(im, ax=ax, shrink=0.59)
+    cbar.set_label("Mean translation drift [\%]", rotation=90, labelpad=5)
+
+    # Set ticks and labels
+    ax.set_xticks(range(len(labels_locs)))
+    ax.set_xticklabels(labels_locs)
+
+    plt.xticks(rotation=90)
+    # Add text annotations
+    for i, value in enumerate(diagonal):
+        if not np.isnan(value):
+            # Choose text color based on background intensity
+            text_color = (
+                "white"
+                if masked_diagonal[i] > (np.nanmax(diagonal) * 0.6)
+                or add_marker_matrix[i]
+                else "black"
+            )
+            marker = "*" if add_marker_matrix[i] else ""
+            ax.text(
+                i,
+                0,
+                f"{value:.1f}{marker}",
+                ha="center",
+                va="center",
+                color=text_color,
+                fontweight="bold",
+                fontsize=7,
+            )
+        else:
+            ax.text(j, i, "N/A", ha="center", va="center", color="white")
+
+    # Labels and title
+    ax.set_xlabel("Deployment", fontweight="bold")
+    if title is not None:
+        ax.set_title(title, fontweight="bold")
+
+    # Add grid
+    ax.set_xticks(np.arange(-0.5, len(labels_locs), 1), minor=True)
+    ax.set_yticks([])
+    ax.tick_params(axis="both", which="minor", length=0)
+    ax.grid(which="minor", color="white", linestyle="-", linewidth=1)
+
+
 def plot_trajectory_xy(
     ax,
     gt,
@@ -194,7 +268,7 @@ def plot_trajectory_timestamp(ax, traj_ref, traj_est, coord: str):
     ax.set_ylabel(f"{coord.capitalize()} Error (m)")
     ax.set_title(f"{coord.capitalize()} Trajectory Error Plot")
     ax.grid()
-    ax.set_aspect("equal", adjustable="datalim")
+    # ax.set_aspect("equal", adjustable="datalim")
 
 
 def set_equal_aspect_3d(ax, positions):
