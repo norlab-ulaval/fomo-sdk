@@ -2,15 +2,6 @@ import re
 from enum import Enum
 from pathlib import Path
 
-TRAJECTORIES = [
-    "blue",
-    "green",
-    "magenta",
-    "orange",
-    "red",
-    "yellow",
-]
-
 DEPLOYMENT_DATE_LABEL = {
     "2024-11-21": "Nov21",
     "2024-11-28": "Nov28",
@@ -46,9 +37,9 @@ def construct_path(
     else:
         deployment_date = DEPLOYMENT_LABEL_DATE[deployment]
 
-    if trajectory not in TRAJECTORIES:
+    if trajectory not in Trajectory.__members__:
         raise ValueError(
-            f"Trajectory {trajectory} is invalid. Valid trajectories are: {TRAJECTORIES}"
+            f"Trajectory {trajectory} is invalid. Valid trajectories are: {Trajectory.__members__}"
         )
 
     path = Path(dataset_base_path) / deployment_date
@@ -105,9 +96,16 @@ def parse_proprioceptive_file_name(file_name: Path | str):
     return odom_file
 
 
+class Trajectory(Enum):
+    RED = "red"
+    BLUE = "blue"
+    GREEN = "green"
+    ORANGE = "orange"
+    YELLOW = "yellow"
+    MAGENTA = "magenta"
+
+
 #### SLAM implementations
-
-
 class Slam(Enum):
     PROPRIOCEPTIVE = "proprioceptive"
     NORLAB_ICP_MAPPER = "norlab_icp_mapper"

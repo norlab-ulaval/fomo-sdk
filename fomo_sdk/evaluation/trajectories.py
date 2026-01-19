@@ -34,8 +34,9 @@ def kabsch_algorithm(traj1, traj2) -> tuple[int, np.ndarray, np.ndarray]:
     traj1_centered = traj1 - traj1[0]
     traj2_centered = traj2 - traj2[0]
 
-    target_len = int(0.25 * traj1_centered.shape[0])
-    print(f"Using first {target_len} points for alignment")
+    alignment_frac = 0.25
+    target_len = int(alignment_frac * traj1_centered.shape[0])
+    print(f"Using first {target_len} points for alignment ({alignment_frac * 100}%)")
 
     P = traj1_centered[0:target_len].T  # 3 x (n-1) - target points
     Q = traj2_centered[0:target_len].T  # 3 x (n-1) - points to rotate
@@ -273,6 +274,7 @@ def evaluate(
     move_to_origin: bool,
     export_yaml: bool,
     export_figure: bool,
+    plot_figure: bool = False,
 ):
     """
     Compute evaluation metrics for the given trajectories.
@@ -314,4 +316,5 @@ def evaluate(
             slam,
             move_to_origin,
             export_figure=True,
+            plot_figure=plot_figure,
         )

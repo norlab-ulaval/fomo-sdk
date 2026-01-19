@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from evo.core.trajectory import PoseTrajectory3D
 
 
 def plot_evaluation_matrix(
@@ -156,6 +157,7 @@ def plot_trajectory_xy(
     gt,
     est,
     method_name,
+    markers_fraction: dict,
     show_xlabel=True,
     show_ylabel=True,
     move_to_origin=True,
@@ -201,27 +203,26 @@ def plot_trajectory_xy(
         zorder=10,
     )
 
-    # Mark start and end points
-    ax.scatter(
-        gt_xy[0, 0],
-        gt_xy[0, 1],
-        color="black",
-        marker="o",
-        s=20,
-        zorder=10,
-        facecolors="none",
-        label="Start",
-    )
-
-    ax.scatter(
-        gt_xy[-1, 0],
-        gt_xy[-1, 1],
-        color="black",
-        marker="+",
-        s=30,
-        zorder=10,
-        label="End",
-    )
+    # Plot markers at specified fractions of the trajectory
+    if markers_fraction:
+        for fraction, marker in markers_fraction.items():
+            index = int(fraction * len(gt_xy))
+            label = "_"
+            if fraction == 0:
+                label = "Start"
+            elif fraction == 1:
+                index -= 1
+                label = "End"
+            ax.scatter(
+                gt_xy[index, 0],
+                gt_xy[index, 1],
+                color="black",
+                marker=marker,
+                s=60,
+                zorder=10,
+                facecolors="none",
+                label=label,
+            )
 
     # Formatting
     if show_xlabel:
@@ -242,7 +243,9 @@ def plot_trajectory_xy(
     )
 
 
-def plot_trajectory_timestamp(ax, traj_ref, traj_est, coord: str):
+def plot_trajectory_timestamp(
+    ax, traj_ref, traj_est, coord: str, markers_fraction: dict
+):
     """
     Plot the given coordinates (reference and estimated) on the given axis
     as a function of time.
@@ -264,6 +267,17 @@ def plot_trajectory_timestamp(ax, traj_ref, traj_est, coord: str):
         marker="o",
         markersize=2,
     )
+    for fraction, marker in markers_fraction.items():
+        idx = int(len(time) * fraction)
+        ax.scatter(
+            time[idx],
+            error[idx],
+            color="black",
+            marker=marker,
+            s=60,
+            zorder=10,
+            facecolors="none",
+        )
     ax.set_xlabel("Time (s)")
     ax.set_ylabel(f"{coord.capitalize()} Error (m)")
     ax.set_title(f"{coord.capitalize()} Trajectory Error Plot")
@@ -349,9 +363,35 @@ def plot_rpe_details_table(ax, rpe_table):
     table.scale(1.0, 4.0)
 
 
+def plot_est_ref_traj(ax, traj_ref, traj_est, index_pos=-1):
+    """
+    Plot estimated and reference trajectories on a 2D plot.
+    """
+
+    index_coord = 0
+    pos_ref = traj_ref.positions_xyz[:index_pos, index_coord]
+    pos_est = traj_est.positions_xyz[:index_pos, index_coord]
+    time_ref = (traj_ref.timestamps - traj_ref.timestamps[0])[:index_pos]
+    time_est = (traj_est.timestamps - traj_est.timestamps[0])[:index_pos]
+    ax.plot(
+        time_ref,
+        pos_ref,
+        label=f"Reference",
+    )
+    ax.plot(
+        time_est,
+        pos_est,
+        label=f"Estimated",
+    )
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("X [m]")
+    ax.grid()
+    ax.legend()
+
+
 def create_evaluation_figure(
-    traj_ref,
-    traj_est,
+    traj_ref: PoseTrajectory3D,
+    traj_est: PoseTrajectory3D,
     rpe_table,
     avg_relative_rpe,
     ape_rmse,
@@ -377,15 +417,26 @@ def create_evaluation_figure(
         axs[0, 0], avg_relative_rpe, ape_rmse, mapping_date, localization_date, slam
     )
 
+    plot_est_ref_traj(axs[0, 1], traj_ref, traj_est, int(0.1 * traj_ref.num_poses))
     # RPE Details Table
-    plot_rpe_details_table(axs[0, 1], rpe_table)
+    # plot_rpe_details_table(axs[0, 1], rpe_table)
 
-    plot_trajectory_timestamp(axs[1, 0], traj_ref, traj_est, "x")
-    plot_trajectory_timestamp(axs[1, 1], traj_ref, traj_est, "y")
-    plot_trajectory_timestamp(axs[2, 0], traj_ref, traj_est, "z")
+    markers_fraction = {0.25: "<", 0.5: "v", 0.75: ">"}
+    plot_trajectory_timestamp(axs[1, 0], traj_ref, traj_est, "x", markers_fraction)
+    plot_trajectory_timestamp(axs[1, 1], traj_ref, traj_est, "y", markers_fraction)
+    plot_trajectory_timestamp(axs[2, 0], traj_ref, traj_est, "z", markers_fraction)
 
     # XY Trajectory Plot
-    plot_trajectory_xy(axs[2, 1], traj_ref, traj_est, move_to_origin)
+    markers_fraction[0.0] = "o"
+    markers_fraction[1.0] = "+"
+    plot_trajectory_xy(
+        axs[2, 1],
+        traj_ref,
+        traj_est,
+        "",
+        markers_fraction,
+        move_to_origin=move_to_origin,
+    )
 
     # 3D Trajectory Plot (added as subplot 3)
     # ax_3d = fig.add_subplot(4, 2, 7, projection='3d')

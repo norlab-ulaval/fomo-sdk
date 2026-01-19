@@ -380,7 +380,14 @@ def get_fomo_typestore():
 
 
 def skip_or_write(
-    writer, conn_map, rawdata, connection, timestamp: int, start: int, end: int
+    writer,
+    conn_map,
+    rawdata,
+    connection,
+    timestamp: int,
+    start: int,
+    end: int,
+    typestore,
 ) -> bool:
     """
     Skip messages outside of estop signal,
@@ -389,7 +396,25 @@ def skip_or_write(
     """
     try:
         if "tf_static" in connection.topic or "radar/config_data" in connection.topic:
-            writer.write(conn_map[connection.id], start, rawdata)
+            # Deserialize the message
+            msgtype = connection.msgtype
+            msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
+            print(msg)
+
+            # Modify header timestamp(s) in the message to match start time
+            # tf_static contains TFMessage with an array of TransformStamped
+            if hasattr(msg, "transforms"):
+                for transform in msg.transforms:
+                    if hasattr(transform, "header"):
+                        transform.header.stamp.sec = start // 1_000_000_000
+                        transform.header.stamp.nanosec = start % 1_000_000_000
+
+            # Re-serialize the message
+            modified_rawdata = typestore.serialize_cdr(msg, msgtype)
+
+            print(f"Writing {connection.topic} with modified timestamp {start}")
+            writer.write(conn_map[connection.id], start, modified_rawdata)
+            return False
         if start <= timestamp <= end:
             writer.write(conn_map[connection.id], timestamp, rawdata)
         else:

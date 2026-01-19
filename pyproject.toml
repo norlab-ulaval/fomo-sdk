@@ -70,5 +70,10 @@ Homepage = "https://fomo.norlab.ulaval.ca"
 
 [tool.setuptools]
 packages = ["fomo_sdk"]
+# Don't auto-discover anything
+py-modules = []
+
 [tool.setuptools.package-data]
 fomo_sdk = ["data/**/*"]
+
+[tool.setuptools_scm]
