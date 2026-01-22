@@ -1,0 +1,16 @@
+{"to": "rsairy_calib", 
+"from": "rslidar32",
+"position": {"x": -0.05565614837340686, "y": -0.10548499137603062, "z": -0.21024694660295346},
+"orientation": {"x": 0.004469677454101251, "y": 0.8684391519944149, "z": -0.017594688638801034, "w": 0.49546330661147997}
+}
+
+
+
+python3 lidar_lidar_calib_fomo.py --mcap_file ~/data/calib_lidar/rosbag2_2026_01_14-19_55_04/rosbag2_2026_01_14-19_55_04_0.mcap --lidar_frame rsairy --origin_lidar_frame rslidar32
+
+
+
+
+export XDG_SESSION_TYPE=x11
+export GDK_BACKEND=x11
+export QT_QPA_PLATFORM=xcb

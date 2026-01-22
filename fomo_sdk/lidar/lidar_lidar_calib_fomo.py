@@ -16,6 +16,7 @@ from typing import Dict, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 from sklearn.cluster import DBSCAN
 from sklearn.decomposition import PCA
 
@@ -63,6 +64,9 @@ class LidarCalibrator:
                 # Directly access attributes of McapROS2Message
                 msg = ros_msg.ros_msg
                 topic = ros_msg.channel.topic
+
+                if not topic in ["/rsairy_ns/points", "/rslidar32/points"]:
+                    continue 
                 timestamp = ros_msg.log_time_ns
 
                 # Process different message types
@@ -474,8 +478,32 @@ class LidarCalibrator:
             logger.debug(f"ICP refinement failed: {e}")
             return initial
 
+def print_for_urdf(tf_matrix):
+    t = tf_matrix[0:3,3]
 
-def main(mcap_file: str, transforms_file: str, lidar_frame: str):
+    rotation = R.from_matrix(tf_matrix[0:3,0:3])
+    rpy = rotation.as_euler("xyz", degrees=False)
+
+
+    print("-------      tf line    ------- ")
+    
+    print(
+        f'<origin xyz="{t[0]} {t[1]} {t[2]}" rpy="{rpy[0]} {rpy[1]} {rpy[2]}"/>'
+    )
+    print("------------------------------- ")
+
+    tf_inv = np.linalg.inv(tf_matrix)
+    t_inv = tf_inv[0:3, 3]
+    
+    rotation_inv = R.from_matrix(tf_inv[0:3, 0:3])
+    rpy_inv = rotation_inv.as_euler("xyz", degrees=False)
+
+    print("------- inverse tf line ------- ")
+    print(
+        f'<origin xyz="{t_inv[0]} {t_inv[1]} {t_inv[2]}" rpy="{rpy_inv[0]} {rpy_inv[1]} {rpy_inv[2]}"/>'
+    )
+    print("------------------------------- ")
+def main(mcap_file: str, transforms_file: str, lidar_frame: str, origin_lidar = "robosense",intensity_percentile =99, debug=False):
     """Main function
     Args:
         mcap_file (str): Path to the MCAP file.
@@ -484,7 +512,7 @@ def main(mcap_file: str, transforms_file: str, lidar_frame: str):
     """
 
     tf_tree = FoMoTFTree(transforms_file)
-    tf_tree.visualize(frame="robosense")
+    tf_tree.visualize(frame=origin_lidar)
     plt.show()
     # Check if files exist
     if not os.path.exists(mcap_file):
@@ -500,7 +528,7 @@ def main(mcap_file: str, transforms_file: str, lidar_frame: str):
 
         for topic, clouds in calibrator.point_clouds.items():
             logger.info(f"Topic: {topic}, Number of point clouds: {len(clouds)}")
-
+        
         # for each point cloud in each topic, only keep the top 1% of points by intensity
         for topic, clouds in calibrator.point_clouds.items():
             for cloud in clouds:
@@ -517,7 +545,25 @@ def main(mcap_file: str, transforms_file: str, lidar_frame: str):
                         points = points[valid_mask]
                     if valid_intensity.size == 0:
                         continue
-                    intensity_threshold = np.percentile(valid_intensity, 99)
+                    intensity_threshold = np.percentile(valid_intensity, intensity_percentile)
+
+                    if debug:
+                        
+                        if topic == "/rsairy_ns/points":
+                            filtered_points = points[points[:, 3] >= intensity_threshold]
+                            
+                            pc = o3d.geometry.PointCloud()
+                            pc.points = o3d.utility.Vector3dVector(points[:, :3])
+                            pc.paint_uniform_color([1.0, 0.0, 0.0])
+
+                            pc2 = o3d.geometry.PointCloud()
+                            pc2.points = o3d.utility.Vector3dVector(filtered_points[:, :3])
+                            pc2.paint_uniform_color([0.0, 0.0, 0.9])
+                            
+                            vis_objs = [pc,pc2]
+                            o3d.visualization.draw_geometries(
+                                vis_objs, window_name=f"{topic} cloud before/after intensity filter"
+                            )
                     cloud["points"] = points[points[:, 3] >= intensity_threshold]
         # For each point cloud in each topic, look at the remaining points after the above filtering
         # and try to detect a high intensity ring/circle using RANSAC and filtering
@@ -526,13 +572,13 @@ def main(mcap_file: str, transforms_file: str, lidar_frame: str):
         circle_params = {
             "radius_outer": 0.5 * 0.79,
             "radius_inner": 0.5 * 0.69,
-            "use_mid_radius": True,
-            "center_search_extent": 0.15,
+            "use_mid_radius": False,
+            "center_search_extent": 0.,
             "huber_delta": 0.02,
             # ICP params
             "icp_enable": True,
-            "icp_points_per_ring": 360,
-            "icp_distance_threshold": 0.5,
+            "icp_points_per_ring": 500, # decide the number of points on the interpolated ring model
+            "icp_distance_threshold": 0.5, # max correspondence points-pair distance
             "icp_max_iters": 100,
             "icp_radial_band": 0.1,
             "x_offset": 0.0,
@@ -663,7 +709,11 @@ def main(mcap_file: str, transforms_file: str, lidar_frame: str):
         if o3d is not None:
             topic_pcds = []
             topic_names = []
+
+            
             for idx, (topic, centers) in enumerate(circle_centers_by_topic.items()):
+
+                print(f"Topic '{topic}': Detected {len(centers)} ring centers")
                 if len(centers) >= 2:
                     # Extract center points (prefer ICP if available)
                     pts = []
@@ -693,7 +743,7 @@ def main(mcap_file: str, transforms_file: str, lidar_frame: str):
         # Afterwards, visualize the aligned point clouds together
 
         init_transform = tf_tree.get_transform(
-            from_frame=lidar_frame, to_frame="robosense"
+            from_frame=lidar_frame, to_frame=origin_lidar
         )
         if o3d is not None and len(topic_pcds) >= 2:
             source_pcd = topic_pcds[1]
@@ -728,16 +778,20 @@ def main(mcap_file: str, transforms_file: str, lidar_frame: str):
             )
             logger.info(f"ICP transformation:\n{reg_icp.transformation}")
             tf_tree.add_transform(
-                "robosense", f"{lidar_frame}_calib", reg_icp.transformation
+                origin_lidar, f"{lidar_frame}_calib", reg_icp.transformation
             )
-            tf_tree.visualize(frame="robosense")
+            tf_tree.visualize(frame=origin_lidar)
             plt.show()
             from fomo_sdk.tf.utils import Format
 
+            tf_matrix =  tf_tree.get_transform(
+                    origin_lidar, f"{lidar_frame}_calib")
             print(
-                tf_tree.get_transform(
-                    "robosense", f"{lidar_frame}_calib", format=Format.JSON
+                tf_matrix
                 )
+            
+
+            print_for_urdf(tf_matrix
             )
 
         # Visualize each pair of original point clouds in sequence using Open3D, applying the found ICP transform
@@ -796,9 +850,23 @@ if __name__ == "__main__":
     parser.add_argument(
         "--lidar_frame",
         type=str,
-        choices=["hesai", "leishen"],
+        choices=["hesai", "leishen", "rsairy"],
         default="hesai",
-        help="We search for transformation from robosense to this frame.",
+        help="We search for transformation from origin_lidar to this frame.",
+    )
+    parser.add_argument(
+        "--origin_lidar_frame",
+        type=str,
+        choices=["rslidar32","robosense"],
+        default="robosense",
+        help="We search for transformation from origin_lidar to this frame.",
     )
     args = parser.parse_args()
-    main(args.mcap_file, args.transforms_file, args.lidar_frame)
+
+    main(args.mcap_file, args.transforms_file, args.lidar_frame, 
+        origin_lidar= args.origin_lidar_frame,
+        intensity_percentile=99, debug = False
+        )
+
+
+
