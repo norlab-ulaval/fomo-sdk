@@ -97,6 +97,10 @@ def parse_proprioceptive_file_name(file_name: Path | str):
 
 
 class Trajectory(Enum):
+    @classmethod
+    def list(cls):
+        return list(map(lambda c: c.value, cls))
+
     RED = "red"
     BLUE = "blue"
     GREEN = "green"

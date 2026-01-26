@@ -74,8 +74,8 @@ def construct_matrix(path: str, max_delta: int = EVALUATION_DELTAS[-1]):
         with open(Path(path) / f, "r") as file:
             data = yaml.safe_load(file)
             add_marker = False
+            ape = data["results"]["ape_rmse_meters"]
             try:
-                ape = data["results"]["ape_rmse_meters"]
                 rpe, _std = compute_rte(data, max_delta)
                 try:
                     add_marker = data["trajectories"]["shortened"]
@@ -83,7 +83,6 @@ def construct_matrix(path: str, max_delta: int = EVALUATION_DELTAS[-1]):
                     pass
             except Exception as e:
                 print(f"Error processing file {f}: {e}")
-                ape = np.nan
                 rpe = np.nan
             map_idx = unique_map_name_index_map[map_traj]
             loc_idx = unique_loc_name_index_map[loc_traj]
