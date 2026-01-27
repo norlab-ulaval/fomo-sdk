@@ -2,6 +2,7 @@ import datetime
 
 import numpy as np
 import pandas as pd
+import pyproj
 
 
 def utc_to_epoch_ns(utc_str):
@@ -107,3 +108,14 @@ def point_to_point_minimization(P, Q):
     # Compute translation vector
     t = (mu_q - R @ mu_p).flatten()
     return t, R
+
+
+def convert_LLH_to_ENU(df):
+    """
+    Converts latitude, longitude, and altitude in the DataFrame from LLH (WGS84) referential to ENU (MTM-7) (EPSG:2949).
+    """
+    transformer = pyproj.Transformer.from_crs(4326, 2949, always_xy=True)
+    df["east"], df["north"], df["up"] = transformer.transform(
+        df["longitude"], df["latitude"], df["altitude"]
+    )
+    return df[["timestamp", "east", "north", "up"]]

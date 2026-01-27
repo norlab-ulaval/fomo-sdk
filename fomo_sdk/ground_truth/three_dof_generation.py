@@ -6,12 +6,12 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pyproj
 import yaml
 from point_to_gaussian import point_to_gaussian_df
 from tqdm import tqdm
 
 from fomo_sdk.ground_truth.utils import (
+    convert_LLH_to_ENU,
     open_pos_file,
     point_to_point_minimization,
     timestamp_to_utc_s,
@@ -58,17 +58,6 @@ def read_arguments():
         default=False,
     )
     return parser.parse_args()
-
-
-def convert_LLH_to_ENU(df):
-    """
-    Converts latitude, longitude, and altitude in the DataFrame from LLH (WGS84) referential to ENU (MTM-7) (EPSG:2949).
-    """
-    transformer = pyproj.Transformer.from_crs(4326, 2949, always_xy=True)
-    df["east"], df["north"], df["up"] = transformer.transform(
-        df["longitude"], df["latitude"], df["altitude"]
-    )
-    return df[["timestamp", "east", "north", "up"]]
 
 
 def extract_std_from_df(df):
