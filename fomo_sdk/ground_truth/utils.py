@@ -110,7 +110,7 @@ def point_to_point_minimization(P, Q):
     return t, R
 
 
-def convert_LLH_to_ENU(df):
+def convert_LLH_to_ENU(df) -> pd.IndexSlice:
     """
     Converts latitude, longitude, and altitude in the DataFrame from LLH (WGS84) referential to ENU (MTM-7) (EPSG:2949).
     """

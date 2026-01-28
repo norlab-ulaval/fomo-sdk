@@ -1,12 +1,21 @@
-import cv2
-from rosbags.typesys.stores.latest import sensor_msgs__msg__Image as Image
-from rosbags.image import message_to_cvimage
-import numpy as np
-import fomo_sdk.common.naming as naming
-import pandas as pd
-from pathlib import Path
 import json
+from enum import Enum
+from pathlib import Path
+
+import cv2
 import matplotlib
+import numpy as np
+import pandas as pd
+from rosbags.image import message_to_cvimage
+from rosbags.typesys.stores.latest import sensor_msgs__msg__Image as Image
+
+import fomo_sdk.common.naming as naming
+
+
+class CameraType(Enum):
+    BASLER = "basler"
+    ZEDX_LEFT = "zedx_left"
+    ZEDX_RIGHT = "zedx_right"
 
 
 def rgb_to_bayer_bggr8(img_rgb: np.ndarray) -> np.ndarray:
@@ -59,36 +68,46 @@ def lower_image_resolution(msg: Image, scale_factor=0.25, is_basler=False) -> Im
 
 
 def load_fomo_image(
-    dataset_base_path: str, deployment: str, trajectory: str, num_of_files: int = None
-) -> []:
+    dataset_base_path: str,
+    deployment: str,
+    trajectory: str,
+    num_of_files: int = None,
+    camera_type: CameraType = CameraType.ZEDX_LEFT,
+    timestamp_range: tuple[int, int] | None = None,
+    timestamps: list[int] | None = None,
+) -> list[cv2.typing.MatLike] | cv2.typing.MatLike:
     path = naming.construct_path(dataset_base_path, deployment, trajectory)
     if list(path.glob("*/.mcap")):
         raise NotImplementedError("Can't load image data from mcap files yet")
 
-    has_zedx_left = len(list(path.glob("zedx_left/"))) > 0
-    has_zedx_right = len(list(path.glob("zedx_right/"))) > 0
+    if not (path / camera_type.value).exists():
+        raise ValueError(f"No {camera_type.value} image data found in the dataset.")
 
-    if not has_zedx_left and not has_zedx_right:
-        raise ValueError("No image data found in the dataset.")
-
-    images_left = []
-    images_right = []
-    if has_zedx_left:
-        for i, filename in enumerate(sorted(list(path.glob("zedx_left/*.png")))):
-            if i >= num_of_files:
+    filespaths = [f for f in (path / camera_type.value).iterdir() if f.suffix == ".png"]
+    filespaths.sort()
+    if timestamps:
+        # for each timestamp, only keep the file with the closest timestamp
+        closest_files = []
+        for timestamp in timestamps:
+            closest_file = min(filespaths, key=lambda f: abs(int(f.stem) - timestamp))
+            closest_files.append(closest_file)
+        filespaths = closest_files
+    loaded_files = []
+    i = 0
+    for filename in filespaths:
+        if timestamps is None:
+            if num_of_files > 0 and i >= num_of_files:
                 break
-            images_left.append(cv2.imread(str(filename), cv2.COLOR_BGR2RGB))
-
-    if has_zedx_right:
-        for i, filename in enumerate(sorted(list(path.glob("zedx_right/*.png")))):
-            if i >= num_of_files:
-                break
-            images_right.append(cv2.imread(str(filename), cv2.COLOR_BGR2RGB))
-    images = [
-        (images_left[i], images_right[i])
-        for i in range(min(len(images_left), len(images_right)))
-    ]
-    return images
+            elif (
+                timestamp_range is not None
+                and not timestamp_range[0] <= int(filename.stem) <= timestamp_range[1]
+            ):
+                continue
+        loaded_files.append(cv2.imread(str(filename), cv2.COLOR_BGR2RGB))
+        i += 1
+    if len(loaded_files) == 1:
+        return loaded_files[0]
+    return loaded_files
 
 
 def project_lidar_on_image(

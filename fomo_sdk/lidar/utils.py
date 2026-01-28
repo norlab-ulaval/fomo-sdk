@@ -117,7 +117,6 @@ def load_fomo_lidar(
             closest_file = min(filespaths, key=lambda f: abs(int(f.stem) - timestamp))
             closest_files.append(closest_file)
         filespaths = closest_files
-        print(len(filespaths), len(timestamps))
     loaded_files = []
     i = 0
     for filename in filespaths:
@@ -129,7 +128,6 @@ def load_fomo_lidar(
                 and not timestamp_range[0] <= int(filename.stem) <= timestamp_range[1]
             ):
                 continue
-        print(f"Loading {filename}")
         loaded_files.append(load(filename))
         i += 1
     if len(loaded_files) == 1:
