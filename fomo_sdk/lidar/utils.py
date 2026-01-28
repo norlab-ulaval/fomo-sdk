@@ -79,6 +79,7 @@ def load_fomo_lidar(
     load_robosense: bool = True,
     number_of_scans: int = 1,
     timestamp_range: tuple[int, int] | None = None,
+    timestamps: list[int] | None = None,
 ) -> list[pd.DataFrame] | pd.DataFrame:
     """
     Load number_of_scans FoMo lidar files from the dataset.
@@ -89,6 +90,7 @@ def load_fomo_lidar(
         trajectory (str): Trajectory name.
         load_robosense (bool, optional): Whether to load robosense data. Defaults to True.
         number_of_scans (int, optional): Number of scans to load. Defaults to 1.
+        timestamp_range (tuple[int, int] | None, optional): Timestamp range to load data from. Defaults to None.
     """
     path = naming.construct_path(dataset_base_path, deployment, trajectory)
 
@@ -106,16 +108,30 @@ def load_fomo_lidar(
     else:
         raise ValueError("No lidar data found in the dataset.")
 
-    filespaths = [f for f in (path / lidar_type).iterdir() if f.suffix == '.bin']
+    filespaths = [f for f in (path / lidar_type).iterdir() if f.suffix == ".bin"]
     filespaths.sort()
+    if timestamps:
+        # for each timestamp, only keep the file with the closest timestamp
+        closest_files = []
+        for timestamp in timestamps:
+            closest_file = min(filespaths, key=lambda f: abs(int(f.stem) - timestamp))
+            closest_files.append(closest_file)
+        filespaths = closest_files
+        print(len(filespaths), len(timestamps))
     loaded_files = []
-    for i, filename in enumerate(filespaths):
-        print(timestamp_range, filename.name)
-        if timestamp_range is None and i >= number_of_scans:
-            break
-        elif timestamp_range is not None and not timestamp_range[0] <= int(filename.stem) <= timestamp_range[1]:
-            continue
+    i = 0
+    for filename in filespaths:
+        if timestamps is None:
+            if number_of_scans > 0 and i >= number_of_scans:
+                break
+            elif (
+                timestamp_range is not None
+                and not timestamp_range[0] <= int(filename.stem) <= timestamp_range[1]
+            ):
+                continue
+        print(f"Loading {filename}")
         loaded_files.append(load(filename))
+        i += 1
     if len(loaded_files) == 1:
         return loaded_files[0]
     return loaded_files
