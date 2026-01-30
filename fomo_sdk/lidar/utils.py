@@ -91,6 +91,7 @@ def load_fomo_lidar(
         load_robosense (bool, optional): Whether to load robosense data. Defaults to True.
         number_of_scans (int, optional): Number of scans to load. Defaults to 1.
         timestamp_range (tuple[int, int] | None, optional): Timestamp range to load data from. Defaults to None.
+        timestamps (list[int] | None, optional):
     """
     path = naming.construct_path(dataset_base_path, deployment, trajectory)
 
