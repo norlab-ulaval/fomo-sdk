@@ -369,11 +369,7 @@ def modifiedCACFAR(
     maxcol = int(maxr / res - w2 - guard)
     if maxcol > cols or maxcol < 0:
         maxcol = cols
-    N = maxcol - mincol
     targets_polar_pixels = []
-
-    # print("In Modified CACFAR: maxcol:",maxcol)
-    # print("In Modified CACFAR: mincol:",mincol)
 
     for i in range(rows):
         mean = np.mean(raw_scan[i])

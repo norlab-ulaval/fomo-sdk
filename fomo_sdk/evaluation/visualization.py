@@ -138,7 +138,7 @@ def plot_evaluation_diagonal(
                 fontsize=7,
             )
         else:
-            ax.text(j, i, "N/A", ha="center", va="center", color="white")
+            ax.text(i, 0, "N/A", ha="center", va="center", color="white")
 
     # Labels and title
     ax.set_xlabel("Deployment", fontweight="bold")
@@ -376,12 +376,12 @@ def plot_est_ref_traj(ax, traj_ref, traj_est, index_pos=-1):
     ax.plot(
         time_ref,
         pos_ref,
-        label=f"Reference",
+        label="Reference",
     )
     ax.plot(
         time_est,
         pos_est,
-        label=f"Estimated",
+        label="Estimated",
     )
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("X [m]")
