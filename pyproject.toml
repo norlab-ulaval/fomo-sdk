@@ -8,7 +8,7 @@ description = "A public SDK for the FoMo dataset for autonomous driving in multi
 authors = [
     {name = "Matej Boxan", email = "matej.boxan@norlab.ulaval.ca"},
 ]
-version = "1.0.4"
+version = "1.0.5"
 dynamic = ["version"]
 requires-python = ">=3.10"
 dependencies = [
