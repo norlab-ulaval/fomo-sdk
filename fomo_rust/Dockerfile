@@ -11,12 +11,14 @@ RUN apt-get update && apt-get install -y \
     llvm-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /usr/src/fomo-rust
+WORKDIR /usr/src/fomo-sdk
+COPY fomo_sdk/data ./fomo_sdk/data
 
-COPY Cargo.toml Cargo.lock ./
-COPY src ./src
-COPY benches ./benches
-COPY tests ./tests
+WORKDIR /usr/src/fomo-sdk/fomo_rust
+COPY fomo_rust/Cargo.toml fomo_rust/Cargo.lock ./
+COPY fomo_rust/src ./src
+COPY fomo_rust/benches ./benches
+COPY fomo_rust/tests ./tests
 
 ENV RUSTFLAGS="-C target-cpu=generic"
 RUN cargo install --path .
@@ -32,7 +34,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # The binary remains in the same relative target folder
-COPY --from=builder /usr/src/fomo-rust/target/release/ijrr_to_mcap /usr/local/bin/ijrr_to_mcap
+COPY --from=builder /usr/src/fomo-sdk/fomo_rust/target/release/ijrr_to_mcap /usr/local/bin/ijrr_to_mcap
 
 ENTRYPOINT ["ijrr_to_mcap"]
 CMD ["--help"]

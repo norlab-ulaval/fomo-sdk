@@ -52,7 +52,8 @@ Options:
 ```
 
 ## Docker
+From fomo-sdk (not fomo-sdk/fomo_rust):
 ```shell
-docker build -t fomo-rust .
-docker run -it fomo-rust
+docker build -t fomo-rust -f fomo_rust/Dockerfile .
+docker run -t fomo-rust
 ```
