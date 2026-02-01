@@ -18,4 +18,4 @@ jobs:
           # Use the Manifest-driven approach for multi-package repos
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
