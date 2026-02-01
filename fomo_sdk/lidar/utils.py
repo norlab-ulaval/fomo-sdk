@@ -1,10 +1,12 @@
+from pathlib import Path
+
 import cv2
 import matplotlib
 import numpy as np
 import pandas as pd
-from pathlib import Path
-import fomo_sdk.common.naming as naming
 from rosbags.typesys.stores.latest import sensor_msgs__msg__PointCloud2 as PointCloud2
+
+import fomo_sdk.common.naming as naming
 
 DATA_TYPES = {
     1: np.int8,
@@ -75,32 +77,63 @@ def load_fomo_lidar(
     deployment: str,
     trajectory: str,
     load_robosense: bool = True,
-):
+    number_of_scans: int = 1,
+    timestamp_range: tuple[int, int] | None = None,
+    timestamps: list[int] | None = None,
+) -> list[pd.DataFrame] | pd.DataFrame:
     """
-    Load FOMO lidar data from the dataset. Currently only loads the first available lidar data.
+    Load number_of_scans FoMo lidar files from the dataset.
 
     Args:
         dataset_base_path (str): Path to the dataset.
         deployment (str): Deployment name.
         trajectory (str): Trajectory name.
         load_robosense (bool, optional): Whether to load robosense data. Defaults to True.
+        number_of_scans (int, optional): Number of scans to load. Defaults to 1.
+        timestamp_range (tuple[int, int] | None, optional): Timestamp range to load data from. Defaults to None.
+        timestamps (list[int] | None, optional):
     """
     path = naming.construct_path(dataset_base_path, deployment, trajectory)
 
-    if list(path.glob("*/.mcap")):
-        raise NotImplementedError("Can't load audio data from mcap files yet")
+    if (path / ".mcap").exists():
+        raise NotImplementedError("Can't load lidar data from mcap files yet")
 
-    has_robosense = len(list(path.glob("robosense/"))) > 0
-    has_leishen = len(list(path.glob("leishen/"))) > 0
+    has_robosense = (path / "robosense").exists()
+    has_leishen = (path / "leishen").exists()
 
+    lidar_type = None
     if has_robosense and load_robosense:
-        first_filename = sorted(list(path.glob("robosense/*.bin")))[0]
-        return load(first_filename)
+        lidar_type = "robosense"
     elif has_leishen:
-        first_filename = sorted(list(path.glob("leishen/*.bin")))[0]
-        return load(first_filename)
+        lidar_type = "leishen"
     else:
         raise ValueError("No lidar data found in the dataset.")
+
+    filespaths = [f for f in (path / lidar_type).iterdir() if f.suffix == ".bin"]
+    filespaths.sort()
+    if timestamps:
+        # for each timestamp, only keep the file with the closest timestamp
+        closest_files = []
+        for timestamp in timestamps:
+            closest_file = min(filespaths, key=lambda f: abs(int(f.stem) - timestamp))
+            closest_files.append(closest_file)
+        filespaths = closest_files
+    loaded_files = []
+    i = 0
+    for filename in filespaths:
+        if timestamps is None:
+            if number_of_scans > 0 and i >= number_of_scans:
+                break
+            elif (
+                timestamp_range is not None
+                and not timestamp_range[0] <= int(filename.stem) <= timestamp_range[1]
+            ):
+                continue
+        loaded_files.append(load(filename))
+        i += 1
+    if len(loaded_files) == 1:
+        return loaded_files[0]
+    return loaded_files
 
 
 def load(path: Path) -> pd.DataFrame:

@@ -6,12 +6,12 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pyproj
 import yaml
 from point_to_gaussian import point_to_gaussian_df
 from tqdm import tqdm
 
 from fomo_sdk.ground_truth.utils import (
+    convert_LLH_to_ENU,
     open_pos_file,
     point_to_point_minimization,
     timestamp_to_utc_s,
@@ -51,18 +51,13 @@ def read_arguments():
     parser.add_argument(
         "-v", "--visualize", action="store_true", help="Visualize the 3 DoF trajectory."
     )
-    return parser.parse_args()
-
-
-def convert_LLH_to_ENU(df):
-    """
-    Converts latitude, longitude, and altitude in the DataFrame from LLH (WGS84) referential to ENU (MTM-7) (EPSG:2949).
-    """
-    transformer = pyproj.Transformer.from_crs(4326, 2949, always_xy=True)
-    df["east"], df["north"], df["up"] = transformer.transform(
-        df["longitude"], df["latitude"], df["altitude"]
+    parser.add_argument(
+        "--singleband",
+        action="store_true",
+        help="Is the processed data singleband (RS+ receivers)",
+        default=False,
     )
-    return df[["timestamp", "east", "north", "up"]]
+    return parser.parse_args()
 
 
 def extract_std_from_df(df):
@@ -246,7 +241,10 @@ def main():
     df_covariance_merged = combine_dataframes(dataframes_covariance)
 
     # See this figure for numbering of the TFs: ../resources/sensor_rack_gnss.png
-    tf_file = Path(__file__).parent / "emlid_tf.csv"
+    if args.singleband:
+        tf_file = Path(__file__).parent / "emlid_rs+_tf.csv"
+    else:
+        tf_file = Path(__file__).parent / "emlid_tf.csv"
     gnss_reference = read_tf_file(tf_file, len(dataframes_position))
     df_traj_out_p2g, df_cov_out, df_traj_out_p2p = compute_trajectory(
         gnss_reference, df_position_merged, df_covariance_merged

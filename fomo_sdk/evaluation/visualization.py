@@ -138,7 +138,7 @@ def plot_evaluation_diagonal(
                 fontsize=7,
             )
         else:
-            ax.text(j, i, "N/A", ha="center", va="center", color="white")
+            ax.text(i, 0, "N/A", ha="center", va="center", color="white")
 
     # Labels and title
     ax.set_xlabel("Deployment", fontweight="bold")
@@ -325,7 +325,12 @@ def plot_trajectory_3d(ax, traj_ref, traj_est):
 
 
 def plot_summary_table(
-    ax, avg_relative_rpe, ape_rmse, mapping_date: str, localization_date: str, slam: str
+    ax,
+    avg_relative_rpe,
+    ape_rmse,
+    mapping_date: str,
+    localization_date: str,
+    slam: str,
 ):
     """
     Plot a summary table of the computed metrics.
@@ -376,12 +381,12 @@ def plot_est_ref_traj(ax, traj_ref, traj_est, index_pos=-1):
     ax.plot(
         time_ref,
         pos_ref,
-        label=f"Reference",
+        label="Reference",
     )
     ax.plot(
         time_est,
         pos_est,
-        label=f"Estimated",
+        label="Estimated",
     )
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("X [m]")
@@ -414,7 +419,12 @@ def create_evaluation_figure(
 
     # Summary Table
     plot_summary_table(
-        axs[0, 0], avg_relative_rpe, ape_rmse, mapping_date, localization_date, slam
+        axs[0, 0],
+        avg_relative_rpe,
+        ape_rmse,
+        mapping_date,
+        localization_date,
+        slam,
     )
 
     plot_est_ref_traj(axs[0, 1], traj_ref, traj_est, int(0.1 * traj_ref.num_poses))

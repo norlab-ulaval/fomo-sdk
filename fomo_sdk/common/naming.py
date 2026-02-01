@@ -37,7 +37,7 @@ def construct_path(
     else:
         deployment_date = DEPLOYMENT_LABEL_DATE[deployment]
 
-    if trajectory not in Trajectory.__members__:
+    if not Trajectory.is_valid(trajectory):
         raise ValueError(
             f"Trajectory {trajectory} is invalid. Valid trajectories are: {Trajectory.__members__}"
         )
@@ -100,6 +100,10 @@ class Trajectory(Enum):
     @classmethod
     def list(cls):
         return list(map(lambda c: c.value, cls))
+
+    @classmethod
+    def is_valid(cls, trajectory: str):
+        return trajectory in cls.list()
 
     RED = "red"
     BLUE = "blue"

@@ -1,18 +1,29 @@
-import numpy as np
-import cv2
+from enum import Enum
 from pathlib import Path
-from rosbags.image import message_to_cvimage
-import fomo_sdk.common.naming as naming
 
+import cv2
+import numpy as np
+import pandas as pd
+from rosbags.image import message_to_cvimage
 from rosbags.typesys.stores.latest import (
-    std_msgs__msg__Header as Header,
     sensor_msgs__msg__Image as Image,
 )
+from rosbags.typesys.stores.latest import (
+    std_msgs__msg__Header as Header,
+)
+from scipy.ndimage import gaussian_filter
+
+import fomo_sdk.common.naming as naming
 
 MIN_RANGE = 0.5
 RADAR_RESOLUTION = 0.0438
 RADAR_RANGE_BINS = 6848
 ENDODER_SIZE = 5595
+
+
+class RadarPointsExtractor(Enum):
+    KPEAKS = 1
+    MOD_CACFAR = 2
 
 
 def polar_to_cartesian(
@@ -167,27 +178,60 @@ def save(
         cv2.imwrite(str(path), final_data)
 
 
-def load_fomo_radar(dataset_base_path: str, deployment: str, trajectory: str):
+def load_fomo_radar(
+    dataset_base_path: str,
+    deployment: str,
+    trajectory: str,
+    number_of_scans: int = 1,
+    timestamp_range: tuple[int, int] | None = None,
+    timestamps: list[int] | None = None,
+):
     """
-    Load FOMO radar data from the dataset. Currently only loads the first available radar scan.
+    Load FOMO radar data from the dataset.
 
     Args:
-        dataset_base_path (str): Path to the dataset    .
+        dataset_base_path (str): Path to the dataset.
         deployment (str): Deployment name.
         trajectory (str): Trajectory name.
+        number_of_scans (int, optional): Number of scans to load. Defaults to 1.
+        timestamp_range (tuple[int, int] | None, optional): Timestamp range to load data from. Defaults to None.
+        timestamps (list[int] | None, optional):
     """
     path = naming.construct_path(dataset_base_path, deployment, trajectory)
 
     if list(path.glob("*/.mcap")):
-        raise NotImplementedError("Can't load audio data from mcap files yet")
+        raise NotImplementedError("Can't load radar data from mcap files yet")
 
-    has_navtech = len(list(path.glob("navtech/"))) > 0
-
-    if has_navtech:
-        first_filename = sorted(list(path.glob("navtech/*.png")))[0]
-        return load(first_filename)
-    else:
+    has_navtech = (path / "navtech").exists()
+    if not has_navtech:
         raise ValueError("No radar data found in the dataset.")
+
+    filespaths = [f for f in (path / "navtech").iterdir() if f.suffix == ".png"]
+    filespaths.sort()
+    if timestamps:
+        # for each timestamp, only keep the file with the closest timestamp
+        closest_files = []
+        for timestamp in timestamps:
+            closest_file = min(filespaths, key=lambda f: abs(int(f.stem) - timestamp))
+
+            closest_files.append(closest_file)
+        filespaths = closest_files
+    loaded_files = []
+    i = 0
+    for filename in filespaths:
+        if timestamps is None:
+            if number_of_scans > 0 and i >= number_of_scans:
+                break
+            elif (
+                timestamp_range is not None
+                and not timestamp_range[0] <= int(filename.stem) <= timestamp_range[1]
+            ):
+                continue
+        loaded_files.append(load(filename))
+        i += 1
+    if len(loaded_files) == 1:
+        return loaded_files[0]
+    return loaded_files
 
 
 def load(path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -221,3 +265,215 @@ def load(path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     fft_data[:, :min_range] = 0
     fft_data = np.squeeze(fft_data)
     return timestamps, azimuths, fft_data
+
+
+def KPeaks(
+    raw_scan: np.ndarray,
+    minr: float = 2.0,
+    maxr: float = 80.0,
+    res: float = RADAR_RESOLUTION,
+    K: int = 3,
+    static_threshold: float = 0.25,
+):
+    """
+    K-peaks radar extractor (Python)
+    - raw_scan: 2D array [rows=azimuth, cols=range_bins] of float intensities
+    - minr/maxr: meters
+    - res: meters per bin (range resolution)
+    - K: number of peaks to keep per row
+    - static_threshold: intensity threshold to start a peak
+
+    Returns:
+      np.ndarray of shape [N, 2], entries (row_index, avg_col_index_float)
+      Note: avg_col_index can be fractional due to averaging across a peak.
+    """
+    rows, cols = raw_scan.shape
+
+    # convert meter limits to column limits, clamp to [0, cols]
+    mincol = int(minr / res)
+    if mincol > cols or mincol < 0:
+        mincol = 0
+    maxcol = int(maxr / res)
+    if maxcol > cols or maxcol < 0:
+        maxcol = cols
+
+    targets_polar_pixels = []
+
+    for i in range(rows):
+        # 1) Collect (intensity, j) for bins above threshold in increasing j
+        intens = []
+        row_vals = raw_scan[i]
+        for j in range(mincol, maxcol):
+            v = row_vals[j]
+            if v >= static_threshold:
+                intens.append((v, j))
+
+        if not intens:
+            continue
+
+        # 2) Group adjacent bins into peaks, tracking each peak’s max intensity
+        peaks = []  # list of (peak_max_value, [bin_indices])
+        current_bins = [intens[0][1]]
+        current_max = intens[0][0]
+
+        for val, j in intens[1:]:
+            if j == current_bins[-1] + 1:
+                # continue the current peak
+                current_bins.append(j)
+                if val > current_max:
+                    current_max = val
+            else:
+                # finalize previous peak
+                peaks.append((current_max, current_bins))
+                # start new peak
+                current_bins = [j]
+                current_max = val
+
+        # add the last peak
+        peaks.append((current_max, current_bins))
+
+        # 3) Sort peaks by max intensity (desc)
+        peaks.sort(key=lambda x: x[0], reverse=True)
+
+        # 4) Take top-K peaks; use averaged column index for each peak
+        for p in range(min(K, len(peaks))):
+            _, bins = peaks[p]
+            avg_j = float(np.mean(bins))  # can be fractional
+            # (i, avg_j) mirrors your KStrong (row, col) output convention
+            targets_polar_pixels.append((i, avg_j))
+
+    return np.asarray(targets_polar_pixels, dtype=np.float32)
+
+
+def modifiedCACFAR(
+    raw_scan: np.ndarray,
+    minr=1.0,
+    maxr=69.0,
+    res=0.040308,
+    width=137,
+    guard=7,
+    threshold=0.50,
+    threshold2=0.0,
+    threshold3=0.23,
+    peak_summary_method="weighted_mean",
+):
+    # peak_summary_method: median, geometric_mean, max_intensity, weighted_mean
+    rows = raw_scan.shape[0]
+    cols = raw_scan.shape[1]
+    if width % 2 == 0:
+        width += 1
+    w2 = int(np.floor(width / 2))
+    mincol = int(minr / res + w2 + guard + 1)
+    if mincol > cols or mincol < 0:
+        mincol = 0
+    maxcol = int(maxr / res - w2 - guard)
+    if maxcol > cols or maxcol < 0:
+        maxcol = cols
+    targets_polar_pixels = []
+
+    for i in range(rows):
+        mean = np.mean(raw_scan[i])
+        peak_points = []
+        peak_point_intensities = []
+        for j in range(mincol, maxcol):
+            left = 0
+            right = 0
+            for k in range(-w2 - guard, -guard):
+                left += raw_scan[i, j + k]
+            for k in range(guard + 1, w2 + guard):
+                right += raw_scan[i, j + k]
+            # (statistic) estimate of clutter power
+            stat = max(left, right) / w2  # GO-CFAR
+            thres = threshold * stat + threshold2 * mean + threshold3
+            if raw_scan[i, j] > thres:
+                peak_points.append(j)
+                peak_point_intensities.append(raw_scan[i, j])
+            elif len(peak_points) > 0:
+                if peak_summary_method == "median":
+                    r = peak_points[len(peak_points) // 2]
+                elif peak_summary_method == "geometric_mean":
+                    r = np.mean(peak_points)
+                elif peak_summary_method == "max_intensity":
+                    r = peak_points[np.argmax(peak_point_intensities)]
+                elif peak_summary_method == "weighted_mean":
+                    r = np.sum(
+                        np.array(peak_points)
+                        * np.array(peak_point_intensities)
+                        / np.sum(peak_point_intensities)
+                    )
+                else:
+                    raise NotImplementedError(
+                        "peak summary method: {} not supported".format(
+                            peak_summary_method
+                        )
+                    )
+                targets_polar_pixels.append((i, r))
+                peak_points = []
+                peak_point_intensities = []
+    return np.asarray(targets_polar_pixels)
+
+
+def extract_points(
+    raw_scan: np.ndarray,
+    azimuth: np.ndarray,
+    timestamps: np.ndarray,
+    extractor: RadarPointsExtractor,
+) -> pd.DataFrame:
+    polar_intensity = np.array(raw_scan)
+    polar_std = np.std(polar_intensity, axis=1)
+    polar_mean = np.mean(polar_intensity, axis=1)
+    polar_intensity -= polar_mean[:, np.newaxis] + 2 * polar_std[:, np.newaxis]
+    polar_intensity[polar_intensity < 0] = 0
+    polar_intensity = gaussian_filter(polar_intensity, sigma=(3, 0), truncate=4.0)
+    polar_intensity /= np.max(polar_intensity, axis=1, keepdims=True)
+    polar_intensity[np.isnan(polar_intensity)] = 0
+
+    if extractor == RadarPointsExtractor.KPEAKS:
+        targets = KPeaks(
+            polar_intensity,
+            minr=3.0,
+            maxr=100.0,
+            res=RADAR_RESOLUTION,
+            K=10,
+            static_threshold=0.3,
+        )
+    elif extractor == RadarPointsExtractor.MOD_CACFAR:
+        targets = modifiedCACFAR(
+            polar_intensity,
+            minr=5,
+            maxr=100,
+            res=RADAR_RESOLUTION,
+            width=137,
+            guard=7,
+            threshold=0.50,
+            threshold2=0.0,
+            threshold3=0.30,
+        )
+    else:
+        raise ValueError(f"Unknown extractor: {extractor}")
+
+    x_coors = []
+    y_coors = []
+    intensities = []
+    timestamps_list = []
+    for target in targets:
+        azimuth_idx = int(target[0])
+        range_idx = int(target[1])
+
+        x = range_idx * RADAR_RESOLUTION * np.cos(azimuth[azimuth_idx])
+        y = range_idx * RADAR_RESOLUTION * np.sin(azimuth[azimuth_idx])
+        intensity = polar_intensity[azimuth_idx, range_idx]
+        x_coors.append(x)
+        y_coors.append(y)
+        intensities.append(intensity)
+        timestamps_list.append(timestamps[azimuth_idx])
+
+    return pd.DataFrame(
+        {
+            "x": np.array(x_coors).flatten(),
+            "y": np.array(y_coors).flatten(),
+            "z": np.zeros_like(x_coors).flatten(),
+            "intensity": intensities,
+            "timestamp": np.array(timestamps_list).flatten(),
+        }
+    )

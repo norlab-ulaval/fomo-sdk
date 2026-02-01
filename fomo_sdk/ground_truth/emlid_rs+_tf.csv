@@ -1,0 +1,7 @@
+# robosense optical center as origin (identical to base_link)
+# L2 Phase center of RS+ emlid antennas
+# front, left, right
+x,y,z
+-0.106,-0.350,-0.066
+-0.946503,0.529514,-0.066
+-0.944645,-0.565562,-0.066

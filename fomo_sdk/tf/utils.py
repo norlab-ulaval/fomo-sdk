@@ -24,9 +24,11 @@ class FoMoTFTree:
         if filepath is None:
             from importlib import resources
 
-            with resources.files("fomo_sdk.data").joinpath(
-                "calib/transforms.json"
-            ).open("r") as f:
+            with (
+                resources.files("fomo_sdk.data")
+                .joinpath("calib/transforms.json")
+                .open("r") as f
+            ):
                 transforms = json.load(f)
         else:
             if not os.path.exists(filepath):
