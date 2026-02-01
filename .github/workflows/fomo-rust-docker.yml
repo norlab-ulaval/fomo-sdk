@@ -1,12 +1,13 @@
 name: Build and Push Docker Image for fomo_rust sdk
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   release:
     types: [published]
+
+# Prevent multiple releases from stepping on each other
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-push:
@@ -16,7 +17,7 @@ jobs:
       packages: write
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
@@ -29,25 +30,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
+      - name: Extract Metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository_owner }}/fomo-rust-sdk
+          # This pulls the tag name (e.g., v1.2.3) from the release event
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
 
-      - name: Build and push
+      - name: Build and Push
         uses: docker/build-push-action@v5
         with:
+          # Using fomo_rust as the context for efficiency
           context: ./fomo_rust
-          platforms: linux/amd64,linux/arm64
+          file: ./fomo_rust/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Speeds up subsequent builds by caching Rust layers
           cache-from: type=gha
           cache-to: type=gha,mode=max
