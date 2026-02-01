@@ -1,11 +1,12 @@
-import os
-import subprocess
 import glob
+import os
 import re
+import shutil
+import subprocess
+import time
 from datetime import datetime
 from ftplib import FTP
-import time
-import shutil
+
 from emlid_gnss_to_rosbag import main as emlid_gnss_to_rosbag
 
 
@@ -161,21 +162,22 @@ with open(static_O_file, "r") as file:
         exit(1)
 
 
-print(f"Downloading CROS file from: {cros_full_path}")
-with FTP("ftp.mrn.gouv.qc.ca", encoding="latin-1") as ftp:
-    ftp.login()  # Anonymous login
-    # Download the remote file
-    static_O_file = ftp.nlst(os.path.join("/Public/GPS/Quebec", cros_foldername))
-    ftp_command = "RETR " + cros_full_path
-    local_cros_archive = "/tmp/emlid_cros.zip"
-    ftp.retrbinary(
-        ftp_command,
-        open(local_cros_archive, "wb").write,
-    )
-
 cros_path = "/tmp/emlid_cros"
-print(f"Unzipping to {cros_path}")
-os.system(f"unzip -u {local_cros_archive} -d {cros_path}")
+if not os.path.exists(cros_path):
+    print(f"Downloading CROS file from: {cros_full_path}")
+    with FTP("ftp.mrn.gouv.qc.ca", encoding="latin-1") as ftp:
+        ftp.login()  # Anonymous login
+        # Download the remote file
+        static_O_file = ftp.nlst(os.path.join("/Public/GPS/Quebec", cros_foldername))
+        ftp_command = "RETR " + cros_full_path
+        local_cros_archive = "/tmp/emlid_cros.zip"
+        ftp.retrbinary(
+            ftp_command,
+            open(local_cros_archive, "wb").write,
+        )
+
+    print(f"Unzipping to {cros_path}")
+    os.system(f"unzip -u {local_cros_archive} -d {cros_path}")
 
 static_path_O = find_file("O", static_path)
 cros_path_O = find_file("O", cros_path)

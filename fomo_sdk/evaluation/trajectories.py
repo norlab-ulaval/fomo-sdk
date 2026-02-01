@@ -183,7 +183,7 @@ def compute_ate_rmse(rpe_results):
 
 def process_trajectories(
     gt_file: Path, est_file: Path, alignment: str
-) -> tuple[PoseTrajectory3D, PoseTrajectory3D, dict[str, float]]:
+) -> tuple[PoseTrajectory3D, PoseTrajectory3D, dict[str, int | float]]:
     if not gt_file.exists():
         print(f"File {gt_file} does not exist (gt_file)")
         raise FileNotFoundError(f"File {gt_file} does not exist")
@@ -198,7 +198,7 @@ def process_trajectories(
         print(f"file paths: {gt_file} {est_file}")
         raise e
 
-    trajectories = {
+    alignement_dict = {
         "ref": {
             "length": traj_ref.path_length,
             "size": traj_ref.num_poses,
@@ -217,18 +217,65 @@ def process_trajectories(
 
     traj_ref_sync, traj_est_sync = synchronize_trajectories(traj_ref, traj_est)
 
+    speeds_ref = traj_ref_sync.speeds
+    speeds_est = traj_est_sync.speeds
+
+    smoothing_window_size = 5
+    print("Smoothing trajectory speeds over", smoothing_window_size, "points")
+
+    smoothed_speeds_ref = np.convolve(
+        speeds_ref, np.ones(smoothing_window_size) / smoothing_window_size, mode="valid"
+    )
+    smoothed_speeds_est = np.convolve(
+        speeds_est, np.ones(smoothing_window_size) / smoothing_window_size, mode="valid"
+    )
+
+    # find first index in each where speed is > 0.5 m/s
+    idx_ref = np.argmax(smoothed_speeds_ref > 0.5)
+    idx_est = np.argmax(smoothed_speeds_est > 0.5)
+
+    # define a 20 seconds window to be used for speed alignment
+    window_duration = 20
+    GNSS_RATE = 10
+    window_length = window_duration * GNSS_RATE
+
+    # align trajectories by speed
+    idx_ref_start = 0 if idx_ref < 10 else idx_ref - 10
+    idx_est_start = 0 if idx_est < 10 else idx_est - 10
+    signal_ref = smoothed_speeds_ref[idx_ref_start : idx_ref + window_length]
+    signal_est = smoothed_speeds_est[idx_est_start : idx_est + window_length]
+
+    corr = np.correlate(signal_ref, signal_est, "full")
+    idx_max = np.argmax(corr) + 1  # +1 to account for 'full'
+    # Calculate actual lag (subtract the zero-lag position)
+    lag = idx_max - (len(signal_est) - 1)
+    total_time_shift = (lag + (idx_ref_start - idx_est_start)) / GNSS_RATE
+    print(f"Correcting time offset of {total_time_shift} seconds.")
+    alignement_dict["time_sync"] = {
+        "lag": float(lag),
+        "total_time_shift": float(total_time_shift),
+        "smoothing_window_size": smoothing_window_size,
+        "est_corr_length": len(signal_est),
+        "ref_corr_length": len(signal_ref),
+    }
+
+    traj_est.timestamps += total_time_shift
+    traj_ref_sync, traj_est_sync = synchronize_trajectories(traj_ref, traj_est)
+
     if traj_ref_sync.path_length < traj_ref.path_length * 0.9:
         print(
             "Reference trajectory got shorten in the synchronization process. Labeling estimate."
         )
-        trajectories["est"] = {
+        alignement_dict["est"] = {
             "length": traj_est_sync.path_length,
             "size": traj_est_sync.num_poses,
             "start": float(traj_est_sync.timestamps[0]),
             "end": float(traj_est_sync.timestamps[-1]),
         }
-        trajectories["length_diff"] = traj_ref.path_length - traj_est_sync.path_length
-        trajectories["shortened"] = True
+        alignement_dict["length_diff"] = (
+            traj_ref.path_length - traj_est_sync.path_length
+        )
+        alignement_dict["shortened"] = True
     move_trajectories_to_origin(traj_ref_sync, traj_est_sync)
     num_used_poses, traj_ref_aligned, traj_est_aligned = align_trajectories(
         traj_ref_sync, traj_est_sync, alignment
@@ -237,7 +284,7 @@ def process_trajectories(
     traj_ref_final = set_identity_orientations(traj_ref_aligned)
     traj_est_final = set_identity_orientations(traj_est_aligned)
 
-    return traj_ref_final, traj_est_final, trajectories
+    return traj_ref_final, traj_est_final, alignement_dict
 
 
 def create_rpe_table(rpe_results):
@@ -282,7 +329,7 @@ def evaluate(
     """
     output.mkdir(parents=True, exist_ok=True)
 
-    traj_gt, traj_est, trajectories = process_trajectories(gt, est, alignment)
+    traj_gt, traj_est, alignement_dict = process_trajectories(gt, est, alignment)
     traj_pair = (traj_gt, traj_est)
 
     ape_rmse, ape_stats = compute_ape(traj_pair)
@@ -298,7 +345,7 @@ def evaluate(
     if export_yaml:
         yaml_filename = output / f"{mapping_date}_{localization_date}.yaml"
         export_results_to_yaml(
-            yaml_filename, avg_relative_rpe, ape_rmse, rpe_results, trajectories
+            yaml_filename, avg_relative_rpe, ape_rmse, rpe_results, alignement_dict
         )
 
     if export_figure:

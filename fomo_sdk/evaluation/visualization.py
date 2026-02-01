@@ -325,7 +325,12 @@ def plot_trajectory_3d(ax, traj_ref, traj_est):
 
 
 def plot_summary_table(
-    ax, avg_relative_rpe, ape_rmse, mapping_date: str, localization_date: str, slam: str
+    ax,
+    avg_relative_rpe,
+    ape_rmse,
+    mapping_date: str,
+    localization_date: str,
+    slam: str,
 ):
     """
     Plot a summary table of the computed metrics.
@@ -414,7 +419,12 @@ def create_evaluation_figure(
 
     # Summary Table
     plot_summary_table(
-        axs[0, 0], avg_relative_rpe, ape_rmse, mapping_date, localization_date, slam
+        axs[0, 0],
+        avg_relative_rpe,
+        ape_rmse,
+        mapping_date,
+        localization_date,
+        slam,
     )
 
     plot_est_ref_traj(axs[0, 1], traj_ref, traj_est, int(0.1 * traj_ref.num_poses))
