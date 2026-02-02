@@ -662,7 +662,7 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
     let write_options = mcap::WriteOptions::new()
         .compression(compression)
         .profile("ros2")
-        .library("fomo-sdk")
+        .library(&format!("fomo-sdk/{}", env!("CARGO_PKG_VERSION")))
         .use_chunks(true)
         .disable_seeking(false)
         .emit_summary_records(true)
