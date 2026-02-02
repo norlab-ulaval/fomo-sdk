@@ -12,12 +12,15 @@ from fomo_sdk.evaluation.utils import EVALUATION_DELTAS
 from fomo_sdk.evaluation.visualization import create_evaluation_figure
 
 
-def kabsch_algorithm(traj1, traj2) -> tuple[int, np.ndarray, np.ndarray]:
+def kabsch_algorithm(
+    traj1, traj2, alignment_frac: float = 0.25
+) -> tuple[int, np.ndarray, np.ndarray]:
     """
     Modified Kabsch algorithm that fixes first points and finds optimal rotation.
 
     Parameters:
     traj1, traj2: numpy arrays of shape (n_points, 3) representing 3D trajectories
+    alignment_frac: fraction of points to use for alignment
 
     Returns:
     r_a: rotation matrix (3x3) for evo transform
@@ -34,7 +37,6 @@ def kabsch_algorithm(traj1, traj2) -> tuple[int, np.ndarray, np.ndarray]:
     traj1_centered = traj1 - traj1[0]
     traj2_centered = traj2 - traj2[0]
 
-    alignment_frac = 0.25
     target_len = int(alignment_frac * traj1_centered.shape[0])
     print(f"Using first {target_len} points for alignment ({alignment_frac * 100}%)")
 
@@ -230,20 +232,25 @@ def process_trajectories(
         speeds_est, np.ones(smoothing_window_size) / smoothing_window_size, mode="valid"
     )
 
-    # find first index in each where speed is > 0.5 m/s
+    # find first index where speed is > 0.5 m/s
     idx_ref = np.argmax(smoothed_speeds_ref > 0.5)
     idx_est = np.argmax(smoothed_speeds_est > 0.5)
 
-    # define a 20 seconds window to be used for speed alignment
-    window_duration = 20
-    GNSS_RATE = 10
-    window_length = window_duration * GNSS_RATE
+    # define a duration window to be used for speed alignment
+    for window_duration in [100, 20]:
+        try:
+            GNSS_RATE = 10
+            window_length = window_duration * GNSS_RATE
 
-    # align trajectories by speed
-    idx_ref_start = 0 if idx_ref < 10 else idx_ref - 10
-    idx_est_start = 0 if idx_est < 10 else idx_est - 10
-    signal_ref = smoothed_speeds_ref[idx_ref_start : idx_ref + window_length]
-    signal_est = smoothed_speeds_est[idx_est_start : idx_est + window_length]
+            # align trajectories by speed
+            idx_ref_start = 0 if idx_ref < 10 else idx_ref - 10
+            idx_est_start = 0 if idx_est < 10 else idx_est - 10
+            signal_ref = smoothed_speeds_ref[idx_ref_start : idx_ref + window_length]
+            signal_est = smoothed_speeds_est[idx_est_start : idx_est + window_length]
+            break
+        except IndexError:
+            print("IndexError: Window duration is too long for the given trajectory.")
+            continue
 
     corr = np.correlate(signal_ref, signal_est, "full")
     idx_max = np.argmax(corr) + 1  # +1 to account for 'full'

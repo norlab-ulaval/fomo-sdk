@@ -5,7 +5,7 @@ import yaml
 
 from fomo_sdk.common.naming import DEPLOYMENT_DATE_LABEL
 
-EVALUATION_DELTAS = [5, 100, 200, 300, 400, 500, 600, 700, 800]
+EVALUATION_DELTAS = [100, 200, 300, 400, 500, 600, 700, 800]
 
 
 def parse_evaluation_file_name(file_name: Path | str):
