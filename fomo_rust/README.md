@@ -52,6 +52,19 @@ Options:
 ```
 
 ## Docker
+
+### Usage
+```shell
+docker run --rm -t \
+    -v $(pwd):/input \
+    -v $(pwd)/output:/output \
+    ghcr.io/norlab-ulaval/fomo-sdk:latest ijrr_to_mcap \
+    --input /input --output /output \
+    --sensors zedx_left --sensors robosense \
+    --compress
+```
+
+### Build
 From fomo-sdk (not fomo-sdk/fomo_rust):
 ```shell
 docker build -t fomo-rust -f fomo_rust/Dockerfile .
