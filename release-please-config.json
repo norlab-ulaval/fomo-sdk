@@ -3,7 +3,7 @@
   "packages": {
     ".": {
       "release-type": "python",
-      "package-name": "fomo-project",
+      "package-name": "fomo-sdk",
       "initial-version": "1.0.4",
       "extra-files": ["fomo_rust/Cargo.toml"]
     }
