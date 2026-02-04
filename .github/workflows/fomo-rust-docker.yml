@@ -44,8 +44,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           # Using fomo_rust as the context for efficiency
-          context: fomo_rust 
-          file: Dockerfile
+          context: fomo_rust
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
