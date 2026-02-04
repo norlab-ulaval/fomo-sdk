@@ -355,20 +355,19 @@ def evaluate(
             yaml_filename, avg_relative_rpe, ape_rmse, rpe_results, alignement_dict
         )
 
-    if export_figure:
-        _ate_rmse = compute_ate_rmse(rpe_results)
-        analysis_filename = output / f"{mapping_date}_{localization_date}"
-        create_evaluation_figure(
-            traj_pair[0],
-            traj_pair[1],
-            rpe_table,
-            avg_relative_rpe,
-            ape_rmse,
-            analysis_filename,
-            mapping_date,
-            localization_date,
-            slam,
-            move_to_origin,
-            export_figure=True,
-            plot_figure=plot_figure,
-        )
+    _ate_rmse = compute_ate_rmse(rpe_results)
+    analysis_filename = output / f"{mapping_date}_{localization_date}"
+    create_evaluation_figure(
+        traj_pair[0],
+        traj_pair[1],
+        rpe_table,
+        avg_relative_rpe,
+        ape_rmse,
+        analysis_filename,
+        mapping_date,
+        localization_date,
+        slam,
+        move_to_origin,
+        export_figure=export_figure,
+        plot_figure=plot_figure,
+    )

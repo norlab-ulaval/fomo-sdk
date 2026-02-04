@@ -44,16 +44,13 @@ use sensors::{
     imu::{VECTORANV_TOPIC, VECTORNAV_FRAME_ID, XSENS_FRAME_ID, XSENS_TOPIC},
     odom::DiffDrive,
 };
+use tqdm::tqdm;
 
-use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
 use mcap::{read, Compression};
 
-use crossbeam::channel::bounded;
-use std::thread;
-
 use data_writer::{
-    produce_sensor_data, write_tf_data, CsvLoader, DirectoryLoader, McapLogMessage, MsgMcapWriter,
-    MsgWithInfoMcapWriter, SensorMcapWriter,
+    write_sensor_data, write_tf_data, CsvLoader, DirectoryLoader, MsgMcapWriter,
+    MsgWithInfoMcapWriter,
 };
 use mcap;
 use sensors::audio;
@@ -71,7 +68,7 @@ use std::{
 };
 use std::{io::BufWriter, u64};
 
-#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SensorType {
     Navtech,
     ZedXLeft,
@@ -228,12 +225,11 @@ pub fn process_rosbag<P: AsRef<Utf8Path>>(
     let is_tty = atty::is(atty::Stream::Stdout);
     let message_stream = read::MessageStream::new(&mapped)?;
     let iter: Box<dyn Iterator<Item = _>> = if is_tty {
-        let pb = ProgressBar::new(msg_count as u64);
-        pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
-            .unwrap()
-            .progress_chars("#>-"));
-        pb.set_message("Processing input data");
-        Box::new(message_stream.progress_with(pb))
+        Box::new(
+            tqdm(message_stream)
+                .desc(Some("Processing input data"))
+                .total(Some(msg_count)),
+        )
     } else {
         Box::new(message_stream)
     };
@@ -647,13 +643,6 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
     io::check_ijrr_input_path(input.as_ref())?;
     let output_path = io::check_mcap_output_path(output.as_ref())?;
 
-    // Configure rayon global thread pool to handle high latency I/O
-    // We ignore the error in case it was already initialized
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(50)
-        .build_global()
-        .ok();
-
     let calib_path = input.as_ref().join("calib");
     let mut compression = None;
     if compress == true {
@@ -662,7 +651,10 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
     let write_options = mcap::WriteOptions::new()
         .compression(compression)
         .profile("ros2")
-        .library(&format!("fomo-sdk/{}", env!("CARGO_PKG_VERSION")))
+        .library(&format!(
+            "fomo-sdk/memory-leak-fix/{}",
+            env!("CARGO_PKG_VERSION")
+        ))
         .use_chunks(true)
         .disable_seeking(false)
         .emit_summary_records(true)
@@ -670,18 +662,12 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         .emit_message_indexes(true);
 
     let mut mcap_writer = write_options
-        .create(BufWriter::with_capacity(
-            1024 * 1024,
-            fs::File::create(&output_path)
-                .map_err(|e| anyhow!("Failed to create output file {}: {}", &output_path, e))?,
-        ))
+        .create(BufWriter::new(fs::File::create(&output_path).map_err(
+            |e| anyhow!("Failed to create output file {}: {}", &output_path, e),
+        )?))
         .map_err(|e| anyhow!("Failed to create write_options: {}", e))?;
 
     let start = Instant::now();
-
-    let m = indicatif::MultiProgress::new();
-    let (tx, rx) = bounded(1000);
-    let mut handles = vec![];
 
     // all output mcaps contain the IMU, odom and TF data
     let mut imu_mcap_writer: MsgMcapWriter<imu::Imu, CsvLoader> = MsgMcapWriter::new(
@@ -691,24 +677,13 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         "csv",
     )
     .unwrap();
+    let mut topics_with_timestamps: Vec<TopicWithMessageCountWithTimestamps> = vec![];
 
-    let channels = imu_mcap_writer.create_channels(&mut mcap_writer).unwrap();
-    let tx_clone = tx.clone();
-    let prec_clone = *prec;
-    let pb = m.add(ProgressBar::new(0));
-    pb.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
-        )
-        .unwrap()
-        .progress_chars("#>-"),
-    );
-    handles.push(thread::spawn(move || {
-        produce_sensor_data(&mut imu_mcap_writer, channels, &prec_clone, tx_clone, pb)
+    topics_with_timestamps.append(
+        &mut write_sensor_data(&mut mcap_writer, &mut imu_mcap_writer, prec)
             .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", VECTORNAV_FRAME_ID, e))
-            .unwrap()
-    }));
-
+            .unwrap(),
+    );
     let mut imu_mcap_writer: MsgMcapWriter<imu::Imu, CsvLoader> = MsgMcapWriter::new(
         input.as_ref().join(format!("{}.csv", XSENS_FRAME_ID)),
         XSENS_TOPIC.to_string(),
@@ -716,23 +691,11 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         "csv",
     )
     .unwrap();
-    let channels = imu_mcap_writer.create_channels(&mut mcap_writer).unwrap();
-    let tx_clone = tx.clone();
-    let prec_clone = *prec;
-    let pb = m.add(ProgressBar::new(0));
-    pb.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
-        )
-        .unwrap()
-        .progress_chars("#>-"),
-    );
-    handles.push(thread::spawn(move || {
-        produce_sensor_data(&mut imu_mcap_writer, channels, &prec_clone, tx_clone, pb)
+    topics_with_timestamps.append(
+        &mut write_sensor_data(&mut mcap_writer, &mut imu_mcap_writer, prec)
             .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", XSENS_FRAME_ID, e))
-            .unwrap()
-    }));
-
+            .unwrap(),
+    );
     let mut odom_mcap_writer: MsgMcapWriter<odom::Odom, CsvLoader> = MsgMcapWriter::new(
         input.as_ref().join(format!("{}.csv", ODOM_FRAME_ID)),
         ODOM_TOPIC.to_string(),
@@ -740,22 +703,11 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         "csv",
     )
     .unwrap();
-    let channels = odom_mcap_writer.create_channels(&mut mcap_writer).unwrap();
-    let tx_clone = tx.clone();
-    let prec_clone = *prec;
-    let pb = m.add(ProgressBar::new(0));
-    pb.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
-        )
-        .unwrap()
-        .progress_chars("#>-"),
-    );
-    handles.push(thread::spawn(move || {
-        produce_sensor_data(&mut odom_mcap_writer, channels, &prec_clone, tx_clone, pb)
+    topics_with_timestamps.append(
+        &mut write_sensor_data(&mut mcap_writer, &mut odom_mcap_writer, prec)
             .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", ODOM_FRAME_ID, e))
-            .unwrap()
-    }));
+            .unwrap(),
+    );
     for sensor_type in sensors {
         let path = input.as_ref().join(sensor_type.get_folder().unwrap());
         match sensor_type {
@@ -771,29 +723,14 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                     "png",
                 )
                 .unwrap();
-                let channels = navtech_mcap_writer
-                    .create_channels(&mut mcap_writer)
-                    .unwrap();
-                let tx_clone = tx.clone();
-                let prec_clone = *prec;
-                let pb = m.add(ProgressBar::new(0));
-                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
-                    .unwrap()
-                    .progress_chars("#>-"));
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(
-                        &mut navtech_mcap_writer,
-                        channels,
-                        &prec_clone,
-                        tx_clone,
-                        pb,
-                    )
-                    .inspect_err(|e| eprintln!("Failed to process navtech data: {}", e))
-                    .unwrap()
-                }));
+                topics_with_timestamps.append(
+                    &mut write_sensor_data(&mut mcap_writer, &mut navtech_mcap_writer, prec)
+                        .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
+                        .unwrap(),
+                );
             }
             SensorType::ZedXLeft => {
-                let mut image_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
+                let mut navtech_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
                     MsgWithInfoMcapWriter::new(
                         path,
                         calib_path.clone(),
@@ -802,21 +739,14 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         "png",
                     )
                     .unwrap();
-                let channels = image_mcap_writer.create_channels(&mut mcap_writer).unwrap();
-                let tx_clone = tx.clone();
-                let prec_clone = *prec;
-                let pb = m.add(ProgressBar::new(0));
-                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
-                    .unwrap()
-                    .progress_chars("#>-"));
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut image_mcap_writer, channels, &prec_clone, tx_clone, pb)
+                topics_with_timestamps.append(
+                    &mut write_sensor_data(&mut mcap_writer, &mut navtech_mcap_writer, prec)
                         .inspect_err(|e| eprintln!("Failed to process zedx_left data: {}", e))
-                        .unwrap()
-                }));
+                        .unwrap(),
+                );
             }
             SensorType::ZedXRight => {
-                let mut image_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
+                let mut navtech_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
                     MsgWithInfoMcapWriter::new(
                         path,
                         calib_path.clone(),
@@ -825,18 +755,11 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         "png",
                     )
                     .unwrap();
-                let channels = image_mcap_writer.create_channels(&mut mcap_writer).unwrap();
-                let tx_clone = tx.clone();
-                let prec_clone = *prec;
-                let pb = m.add(ProgressBar::new(0));
-                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
-                    .unwrap()
-                    .progress_chars("#>-"));
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut image_mcap_writer, channels, &prec_clone, tx_clone, pb)
+                topics_with_timestamps.append(
+                    &mut write_sensor_data(&mut mcap_writer, &mut navtech_mcap_writer, prec)
                         .inspect_err(|e| eprintln!("Failed to process zedx_right data: {}", e))
-                        .unwrap()
-                }));
+                        .unwrap(),
+                );
             }
             SensorType::Basler => {
                 let mut basler_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
@@ -848,26 +771,11 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         "png",
                     )
                     .unwrap();
-                let channels = basler_mcap_writer
-                    .create_channels(&mut mcap_writer)
-                    .unwrap();
-                let tx_clone = tx.clone();
-                let prec_clone = *prec;
-                let pb = m.add(ProgressBar::new(0));
-                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
-                    .unwrap()
-                    .progress_chars("#>-"));
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(
-                        &mut basler_mcap_writer,
-                        channels,
-                        &prec_clone,
-                        tx_clone,
-                        pb,
-                    )
-                    .inspect_err(|e| eprintln!("Failed to process basler data: {}", e))
-                    .unwrap()
-                }));
+                topics_with_timestamps.append(
+                    &mut write_sensor_data(&mut mcap_writer, &mut basler_mcap_writer, prec)
+                        .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
+                        .unwrap(),
+                );
             }
             SensorType::RoboSense => {
                 let mut lidar_mcap_writer: MsgMcapWriter<point_cloud::PointCloud, DirectoryLoader> =
@@ -878,18 +786,11 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         "bin",
                     )
                     .unwrap();
-                let channels = lidar_mcap_writer.create_channels(&mut mcap_writer).unwrap();
-                let tx_clone = tx.clone();
-                let prec_clone = *prec;
-                let pb = m.add(ProgressBar::new(0));
-                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
-                    .unwrap()
-                    .progress_chars("#>-"));
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut lidar_mcap_writer, channels, &prec_clone, tx_clone, pb)
-                        .inspect_err(|e| eprintln!("Failed to process robosense data: {}", e))
-                        .unwrap()
-                }));
+                topics_with_timestamps.append(
+                    &mut write_sensor_data(&mut mcap_writer, &mut lidar_mcap_writer, prec)
+                        .inspect_err(|e| eprintln!("Failed to process lidar data: {}", e))
+                        .unwrap(),
+                );
             }
             SensorType::Leishen => {
                 let mut lidar_mcap_writer: MsgMcapWriter<point_cloud::PointCloud, DirectoryLoader> =
@@ -900,18 +801,11 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         "bin",
                     )
                     .unwrap();
-                let channels = lidar_mcap_writer.create_channels(&mut mcap_writer).unwrap();
-                let tx_clone = tx.clone();
-                let prec_clone = *prec;
-                let pb = m.add(ProgressBar::new(0));
-                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
-                    .unwrap()
-                    .progress_chars("#>-"));
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut lidar_mcap_writer, channels, &prec_clone, tx_clone, pb)
-                        .inspect_err(|e| eprintln!("Failed to process leishen data: {}", e))
-                        .unwrap()
-                }));
+                topics_with_timestamps.append(
+                    &mut write_sensor_data(&mut mcap_writer, &mut lidar_mcap_writer, prec)
+                        .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
+                        .unwrap(),
+                );
             }
             SensorType::Audio => {
                 let path_left = Utf8PathBuf::from(format!("{}_left", path));
@@ -923,19 +817,11 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         "wav",
                     )
                     .unwrap();
-                let channels = audio_mcap_writer.create_channels(&mut mcap_writer).unwrap();
-                let tx_clone = tx.clone();
-                let prec_clone = *prec;
-                let pb = m.add(ProgressBar::new(0));
-                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
-                    .unwrap()
-                    .progress_chars("#>-"));
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut audio_mcap_writer, channels, &prec_clone, tx_clone, pb)
-                        .inspect_err(|e| eprintln!("Failed to process audio left data: {}", e))
-                        .unwrap()
-                }));
-
+                topics_with_timestamps.append(
+                    &mut write_sensor_data(&mut mcap_writer, &mut audio_mcap_writer, prec)
+                        .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
+                        .unwrap(),
+                );
                 let path_right = Utf8PathBuf::from(format!("{}_right", path));
                 let mut audio_mcap_writer: MsgMcapWriter<audio::Audio, DirectoryLoader> =
                     MsgMcapWriter::new(
@@ -945,39 +831,13 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         "wav",
                     )
                     .unwrap();
-                let channels = audio_mcap_writer.create_channels(&mut mcap_writer).unwrap();
-                let tx_clone = tx.clone();
-                let prec_clone = *prec;
-                let pb = m.add(ProgressBar::new(0));
-                pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
-                    .unwrap()
-                    .progress_chars("#>-"));
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(&mut audio_mcap_writer, channels, &prec_clone, tx_clone, pb)
-                        .inspect_err(|e| eprintln!("Failed to process audio right data: {}", e))
-                        .unwrap()
-                }));
+                topics_with_timestamps.append(
+                    &mut write_sensor_data(&mut mcap_writer, &mut audio_mcap_writer, prec)
+                        .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
+                        .unwrap(),
+                );
             }
         }
-    }
-
-    drop(tx);
-
-    for msg in rx {
-        let msg_header = mcap::records::MessageHeader {
-            channel_id: msg.channel_id,
-            sequence: msg.sequence,
-            log_time: msg.log_time,
-            publish_time: msg.publish_time,
-        };
-        mcap_writer
-            .write_to_known_channel(&msg_header, &msg.data)
-            .unwrap();
-    }
-
-    let mut topics_with_timestamps: Vec<TopicWithMessageCountWithTimestamps> = vec![];
-    for handle in handles {
-        topics_with_timestamps.append(&mut handle.join().unwrap());
     }
 
     let (start_time, end_time, mut message_count, mut topics_with_msg_count) =
@@ -1018,7 +878,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         .expect("Failed to save metadata.yaml");
 
     let duration = start.elapsed();
-    println!("Export finished in {}s", duration.as_secs_f64());
+    println!("Export finished in {:?}", duration);
+
     Ok(())
 }
 
@@ -1040,17 +901,10 @@ pub fn fix_wheel_odom_from_rosbag<P: AsRef<Utf8Path>>(
 
     let mut motor_vel: MotorVelocity;
     let mut diff_drive = DiffDrive::new(drivetrain, odom::DIFF_DRIVE_FREQUENCY);
-    let pb = ProgressBar::new(msg_count as u64);
-    pb.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
-        )
-        .unwrap()
-        .progress_chars("#>-"),
-    );
-    pb.set_message("Processing input data");
-
-    for message in read::MessageStream::new(&mapped)?.progress_with(pb) {
+    for message in tqdm(read::MessageStream::new(&mapped)?)
+        .desc(Some("Processing input data"))
+        .total(Some(msg_count))
+    {
         let message = message?;
 
         let schema = message

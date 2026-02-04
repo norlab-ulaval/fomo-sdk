@@ -93,22 +93,15 @@ impl RadarScan {
         )
         .unwrap();
 
-        if let ImageData::Gray(arr, _, _) = data_image {
-            let arr_as_array2 = Array2::from_shape_vec((height as usize, width as usize), arr)
-                .expect("Failed to recreate Array2 from Vec<u8>");
-
-            let arrays: Vec<Array2<u8>> =
-                vec![timestamps_part, encoder_part, zero_column, arr_as_array2];
+        if let ImageData::Gray(arr) = data_image {
+            let arrays: Vec<Array2<u8>> = vec![timestamps_part, encoder_part, zero_column, arr];
             let combined: Array2<u8> = concatenate(
                 Axis(1),
                 &arrays.iter().map(|f| f.view()).collect::<Vec<_>>(),
             )
             .expect("Combined values shape mismatch");
 
-            let (h, w) = combined.dim();
-            let (combined_vec, _) = combined.into_raw_vec_and_offset();
-
-            let image = ImageData::Gray(combined_vec, w as u32, h as u32);
+            let image = ImageData::Gray(combined);
             utils::save_png(&image, path)?;
             return Ok(());
         };
@@ -136,20 +129,18 @@ impl RadarScan {
         };
 
         // open the input .png file
-        let image_data_obj = utils::load_png(path, false)?;
+        let image_data = utils::load_png(path, false)?;
 
-        match image_data_obj {
-            ImageData::Gray(ref image_raw_data, width, height) => {
-                let width = width as usize;
-                let height = height as usize;
+        match image_data {
+            ImageData::Gray(ref image_arr) => {
+                let height = image_arr.nrows();
+                let width = (image_arr.ncols() - 11) as u32;
 
                 let mut encoder_values = Vec::<u16>::with_capacity(height);
                 for row in 0..height {
-                    let idx1 = row * width + 8;
-                    let idx2 = row * width + 9;
-
-                    let byte1 = image_raw_data[idx1];
-                    let byte2 = image_raw_data[idx2];
+                    // Extract the first two columns (bytes) for this row
+                    let byte1 = image_arr[[row, 8]];
+                    let byte2 = image_arr[[row, 9]];
 
                     // Reconstruct the u16 value from little-endian bytes
                     let value = u16::from_le_bytes([byte1, byte2]);
@@ -158,30 +149,29 @@ impl RadarScan {
 
                 let timestamps: Vec<u64> = (0..height)
                     .map(|row| {
-                        let base_idx = row * width;
                         let bytes = [
-                            image_raw_data[base_idx + 0],
-                            image_raw_data[base_idx + 1],
-                            image_raw_data[base_idx + 2],
-                            image_raw_data[base_idx + 3],
-                            image_raw_data[base_idx + 4],
-                            image_raw_data[base_idx + 5],
-                            image_raw_data[base_idx + 6],
-                            image_raw_data[base_idx + 7],
+                            image_arr[[row, 0]],
+                            image_arr[[row, 1]],
+                            image_arr[[row, 2]],
+                            image_arr[[row, 3]],
+                            image_arr[[row, 4]],
+                            image_arr[[row, 5]],
+                            image_arr[[row, 6]],
+                            image_arr[[row, 7]],
                         ];
                         u64::from_le_bytes(bytes)
                     })
                     .collect();
 
-                let ros_image_data = image_raw_data.clone();
+                let ros_image = utils::bytes_from_image(&image_data)?;
                 let b_scan_image = RosImage {
                     header,
                     height: height as u32,
-                    width: width as u32,
+                    width,
                     encoding: "8UC1".to_string(),
                     is_bigendian: 0,
-                    step: width as u32,
-                    image: ros_image_data,
+                    step: width,
+                    image: ros_image,
                 };
                 Ok(RadarScan {
                     b_scan_image,
