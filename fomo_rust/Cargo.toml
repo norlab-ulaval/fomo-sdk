@@ -1,6 +1,6 @@
 [package]
 name = "fomo_rust"
-version = "0.0.9"
+version = "1.0.7"
 edition = "2021"
 authors = [ "Matej Boxan <matej.boxan@norlab.ulaval.ca>" ]
 
