@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from evo.core.trajectory import PoseTrajectory3D
 
+from fomo_sdk.evaluation.utils import Metric
+
 
 def plot_evaluation_matrix(
     matrix,
@@ -11,6 +13,7 @@ def plot_evaluation_matrix(
     title=None,
     ax=None,
     cmap="Reds",
+    metric=Metric.RPE_METRIC,
 ):
     """
     Plot evaluation matrix with values and colors.
@@ -69,7 +72,7 @@ def plot_evaluation_matrix(
     ax.set_xlabel("Localization Deployment", fontweight="bold")
     ax.set_ylabel("Mapping Deployment", fontweight="bold")
     if title is not None:
-        ax.set_title(title, fontweight="bold")
+        ax.set_title(f"{metric.name.lower()}: {title}", fontweight="bold")
 
     # Add grid
     ax.set_xticks(np.arange(-0.5, len(labels_locs), 1), minor=True)
@@ -86,6 +89,7 @@ def plot_evaluation_diagonal(
     title=None,
     ax=None,
     cmap="Reds",
+    metric=Metric.RPE_METRIC,
 ):
     """
     Plot evaluation diagonal with values and colors.
@@ -143,7 +147,7 @@ def plot_evaluation_diagonal(
     # Labels and title
     ax.set_xlabel("Deployment", fontweight="bold")
     if title is not None:
-        ax.set_title(title, fontweight="bold")
+        ax.set_title(f"{metric.name.lower()}: {title}", fontweight="bold")
 
     # Add grid
     ax.set_xticks(np.arange(-0.5, len(labels_locs), 1), minor=True)
@@ -398,7 +402,6 @@ def create_evaluation_figure(
     traj_ref: PoseTrajectory3D,
     traj_est: PoseTrajectory3D,
     rpe_table,
-    avg_relative_rpe,
     ape_rmse,
     save_path,
     mapping_date: str,

@@ -1,3 +1,4 @@
+from enum import Enum, auto
 from pathlib import Path
 
 import numpy as np
@@ -6,6 +7,13 @@ import yaml
 from fomo_sdk.common.naming import DEPLOYMENT_DATE_LABEL
 
 EVALUATION_DELTAS = [100, 200, 300, 400, 500, 600, 700, 800]
+
+
+class Metric(Enum):
+    RPE_METRIC = auto()
+    POINT_DISTANCE_METRIC = auto()
+    LOCAL_DRIFT_METRIC = auto()
+    APE = auto()
 
 
 def parse_evaluation_file_name(file_name: Path | str):
@@ -29,8 +37,8 @@ def compute_rte(data: dict, max_delta: int) -> tuple[float, float]:
     std = []
     # Calculate mean RPE across different deltas
     for delta in EVALUATION_DELTAS:
-        relative_drift = 100 * data["rpe_details"][f"{delta}m"]["rmse_meters"] / delta
-        relative_std = 100 * data["rpe_details"][f"{delta}m"]["std_meters"] / delta
+        relative_drift = 100 * data[f"{delta}m"]["rmse_meters"] / delta
+        relative_std = 100 * data[f"{delta}m"]["std_meters"] / delta
         rpe.append(relative_drift)
         std.append(relative_std)
         if delta == max_delta:
@@ -40,7 +48,11 @@ def compute_rte(data: dict, max_delta: int) -> tuple[float, float]:
     return rpe, std
 
 
-def construct_matrix(path: str, max_delta: int = EVALUATION_DELTAS[-1]):
+def construct_matrix(
+    path: str,
+    metric: Metric,
+    max_delta: int = EVALUATION_DELTAS[-1],
+):
     # get the number of yaml files in the directory
     yaml_files = [f.name for f in Path(path).glob("*.yaml")]
     yaml_files.sort()
@@ -56,8 +68,7 @@ def construct_matrix(path: str, max_delta: int = EVALUATION_DELTAS[-1]):
     number_of_deployments_map = len(unique_map_names)
     number_of_deployments_loc = len(unique_loc_names)
 
-    ape_matrix = np.full((number_of_deployments_map, number_of_deployments_loc), np.nan)
-    rpe_matrix = np.full((number_of_deployments_map, number_of_deployments_loc), np.nan)
+    matrix = np.full((number_of_deployments_map, number_of_deployments_loc), np.nan)
     add_marker_matrix = np.full(
         (number_of_deployments_map, number_of_deployments_loc), False
     )
@@ -74,21 +85,23 @@ def construct_matrix(path: str, max_delta: int = EVALUATION_DELTAS[-1]):
         with open(Path(path) / f, "r") as file:
             data = yaml.safe_load(file)
             add_marker = False
-            ape = data["results"]["ape_rmse_meters"]
-            try:
-                rpe, _std = compute_rte(data, max_delta)
+            value = np.nan
+            if metric == Metric.APE:
+                value = data["results"]["ape_rmse_meters"]
+            else:
                 try:
-                    add_marker = data["trajectories"]["shortened"]
-                except KeyError:
-                    pass
-            except Exception as e:
-                print(f"Error processing file {f}: {e}")
-                rpe = np.nan
+                    data = data[metric.name.lower()]
+                    value, _std = compute_rte(data, max_delta)
+                    try:
+                        add_marker = data["trajectories"]["shortened"]
+                    except KeyError:
+                        pass
+                except Exception as e:
+                    print(f"Error processing file {f}: {e}")
             map_idx = unique_map_name_index_map[map_traj]
             loc_idx = unique_loc_name_index_map[loc_traj]
             # Update the matrices
-            ape_matrix[map_idx, loc_idx] = ape
-            rpe_matrix[map_idx, loc_idx] = rpe
+            matrix[map_idx, loc_idx] = value
             add_marker_matrix[map_idx, loc_idx] = add_marker
 
             if len(labels_maps) < number_of_deployments_map:
@@ -105,4 +118,4 @@ def construct_matrix(path: str, max_delta: int = EVALUATION_DELTAS[-1]):
                         if label not in labels_locs:
                             labels_locs.append(label)
 
-    return ape_matrix, rpe_matrix, add_marker_matrix, labels_maps, labels_locs
+    return matrix, add_marker_matrix, labels_maps, labels_locs
