@@ -3,20 +3,9 @@
   "packages": {
     ".": {
       "release-type": "python",
-      "package-name": "fomo-sdk",
-      "initial-version": "1.0.4"
-    },
-    "fomo_rust": {
-      "release-type": "rust",
-      "package-name": "fomo-rust",
-      "initial-version": "1.0.4"
+      "package-name": "fomo-project",
+      "initial-version": "1.0.4",
+      "extra-files": ["fomo_rust/Cargo.toml"]
     }
-  },
-  "plugins": [
-    {
-      "type": "linked-versions",
-      "groupName": "fomo-project",
-      "components": ["fomo-sdk", "fomo-rust"]
-    }
-  ]
+  }
 }
