@@ -46,27 +46,21 @@ Options:
   -i, --input <INPUT>
   -o, --output <OUTPUT>
   -s, --sensors <SENSORS>  Sensor types to process. Valid options: all, audio, basler, leishen, navtech, robosense, zedx_left, zedx_right
-  -c, --compress           Use Zstd compression. Default is true
   -h, --help               Print help
   -V, --version            Print version
 ```
 
 ## Docker
-
-### Usage
 ```shell
+docker build -t fomo-rust .
+docker run -it fomo-rust
+
+
+
 docker run --rm -t \
-    -v $(pwd):/input \
-    -v $(pwd)/output:/output \
-    ghcr.io/norlab-ulaval/fomo-sdk:latest ijrr_to_mcap \
+    -v /Volumes/FoMo/ijrr/2025-10-14/yellow_2025-10-14-14-48:/input \
+    -v $HOME/Desktop/yellow-memory-leak:/output \
+    fomo-rust-old ijrr_to_mcap \
     --input /input --output /output \
-    --sensors zedx_left --sensors robosense \
-    --compress
-```
-
-### Build
-From fomo-sdk (not fomo-sdk/fomo_rust):
-```shell
-docker build -t fomo-rust -f fomo_rust/Dockerfile .
-docker run -t fomo-rust
+    --sensors zedx_left --sensors zedx_right
 ```

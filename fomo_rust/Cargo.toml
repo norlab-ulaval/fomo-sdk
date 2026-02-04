@@ -1,6 +1,6 @@
 [package]
 name = "fomo_rust"
-version = "1.0.6"
+version = "0.0.9"
 edition = "2021"
 authors = [ "Matej Boxan <matej.boxan@norlab.ulaval.ca>" ]
 
@@ -9,8 +9,7 @@ mcap="0.15.0"
 anyhow="1.0.98"
 camino="1.1.10"
 memmap="0.7.0"
-indicatif = { version = "0.17", features = ["rayon"] }
-rayon = "1.10"
+tqdm="0.8.0"
 clap = { version = "4.5.40", features = ["derive"] }
 byteorder = "1.5.0"
 num-traits = "0.2.19"
@@ -30,8 +29,6 @@ sha2 = "0.10.9"
 hex = "0.4.3"
 num-quaternion = "1.0.6"
 atty = "0.2.14"
-include_dir = "0.7.3"
-crossbeam = "0.8"
 
 [lib]
 name = "fomo_rust_sdk"
