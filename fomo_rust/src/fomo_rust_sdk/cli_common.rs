@@ -112,13 +112,7 @@ pub struct CommonArgs {
 
 impl CommonArgs {
     pub fn flatten_sensors(self) -> (Utf8PathBuf, Utf8PathBuf, Vec<SensorType>) {
-        let sensors: Vec<SensorType> = self
-            .sensors
-            .into_iter()
-            .flatten()
-            .collect::<std::collections::HashSet<SensorType>>()
-            .into_iter()
-            .collect();
+        let sensors: Vec<SensorType> = self.sensors.into_iter().flatten().collect();
         (self.input, self.output, sensors)
     }
 }

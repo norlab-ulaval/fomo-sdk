@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.7](https://github.com/norlab-ulaval/fomo-sdk/compare/fomo-rust-v1.0.6...fomo-rust-v1.0.7) (2026-02-04)
+
+
+### Bug Fixes
+
+* temporarily use older version where generated mcap files don't leak memory ([38d990b](https://github.com/norlab-ulaval/fomo-sdk/commit/38d990b3fbd3830577eefc215dd70dee8fe4393b))
+
 ## [1.0.6](https://github.com/norlab-ulaval/fomo-sdk/compare/fomo-rust-v1.0.5...fomo-rust-v1.0.6) (2026-02-02)
 
 
