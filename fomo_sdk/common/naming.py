@@ -137,7 +137,7 @@ def get_slam_title(slam: Slam):
     elif slam == Slam.NAVTECH_RADAR_SLAM.value:
         return "Kaist Radar SLAM"
     else:
-        return "Unknown"
+        return slam
 
 
 def check_recording_name(recording_name: str):

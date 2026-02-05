@@ -51,16 +51,21 @@ Options:
 ```
 
 ## Docker
+
+### Usage
+```shell
+docker run --rm -t \
+    -v $(pwd):/input \
+    -v $(pwd)/output:/output \
+    ghcr.io/norlab-ulaval/fomo-sdk:latest ijrr_to_mcap \
+    --input /input --output /output \
+    --sensors zedx_left --sensors robosense \
+    --compress
+```
+
+### Build
+From fomo-sdk (not fomo-sdk/fomo_rust):
 ```shell
 docker build -t fomo-rust .
 docker run -it fomo-rust
-
-
-
-docker run --rm -t \
-    -v /Volumes/FoMo/ijrr/2025-10-14/yellow_2025-10-14-14-48:/input \
-    -v $HOME/Desktop/yellow-memory-leak:/output \
-    fomo-rust-old ijrr_to_mcap \
-    --input /input --output /output \
-    --sensors zedx_left --sensors zedx_right
 ```

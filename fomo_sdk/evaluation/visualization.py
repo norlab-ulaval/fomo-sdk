@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from evo.core.trajectory import PoseTrajectory3D
 
+from fomo_sdk.evaluation.utils import Metric
+
 
 def plot_evaluation_matrix(
     matrix,
@@ -11,6 +13,7 @@ def plot_evaluation_matrix(
     title=None,
     ax=None,
     cmap="Reds",
+    metric=Metric.RPE_METRIC,
 ):
     """
     Plot evaluation matrix with values and colors.
@@ -69,7 +72,7 @@ def plot_evaluation_matrix(
     ax.set_xlabel("Localization Deployment", fontweight="bold")
     ax.set_ylabel("Mapping Deployment", fontweight="bold")
     if title is not None:
-        ax.set_title(title, fontweight="bold")
+        ax.set_title(f"{metric.name.lower()}: {title}", fontweight="bold")
 
     # Add grid
     ax.set_xticks(np.arange(-0.5, len(labels_locs), 1), minor=True)
@@ -86,6 +89,7 @@ def plot_evaluation_diagonal(
     title=None,
     ax=None,
     cmap="Reds",
+    metric=Metric.RPE_METRIC,
 ):
     """
     Plot evaluation diagonal with values and colors.
@@ -143,7 +147,7 @@ def plot_evaluation_diagonal(
     # Labels and title
     ax.set_xlabel("Deployment", fontweight="bold")
     if title is not None:
-        ax.set_title(title, fontweight="bold")
+        ax.set_title(f"{metric.name.lower()}: {title}", fontweight="bold")
 
     # Add grid
     ax.set_xticks(np.arange(-0.5, len(labels_locs), 1), minor=True)
@@ -327,7 +331,6 @@ def plot_trajectory_3d(ax, traj_ref, traj_est):
 def plot_summary_table(
     ax,
     avg_relative_rpe,
-    ape_rmse,
     mapping_date: str,
     localization_date: str,
     slam: str,
@@ -342,7 +345,7 @@ def plot_summary_table(
         fontsize=12,
         fontweight="bold",
     )
-    table_data = [[f"{ape_rmse:.3f} m", f"{avg_relative_rpe:.2f} %"]]
+    table_data = [[f"{np.nan:.3f} m", f"{avg_relative_rpe:.2f} %"]]
     col_labels = ["APE RMSE (m)", "AVG RMSE RPE (%)"]
     table = ax.table(
         cellText=table_data, colLabels=col_labels, loc="center", cellLoc="center"
@@ -398,7 +401,6 @@ def create_evaluation_figure(
     traj_ref: PoseTrajectory3D,
     traj_est: PoseTrajectory3D,
     rpe_table,
-    avg_relative_rpe,
     ape_rmse,
     save_path,
     mapping_date: str,
@@ -420,7 +422,6 @@ def create_evaluation_figure(
     # Summary Table
     plot_summary_table(
         axs[0, 0],
-        avg_relative_rpe,
         ape_rmse,
         mapping_date,
         localization_date,
