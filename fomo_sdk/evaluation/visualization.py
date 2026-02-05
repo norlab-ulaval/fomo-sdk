@@ -331,7 +331,6 @@ def plot_trajectory_3d(ax, traj_ref, traj_est):
 def plot_summary_table(
     ax,
     avg_relative_rpe,
-    ape_rmse,
     mapping_date: str,
     localization_date: str,
     slam: str,
@@ -346,7 +345,7 @@ def plot_summary_table(
         fontsize=12,
         fontweight="bold",
     )
-    table_data = [[f"{ape_rmse:.3f} m", f"{avg_relative_rpe:.2f} %"]]
+    table_data = [[f"{np.nan:.3f} m", f"{avg_relative_rpe:.2f} %"]]
     col_labels = ["APE RMSE (m)", "AVG RMSE RPE (%)"]
     table = ax.table(
         cellText=table_data, colLabels=col_labels, loc="center", cellLoc="center"
@@ -423,7 +422,6 @@ def create_evaluation_figure(
     # Summary Table
     plot_summary_table(
         axs[0, 0],
-        avg_relative_rpe,
         ape_rmse,
         mapping_date,
         localization_date,

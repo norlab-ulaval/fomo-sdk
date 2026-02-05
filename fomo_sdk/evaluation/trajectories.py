@@ -8,56 +8,13 @@ from evo.core.trajectory import PoseTrajectory3D
 from evo.tools import file_interface
 
 from fomo_sdk.evaluation.io import export_results_to_yaml
-from fomo_sdk.evaluation.utils import EVALUATION_DELTAS, Metric
+from fomo_sdk.evaluation.utils import (
+    EVALUATION_DELTAS,
+    LocalDriftMetric,
+    Metric,
+    kabsch_algorithm,
+)
 from fomo_sdk.evaluation.visualization import create_evaluation_figure
-
-
-def kabsch_algorithm(
-    traj1, traj2, alignment_frac: float = 0.25
-) -> tuple[int, np.ndarray, np.ndarray]:
-    """
-    Modified Kabsch algorithm that fixes first points and finds optimal rotation.
-
-    Parameters:
-    traj1, traj2: numpy arrays of shape (n_points, 3) representing 3D trajectories
-    alignment_frac: fraction of points to use for alignment
-
-    Returns:
-    r_a: rotation matrix (3x3) for evo transform
-    t_a: translation vector (3,) for evo transform
-    """
-
-    traj1 = np.array(traj1)
-    traj2 = np.array(traj2)
-
-    # Translation to align first points
-    t_a = traj1[0] - traj2[0]
-
-    # Center trajectories at first point
-    traj1_centered = traj1 - traj1[0]
-    traj2_centered = traj2 - traj2[0]
-
-    target_len = int(alignment_frac * traj1_centered.shape[0])
-    print(f"Using first {target_len} points for alignment ({alignment_frac * 100}%)")
-
-    P = traj1_centered[0:target_len].T  # 3 x (n-1) - target points
-    Q = traj2_centered[0:target_len].T  # 3 x (n-1) - points to rotate
-
-    # Compute cross-covariance matrix
-    H = Q @ P.T
-
-    # SVD of cross-covariance matrix
-    U, S, Vt = np.linalg.svd(H)
-
-    # Compute rotation matrix
-    r_a = Vt.T @ U.T
-
-    # Ensure proper rotation (det(R) = 1)
-    if np.linalg.det(r_a) < 0:
-        Vt[-1, :] *= -1
-        r_a = Vt.T @ U.T
-
-    return target_len, r_a, t_a
 
 
 def move_trajectories_to_origin(traj_ref: PoseTrajectory3D, traj_est: PoseTrajectory3D):
@@ -142,25 +99,56 @@ def compute_rpe_for_delta(traj_pair, delta_meters, metric: Metric):
         pose_relation = metrics.PoseRelation.point_distance
         delta_unit = metrics.Unit.meters
         point_distance_metric = metrics.RPE(
-            pose_relation, delta_meters, delta_unit, all_pairs=True
+            pose_relation,
+            delta_meters,
+            delta_unit,
+            all_pairs=False,
+            pairs_from_reference=True,
         )
         try:
             point_distance_metric.process_data(traj_pair)
             return point_distance_metric.get_all_statistics()
         except Exception as e:
-            print(f"Error processing RPE for delta {delta_meters}: {e}")
+            print(
+                f"Error processing '{Metric.POINT_DISTANCE_METRIC.name.lower()}' for delta {delta_meters}: {e}"
+            )
             return None
     elif metric == Metric.RPE_METRIC:
         pose_relation = metrics.PoseRelation.translation_part
         delta_unit = metrics.Unit.meters
         rpe_metric = metrics.RPE(
-            pose_relation, delta_meters, delta_unit, all_pairs=True
+            pose_relation,
+            delta_meters,
+            delta_unit,
+            all_pairs=False,
+            pairs_from_reference=True,
         )
         try:
             rpe_metric.process_data(traj_pair)
             return rpe_metric.get_all_statistics()
         except Exception as e:
-            print(f"Error processing RPE for delta {delta_meters}: {e}")
+            print(
+                f"Error processing '{Metric.POINT_DISTANCE_METRIC.name.lower()}' for delta {delta_meters}: {e}"
+            )
+            return None
+    elif metric == Metric.LOCAL_DRIFT_METRIC:
+        pose_relation = metrics.PoseRelation.translation_part
+        delta_unit = metrics.Unit.meters
+        local_drift_metric = LocalDriftMetric(
+            pose_relation,
+            delta_meters,
+            delta_unit,
+            all_pairs=False,
+            pairs_from_reference=True,
+            alignment_frac=0.1,
+        )
+        try:
+            local_drift_metric.process_data(traj_pair)
+            return local_drift_metric.get_all_statistics()
+        except Exception as e:
+            print(
+                f"Error processing '{Metric.POINT_DISTANCE_METRIC.name.lower()}' for delta {delta_meters}: {e}"
+            )
             return None
     else:
         return None
@@ -172,7 +160,11 @@ def compute_rpe_set(traj_pair, delta_list):
     Returns a dictionary mapping delta to its statistics.
     """
     results = {}
-    metrics = [Metric.POINT_DISTANCE_METRIC, Metric.RPE_METRIC]
+    metrics = [
+        Metric.POINT_DISTANCE_METRIC,
+        Metric.RPE_METRIC,
+        Metric.LOCAL_DRIFT_METRIC,
+    ]
     for metric in metrics:
         results[metric] = {}
         for delta in delta_list:
