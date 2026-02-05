@@ -1,4 +1,3 @@
-import typing
 from enum import Enum, auto
 from pathlib import Path
 
@@ -93,8 +92,6 @@ class LocalDriftMetric(RPE):
         self.alignment_frac = alignment_frac
 
     def compute_aligned_rpe(self, data: PathPair, id_pairs: list[tuple[int, int]]):
-        ref = data[0]
-        est = data[1]
         E = []
         for i, j in id_pairs:
             index_start = int(i - (j - i) * self.alignment_frac)
