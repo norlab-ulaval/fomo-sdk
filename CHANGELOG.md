@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0](https://github.com/norlab-ulaval/fomo-sdk/compare/fomo-sdk-v1.0.8...fomo-sdk-v1.1.0) (2026-02-08)
+
+
+### Features
+
+* add local drift metric ([f3fcb66](https://github.com/norlab-ulaval/fomo-sdk/commit/f3fcb66d198fa9b629a4a38f7452dacbb1597ce7))
+* Compute and export multiple error metrics to the yaml file ([bbf5460](https://github.com/norlab-ulaval/fomo-sdk/commit/bbf546004961ba1d8b12805a5ecbdbf689acc394))
+* handle jump in times by using sensor rate to set the recording time to a valid value ([526d3d6](https://github.com/norlab-ulaval/fomo-sdk/commit/526d3d64d3a2b6fceaaac8d4650d1c13383f4209))
+* Handle jump in times by using sensor rate to write set the recording time to a valid value. ([92c1d09](https://github.com/norlab-ulaval/fomo-sdk/commit/92c1d09af99175b24b1fb1f42a0652e9b455a1ca))
+
+
+### Bug Fixes
+
+* remote fixed version from pyproject.toml ([b90f005](https://github.com/norlab-ulaval/fomo-sdk/commit/b90f005be9f2660d391dc697750066e949b15995))
+
 ## [1.0.8](https://github.com/norlab-ulaval/fomo-sdk/compare/fomo-sdk-v1.0.7...fomo-sdk-v1.0.8) (2026-02-04)
 
 
