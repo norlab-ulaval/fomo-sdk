@@ -186,7 +186,7 @@ def compute_ate_rmse(rpe_results):
 
 
 def process_trajectories(
-    gt_file: Path, est_file: Path, alignment: str
+    gt_file: Path, est_file: Path, alignment: str, plot: bool = False
 ) -> tuple[PoseTrajectory3D, PoseTrajectory3D, dict[str, int | float]]:
     if not gt_file.exists():
         print(f"File {gt_file} does not exist (gt_file)")
@@ -267,6 +267,84 @@ def process_trajectories(
         "est_corr_length": len(signal_est),
         "ref_corr_length": len(signal_ref),
     }
+
+    if plot:
+        from matplotlib import pyplot as plt
+
+        samples = 1000
+        fig, ax = plt.subplots(3, 1, figsize=(10, 6))
+        ax[0].plot(
+            traj_ref_sync.timestamps[0:samples] - traj_ref_sync.timestamps[0],
+            smoothed_speeds_ref[0:samples],
+            label="Reference",
+            color="blue",
+        )
+        ax[0].plot(
+            traj_est_sync.timestamps[0:samples] - traj_est_sync.timestamps[0],
+            smoothed_speeds_est[0:samples],
+            label="Estimated",
+            color="red",
+        )
+        ax[0].plot(
+            traj_ref_sync.timestamps[0 : len(corr)] - traj_ref_sync.timestamps[0],
+            corr / np.max(corr),
+            label="Correlation",
+            color="black",
+        )
+        ax[0].axvspan(
+            traj_ref_sync.timestamps[idx_ref_start] - traj_ref_sync.timestamps[0],
+            traj_ref_sync.timestamps[idx_ref + window_length]
+            - traj_ref_sync.timestamps[0],
+            facecolor="blue",
+            alpha=0.1,
+        )
+        ax[0].axvspan(
+            traj_est_sync.timestamps[idx_est_start] - traj_est_sync.timestamps[0],
+            traj_est_sync.timestamps[idx_est + window_length]
+            - traj_est_sync.timestamps[0],
+            facecolor="red",
+            alpha=0.1,
+        )
+        ax[0].set_xlabel("Time")
+        ax[0].set_ylabel("Speed")
+        ax[0].legend()
+
+        ax[1].plot(
+            traj_ref_sync.timestamps[0:samples] - traj_ref_sync.timestamps[0],
+            smoothed_speeds_ref[0:samples],
+            label="Reference",
+            color="blue",
+        )
+        ax[1].plot(
+            traj_est_sync.timestamps[0:samples]
+            - traj_est_sync.timestamps[0]
+            + total_time_shift,
+            smoothed_speeds_est[0:samples],
+            label="Estimated",
+            color="red",
+        )
+        ax[1].set_xlabel("Time")
+        ax[1].set_ylabel("Speed")
+        ax[1].legend()
+
+        ax[2].plot(
+            traj_ref_sync.timestamps[-samples:-1] - traj_ref_sync.timestamps[0],
+            smoothed_speeds_ref[-samples:-1],
+            label="Reference",
+            color="blue",
+        )
+        ax[2].plot(
+            traj_est_sync.timestamps[-samples:-1]
+            - traj_est_sync.timestamps[0]
+            + total_time_shift,
+            smoothed_speeds_est[-samples:-1],
+            label="Estimated",
+            color="red",
+        )
+        ax[2].set_xlabel("Time")
+        ax[2].set_ylabel("Speed")
+        ax[2].legend()
+        plt.show()
 
     traj_est.timestamps += total_time_shift
     traj_ref_sync, traj_est_sync = synchronize_trajectories(traj_ref, traj_est)

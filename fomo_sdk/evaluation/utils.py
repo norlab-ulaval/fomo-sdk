@@ -91,7 +91,25 @@ class LocalDriftMetric(RPE):
         )
         self.alignment_frac = alignment_frac
 
-    def compute_aligned_rpe(self, data: PathPair, id_pairs: list[tuple[int, int]]):
+    def compute_aligned_rpe(
+        self, data: PathPair, id_pairs: list[tuple[int, int]], plot: bool = False
+    ):
+        if plot:
+            from matplotlib import pyplot as plt
+
+            plt.figure(figsize=(12, 6))
+            plt.plot([], [], color="b", label="Reference")
+            plt.plot([], [], color="r", label="Estimate")
+            plt.plot([], [], color="black", label="Aligned Estimate")
+            plt.plot(
+                [],
+                [],
+                alpha=0.8,
+                color="gray",
+                zorder=-1,
+                linewidth=5,
+                label="Alignement window",
+            )
         E = []
         for i, j in id_pairs:
             index_start = int(i - (j - i) * self.alignment_frac)
@@ -145,6 +163,36 @@ class LocalDriftMetric(RPE):
                     est_aligned[-1],
                 )
             )
+            if plot:
+                plt.plot(
+                    ref_positions_xyz[:, 0],
+                    ref_positions_xyz[:, 1],
+                    color="b",
+                )
+                plt.plot(
+                    est_orig_positions_xyz[:, 0],
+                    est_orig_positions_xyz[:, 1],
+                    color="r",
+                )
+                plt.plot(
+                    est_aligned_positions_xyz[:, 0],
+                    est_aligned_positions_xyz[:, 1],
+                    color="black",
+                )
+                plt.plot(
+                    arr_align_ref[:, 0],
+                    arr_align_ref[:, 1],
+                    alpha=0.8,
+                    color="gray",
+                    zorder=-1,
+                    linewidth=5,
+                )
+        if plot:
+            plt.legend()
+            plt.title("Mar10")
+            plt.show()
+        return E
+
     def process_data(self, data: PathPair) -> None:
         """
         Calculates the RPE on a batch of SE(3) poses from trajectories.
