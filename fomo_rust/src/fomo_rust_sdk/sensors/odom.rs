@@ -24,6 +24,8 @@ pub const ODOM_FRAME_ID: &str = "odom";
 pub const ODOM_CHILD_FRAME_ID: &str = "base_link";
 pub const DIFF_DRIVE_FREQUENCY: f64 = 10.0;
 
+pub const ODOM_RATE: u16 = 10;
+
 pub struct DiffDrive {
     wheel_base: f64,
     wheel_radius: f64,

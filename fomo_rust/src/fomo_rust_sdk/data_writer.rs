@@ -435,6 +435,7 @@ pub(super) fn write_sensor_data<W: SensorMcapWriter>(
     mcap_writer: &mut Writer<BufWriter<File>>,
     sensor_writer: &mut W,
     prec: &TimestampPrecision,
+    rate: u16,
 ) -> Result<Vec<TopicWithMessageCountWithTimestamps>, Box<dyn std::error::Error>>
 where
     <W as Iterator>::Item: Debug,
@@ -461,16 +462,47 @@ where
         Box::new(items)
     };
 
+    let mut printed_timejump = false;
+    let period = Timestamp::new(
+        ((1.0 / (rate as f64)) * 1e9) as u64,
+        &TimestampPrecision::NanoSecond,
+    );
+    let mut prev_timestamp: Option<Timestamp> = None;
     for (seq, item) in iter.enumerate() {
         let data = sensor_writer.process_item(&item, &prec).inspect_err(|e| {
             eprintln!(
-                "{}: Failed to process lidar data with seq {}: {:?}",
-                e, seq, item,
+                "{}: Failed to process {} data with seq {}: {:?}",
+                e,
+                sensor_writer.get_topic(),
+                seq,
+                item,
             )
         })?;
-        let timestamp = data
+        let mut timestamp = data
             .get_header()
             .get_timestamp(&TimestampPrecision::NanoSecond);
+        match prev_timestamp {
+            None => prev_timestamp = Some(timestamp),
+            Some(prev) => {
+                if timestamp.is_before(&prev) {
+                    if !printed_timejump {
+                        println!(
+                        "Detected jump back in time between previous timestamp: {} and current {}. Switching to rate-based timestamping with rate {}...",
+                        prev.timestamp, timestamp.timestamp, rate
+                    );
+                    }
+                    timestamp = Timestamp::new(prev.timestamp + period.timestamp, &prev.prec);
+                    if !printed_timejump {
+                        println!(
+                            "Corrected timestamp: {} after adding period {}",
+                            timestamp.timestamp, period.timestamp
+                        );
+                        printed_timejump = true;
+                    }
+                }
+                prev_timestamp = Some(timestamp);
+            }
+        }
         start_time = cmp::min(timestamp.timestamp, start_time);
         end_time = cmp::max(timestamp.timestamp, end_time);
         sensor_writer

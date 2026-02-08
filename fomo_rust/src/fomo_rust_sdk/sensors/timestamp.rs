@@ -1,17 +1,25 @@
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub enum TimestampPrecision {
     NanoSecond,
     MicroSecond,
     MiliSecond,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct Timestamp {
     pub prec: TimestampPrecision,
     pub timestamp: u64,
 }
 
 impl Timestamp {
+    /// Is self before other
+    #[inline]
+    pub fn is_before(&self, other: &Self) -> bool {
+        assert_eq!(self.prec, other.prec);
+
+        return self.timestamp < other.timestamp;
+    }
+
     /// prec: input timestamp precision.
     #[inline]
     pub fn get_sec_nsec(&self) -> (i32, u32) {

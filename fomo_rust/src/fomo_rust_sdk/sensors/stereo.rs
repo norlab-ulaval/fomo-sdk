@@ -11,6 +11,8 @@ pub const ZEDXLEFT_FRAME_ID: &str = "zedx_left";
 pub const ZEDXRIGHT_NAMESPACE: &str = "/zedx/right";
 pub const ZEDXRIGHT_FRAME_ID: &str = "zedx_right";
 
+pub const ZEDX_RATE: u16 = 10;
+
 pub enum StereoSide {
     Left,
     Right,

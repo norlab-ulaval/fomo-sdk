@@ -15,6 +15,9 @@ pub const VECTORNAV_FRAME_ID: &str = "vectornav";
 pub const XSENS_TOPIC: &str = "/xsens/data_raw";
 pub const XSENS_FRAME_ID: &str = "xsens";
 
+pub const XSENS_RATE: u16 = 200;
+pub const VECTORNAV_RATE: u16 = 200;
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Imu {
     pub header: header::Header,
