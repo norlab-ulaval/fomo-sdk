@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/norlab-ulaval/fomo-sdk/compare/fomo-sdk-v1.1.0...fomo-sdk-v1.1.1) (2026-02-08)
+
+
+### Bug Fixes
+
+* Publish fomo-rust-sdk with 'latest' tag ([ff73176](https://github.com/norlab-ulaval/fomo-sdk/commit/ff73176130051a512aac849eeb9b5e2c4aa82889))
+
 ## [1.1.0](https://github.com/norlab-ulaval/fomo-sdk/compare/fomo-sdk-v1.0.8...fomo-sdk-v1.1.0) (2026-02-08)
 
 
