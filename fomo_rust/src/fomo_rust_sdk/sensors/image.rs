@@ -18,6 +18,8 @@ const CALIBRATION_PATH: &str = "../data/calib";
 pub const BASLER_NAMESPACE: &str = "/basler";
 pub const BASLER_FRAME_ID: &str = "basler";
 
+pub const BASLER_RATE: u16 = 10;
+
 pub enum CameraType {
     Basler,
     ZedxLeft,

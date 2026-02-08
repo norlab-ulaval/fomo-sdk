@@ -21,6 +21,9 @@ pub const ROBOSENSE_FRAME_ID: &str = "robosense";
 pub const LEISHEN_TOPIC: &str = "/leishen/points";
 pub const LEISHEN_FRAME_ID: &str = "leishen";
 
+pub const ROBOSENSE_RATE: u16 = 10;
+pub const LEISHEN_RATE: u16 = 10;
+
 pub struct FomoPointClouds<'a> {
     pub topic_name: &'a str,
     pub output_path: Utf8PathBuf,

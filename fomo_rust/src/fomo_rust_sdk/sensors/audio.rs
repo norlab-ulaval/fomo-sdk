@@ -22,6 +22,8 @@ pub const AUDIOLEFT_FRAME_ID: &str = "audio_left";
 pub const AUDIORIGHT_TOPIC: &str = "/audio/right";
 pub const AUDIORIGHT_FRAME_ID: &str = "audio_right";
 
+pub const AUDIO_RATE: u16 = 1;
+
 pub struct FomoAudios<'a> {
     pub topic_name: &'a str,
     pub output_path: Utf8PathBuf,

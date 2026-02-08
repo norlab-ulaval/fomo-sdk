@@ -29,19 +29,24 @@ use metadata::{
     RIGHT_VELOCITY_FILE_NAME, RIGHT_VOLTAGE_FILE_NAME, VN100_PRESSURE_FILE_NAME,
     VN100_TEMPERATURE_FILE_NAME,
 };
-use sensors::audio::{AUDIOLEFT_FRAME_ID, AUDIOLEFT_TOPIC, AUDIORIGHT_FRAME_ID, AUDIORIGHT_TOPIC};
+use sensors::audio::{
+    AUDIOLEFT_FRAME_ID, AUDIOLEFT_TOPIC, AUDIORIGHT_FRAME_ID, AUDIORIGHT_TOPIC, AUDIO_RATE,
+};
 use sensors::basic::Twist;
 use sensors::common::DataVector;
-use sensors::image::{RosImage, BASLER_FRAME_ID, BASLER_NAMESPACE};
-use sensors::odom::{Drivetrain, MotorVelocity, WheelSide, ODOM_FRAME_ID, ODOM_TOPIC};
-use sensors::point_cloud::{LEISHEN_FRAME_ID, LEISHEN_TOPIC};
-use sensors::point_cloud::{ROBOSENSE_FRAME_ID, ROBOSENSE_TOPIC};
-use sensors::radar::{RadarScan, NAVTECH_FRAME_ID, NAVTECH_NAMESPACE};
+use sensors::image::{RosImage, BASLER_FRAME_ID, BASLER_NAMESPACE, BASLER_RATE};
+use sensors::odom::{Drivetrain, MotorVelocity, WheelSide, ODOM_FRAME_ID, ODOM_RATE, ODOM_TOPIC};
+use sensors::point_cloud::{LEISHEN_FRAME_ID, LEISHEN_RATE, LEISHEN_TOPIC};
+use sensors::point_cloud::{ROBOSENSE_FRAME_ID, ROBOSENSE_RATE, ROBOSENSE_TOPIC};
+use sensors::radar::{RadarScan, NAVTECH_FRAME_ID, NAVTECH_NAMESPACE, NAVTECH_RATE};
 use sensors::stereo::{
-    ZEDXLEFT_FRAME_ID, ZEDXLEFT_NAMESPACE, ZEDXRIGHT_FRAME_ID, ZEDXRIGHT_NAMESPACE,
+    ZEDXLEFT_FRAME_ID, ZEDXLEFT_NAMESPACE, ZEDXRIGHT_FRAME_ID, ZEDXRIGHT_NAMESPACE, ZEDX_RATE,
 };
 use sensors::{
-    imu::{VECTORANV_TOPIC, VECTORNAV_FRAME_ID, XSENS_FRAME_ID, XSENS_TOPIC},
+    imu::{
+        VECTORANV_TOPIC, VECTORNAV_FRAME_ID, VECTORNAV_RATE, XSENS_FRAME_ID, XSENS_RATE,
+        XSENS_TOPIC,
+    },
     odom::DiffDrive,
 };
 use tqdm::tqdm;
@@ -680,7 +685,7 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
     let mut topics_with_timestamps: Vec<TopicWithMessageCountWithTimestamps> = vec![];
 
     topics_with_timestamps.append(
-        &mut write_sensor_data(&mut mcap_writer, &mut imu_mcap_writer, prec)
+        &mut write_sensor_data(&mut mcap_writer, &mut imu_mcap_writer, prec, VECTORNAV_RATE)
             .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", VECTORNAV_FRAME_ID, e))
             .unwrap(),
     );
@@ -692,7 +697,7 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
     )
     .unwrap();
     topics_with_timestamps.append(
-        &mut write_sensor_data(&mut mcap_writer, &mut imu_mcap_writer, prec)
+        &mut write_sensor_data(&mut mcap_writer, &mut imu_mcap_writer, prec, XSENS_RATE)
             .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", XSENS_FRAME_ID, e))
             .unwrap(),
     );
@@ -704,7 +709,7 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
     )
     .unwrap();
     topics_with_timestamps.append(
-        &mut write_sensor_data(&mut mcap_writer, &mut odom_mcap_writer, prec)
+        &mut write_sensor_data(&mut mcap_writer, &mut odom_mcap_writer, prec, ODOM_RATE)
             .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", ODOM_FRAME_ID, e))
             .unwrap(),
     );
@@ -724,9 +729,14 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                 )
                 .unwrap();
                 topics_with_timestamps.append(
-                    &mut write_sensor_data(&mut mcap_writer, &mut navtech_mcap_writer, prec)
-                        .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
-                        .unwrap(),
+                    &mut write_sensor_data(
+                        &mut mcap_writer,
+                        &mut navtech_mcap_writer,
+                        prec,
+                        NAVTECH_RATE,
+                    )
+                    .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
+                    .unwrap(),
                 );
             }
             SensorType::ZedXLeft => {
@@ -740,9 +750,14 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                     )
                     .unwrap();
                 topics_with_timestamps.append(
-                    &mut write_sensor_data(&mut mcap_writer, &mut navtech_mcap_writer, prec)
-                        .inspect_err(|e| eprintln!("Failed to process zedx_left data: {}", e))
-                        .unwrap(),
+                    &mut write_sensor_data(
+                        &mut mcap_writer,
+                        &mut navtech_mcap_writer,
+                        prec,
+                        ZEDX_RATE,
+                    )
+                    .inspect_err(|e| eprintln!("Failed to process zedx_left data: {}", e))
+                    .unwrap(),
                 );
             }
             SensorType::ZedXRight => {
@@ -756,9 +771,14 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                     )
                     .unwrap();
                 topics_with_timestamps.append(
-                    &mut write_sensor_data(&mut mcap_writer, &mut navtech_mcap_writer, prec)
-                        .inspect_err(|e| eprintln!("Failed to process zedx_right data: {}", e))
-                        .unwrap(),
+                    &mut write_sensor_data(
+                        &mut mcap_writer,
+                        &mut navtech_mcap_writer,
+                        prec,
+                        ZEDX_RATE,
+                    )
+                    .inspect_err(|e| eprintln!("Failed to process zedx_right data: {}", e))
+                    .unwrap(),
                 );
             }
             SensorType::Basler => {
@@ -772,9 +792,14 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                     )
                     .unwrap();
                 topics_with_timestamps.append(
-                    &mut write_sensor_data(&mut mcap_writer, &mut basler_mcap_writer, prec)
-                        .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
-                        .unwrap(),
+                    &mut write_sensor_data(
+                        &mut mcap_writer,
+                        &mut basler_mcap_writer,
+                        prec,
+                        BASLER_RATE,
+                    )
+                    .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
+                    .unwrap(),
                 );
             }
             SensorType::RoboSense => {
@@ -787,9 +812,14 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                     )
                     .unwrap();
                 topics_with_timestamps.append(
-                    &mut write_sensor_data(&mut mcap_writer, &mut lidar_mcap_writer, prec)
-                        .inspect_err(|e| eprintln!("Failed to process lidar data: {}", e))
-                        .unwrap(),
+                    &mut write_sensor_data(
+                        &mut mcap_writer,
+                        &mut lidar_mcap_writer,
+                        prec,
+                        ROBOSENSE_RATE,
+                    )
+                    .inspect_err(|e| eprintln!("Failed to process lidar data: {}", e))
+                    .unwrap(),
                 );
             }
             SensorType::Leishen => {
@@ -802,9 +832,14 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                     )
                     .unwrap();
                 topics_with_timestamps.append(
-                    &mut write_sensor_data(&mut mcap_writer, &mut lidar_mcap_writer, prec)
-                        .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
-                        .unwrap(),
+                    &mut write_sensor_data(
+                        &mut mcap_writer,
+                        &mut lidar_mcap_writer,
+                        prec,
+                        LEISHEN_RATE,
+                    )
+                    .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
+                    .unwrap(),
                 );
             }
             SensorType::Audio => {
@@ -818,9 +853,14 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                     )
                     .unwrap();
                 topics_with_timestamps.append(
-                    &mut write_sensor_data(&mut mcap_writer, &mut audio_mcap_writer, prec)
-                        .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
-                        .unwrap(),
+                    &mut write_sensor_data(
+                        &mut mcap_writer,
+                        &mut audio_mcap_writer,
+                        prec,
+                        AUDIO_RATE,
+                    )
+                    .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
+                    .unwrap(),
                 );
                 let path_right = Utf8PathBuf::from(format!("{}_right", path));
                 let mut audio_mcap_writer: MsgMcapWriter<audio::Audio, DirectoryLoader> =
@@ -832,9 +872,14 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                     )
                     .unwrap();
                 topics_with_timestamps.append(
-                    &mut write_sensor_data(&mut mcap_writer, &mut audio_mcap_writer, prec)
-                        .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
-                        .unwrap(),
+                    &mut write_sensor_data(
+                        &mut mcap_writer,
+                        &mut audio_mcap_writer,
+                        prec,
+                        AUDIO_RATE,
+                    )
+                    .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
+                    .unwrap(),
                 );
             }
         }

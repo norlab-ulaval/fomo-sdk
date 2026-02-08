@@ -19,6 +19,8 @@ pub const INFO_SCHEMA_DEF: &str = "std_msgs/Header header\nuint16 azimuth_sample
 pub const NAVTECH_NAMESPACE: &str = "/navtech";
 pub const NAVTECH_FRAME_ID: &str = "navtech";
 
+pub const NAVTECH_RATE: u16 = 4;
+
 pub struct FomoRadars<'a> {
     pub topic_name: &'a str,
     pub output_path: Utf8PathBuf,
