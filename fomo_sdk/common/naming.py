@@ -116,11 +116,21 @@ class Trajectory(Enum):
 #### SLAM implementations
 class Slam(Enum):
     PROPRIOCEPTIVE = "proprioceptive"
-    NORLAB_ICP_MAPPER = "norlab_icp_mapper"
-    RTR = "rtr"
-    ORB_SLAM3 = "orb_slam3"
-    KISS = "kiss"
-    NAVTECH_RADAR_SLAM = "navtech_radar_slam"
+    NORLAB_ICP_MAPPER = "norlabicpmapper"
+    RTR = "vtr"
+    FAST2LAMAA = "2fast2lamaa"
+    DROIDSLAM = "droidslam"
+    ORB_SLAM3 = "orbslam3"
+    KISS = "kissslam"
+    NAVTECH_RADAR_SLAM = "navtechradarslam"
+
+    @classmethod
+    def from_string(cls, value: str):
+        """Convert string value to Slam enum member"""
+        for member in cls:
+            if member.value == value:
+                return member
+        raise ValueError(f"Unknown SLAM: {value}")
 
 
 def get_slam_title(slam: Slam):

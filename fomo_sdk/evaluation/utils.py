@@ -16,6 +16,7 @@ from evo.core.trajectory import (
     se3_poses_to_xyz_quat_wxyz,
     xyz_quat_wxyz_to_se3_poses,
 )
+from tqdm import tqdm
 
 from fomo_sdk.common.naming import DEPLOYMENT_DATE_LABEL
 
@@ -80,6 +81,7 @@ class LocalDriftMetric(RPE):
         all_pairs: bool = False,
         pairs_from_reference: bool = False,
         alignment_frac: float = 0.25,
+        debug: bool = False,
     ):
         super().__init__(
             pose_relation,
@@ -90,11 +92,11 @@ class LocalDriftMetric(RPE):
             pairs_from_reference,
         )
         self.alignment_frac = alignment_frac
+        self.debug = debug
 
-    def compute_aligned_rpe(
-        self, data: PathPair, id_pairs: list[tuple[int, int]], plot: bool = False
-    ):
-        if plot:
+    def compute_aligned_rpe(self, data: PathPair, id_pairs: list[tuple[int, int]]):
+        min_alignment_window_size = 5  # in % of the previous window length
+        if self.debug:
             from matplotlib import pyplot as plt
 
             plt.figure(figsize=(12, 6))
@@ -111,49 +113,68 @@ class LocalDriftMetric(RPE):
                 label="Alignement window",
             )
         E = []
+        last_end_index = -1
         for i, j in id_pairs:
             index_start = int(i - (j - i) * self.alignment_frac)
-            if i - index_start < 25:
+            if not self.all_pairs and i < last_end_index:
                 continue
-            arr_align_ref = data[0].positions_xyz[index_start:i]
-            arr_align_est = data[1].positions_xyz[index_start:i]
-            if len(arr_align_est) < 25 or len(arr_align_ref) < 25:
-                continue
-
-            num_used_poses, r_a, t_a = kabsch_algorithm(
-                arr_align_ref,
-                arr_align_est,
-                alignment_frac=1.0,
-            )
-            T = lie.se3(r_a, t_a)
+            last_end_index = j
 
             ref = data[0].poses_se3[i:j]
             ref_positions_xyz, _ = se3_poses_to_xyz_quat_wxyz(ref)
-            est_orig = data[1].poses_se3[i:j]
-            est_orig_positions_xyz, _ = se3_poses_to_xyz_quat_wxyz(est_orig)
-            est_orig_positions_xyz = (
-                ref_positions_xyz[0, :]
-                + est_orig_positions_xyz
-                - est_orig_positions_xyz[0, :]
-            )
 
-            est_aligned = [np.dot(T, p) for p in data[1].poses_se3[i:j]]
-            est_aligned_positions_xyz, est_aligned_quat = se3_poses_to_xyz_quat_wxyz(
-                est_aligned
-            )
+            # the start of each trajectory is already aligned
+            if index_start < 0:
+                est_aligned = data[1].poses_se3[i:j]
+                est_aligned_positions_xyz, est_aligned_quat = (
+                    se3_poses_to_xyz_quat_wxyz(est_aligned)
+                )
+                est_orig_positions_xyz = est_aligned_positions_xyz
+                arr_align_ref = ref_positions_xyz[0:1, :]
+            elif i - index_start < min_alignment_window_size:
+                # print(f"Not enough poses for alignment {index_start} {i} {j - i}")
+                continue
+            else:
+                arr_align_ref = data[0].positions_xyz[index_start:i]
+                arr_align_est = data[1].positions_xyz[index_start:i]
+                if (
+                    len(arr_align_est) < min_alignment_window_size
+                    or len(arr_align_ref) < min_alignment_window_size
+                ):
+                    # print("Not enough poses for alignment. Too short")
+                    continue
+                num_used_poses, r_a, t_a = kabsch_algorithm(
+                    arr_align_ref,
+                    arr_align_est,
+                    alignment_frac=1.0,
+                )
+                T = lie.se3(r_a, t_a)
 
-            est_aligned_positions_xyz = (
-                ref_positions_xyz[0, :]
-                + est_aligned_positions_xyz
-                - est_aligned_positions_xyz[0, :]
-            )
+                est_orig = data[1].poses_se3[i:j]
+                est_orig_positions_xyz, _ = se3_poses_to_xyz_quat_wxyz(est_orig)
+                est_orig_positions_xyz = (
+                    ref_positions_xyz[0, :]
+                    + est_orig_positions_xyz
+                    - est_orig_positions_xyz[0, :]
+                )
 
-            num_poses = len(est_aligned_positions_xyz)
-            identity_quats = np.zeros((num_poses, 4))
-            identity_quats[:, 0] = 1
-            est_aligned = xyz_quat_wxyz_to_se3_poses(
-                est_aligned_positions_xyz, identity_quats
-            )
+                est_aligned = [np.dot(T, p) for p in data[1].poses_se3[i:j]]
+                est_aligned_positions_xyz, est_aligned_quat = (
+                    se3_poses_to_xyz_quat_wxyz(est_aligned)
+                )
+
+                est_aligned_positions_xyz = (
+                    ref_positions_xyz[0, :]
+                    + est_aligned_positions_xyz
+                    - est_aligned_positions_xyz[0, :]
+                )
+
+                num_poses = len(est_aligned_positions_xyz)
+                identity_quats = np.zeros((num_poses, 4))
+                identity_quats[:, 0] = 1
+                est_aligned = xyz_quat_wxyz_to_se3_poses(
+                    est_aligned_positions_xyz, identity_quats
+                )
 
             E.append(
                 super().rpe_base(
@@ -163,7 +184,7 @@ class LocalDriftMetric(RPE):
                     est_aligned[-1],
                 )
             )
-            if plot:
+            if self.debug:
                 plt.plot(
                     ref_positions_xyz[:, 0],
                     ref_positions_xyz[:, 1],
@@ -187,9 +208,9 @@ class LocalDriftMetric(RPE):
                     zorder=-1,
                     linewidth=5,
                 )
-        if plot:
+        if self.debug:
             plt.legend()
-            plt.title("Mar10")
+            plt.title(f"Delta: {self.delta}m")
             plt.show()
         return E
 
@@ -211,24 +232,21 @@ class LocalDriftMetric(RPE):
             self.delta,
             self.delta_unit,
             self.rel_delta_tol,
-            all_pairs=self.all_pairs,
+            all_pairs=True,
         )
 
         # Store flat id list e.g. for plotting.
         self.delta_ids = [j for i, j in id_pairs]
 
-        self.E = self.compute_aligned_rpe(
-            data,
-            id_pairs,
-        )
+        self.E = self.compute_aligned_rpe(data, id_pairs)
         self.error = np.array([np.linalg.norm(E_i[:3, 3]) for E_i in self.E])
 
 
 class Metric(Enum):
-    RPE_METRIC = auto()
-    POINT_DISTANCE_METRIC = auto()
-    LOCAL_DRIFT_METRIC = auto()
-    APE = auto()
+    RPE_METRIC = "RPE [%]"
+    POINT_DISTANCE_METRIC = "Point Distance [m]"
+    LOCAL_DRIFT_METRIC = "Local Relative Drift [%]"
+    APE = "APE [m]"
 
 
 def parse_evaluation_file_name(file_name: Path | str):
@@ -302,7 +320,10 @@ def construct_matrix(
             add_marker = False
             value = np.nan
             if metric == Metric.APE:
-                value = data["results"]["ape_rmse_meters"]
+                try:
+                    value = data["ape"]["rmse_meters"]
+                except Exception as e:
+                    print(f"Error processing file {f}: {e}")
             else:
                 try:
                     data = data[metric.name.lower()]
