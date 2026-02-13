@@ -2,21 +2,25 @@ import copy
 from pathlib import Path
 
 import numpy as np
+import trajectopy
 from evo.core import lie_algebra as lie
 from evo.core import metrics, sync
 from evo.core.filters import FilterException
 from evo.core.trajectory import PoseTrajectory3D
 from evo.tools import file_interface
 from scipy import interpolate
+from scipy.ndimage import gaussian_filter1d
 from scipy.signal import savgol_filter
 
-from fomo_sdk.common.naming import Slam
+from fomo_sdk.common.naming import Slam, Trajectory
 from fomo_sdk.evaluation.io import export_results_to_yaml
 from fomo_sdk.evaluation.utils import (
     EVALUATION_DELTAS,
     LocalDriftMetric,
     Metric,
+    get_time_offset,
     kabsch_algorithm,
+    set_time_offset,
 )
 from fomo_sdk.evaluation.visualization import create_evaluation_figure
 
@@ -133,7 +137,7 @@ def compute_rpe_for_delta(traj_pair, delta_meters, metric: Metric, debug=False):
             all_pairs=False,
             pairs_from_reference=True,
             alignment_frac=0.5,
-            debug=debug,
+            debug=debug and delta_meters == 100,
         )
     else:
         return None
@@ -186,6 +190,8 @@ def process_trajectories(
     est_file: Path,
     alignment: str,
     slam: Slam,
+    trajectory: Trajectory,
+    deployment: str,
     plot: bool = False,
 ) -> tuple[PoseTrajectory3D, PoseTrajectory3D, dict[str, int | float]]:
     if not gt_file.exists():
@@ -219,223 +225,244 @@ def process_trajectories(
         "shortened": False,
     }
 
-    traj_ref, traj_est = synchronize_trajectories(traj_ref, traj_est)
+    total_time_shift_orig = get_time_offset(deployment, trajectory.value)
+    if total_time_shift_orig is None:
+        # 1. Sync and Clean
+        traj_ref, traj_est = synchronize_trajectories(traj_ref, traj_est)
+        traj_ref = remove_duplicates(traj_ref)
+        traj_est = remove_duplicates(traj_est)
 
-    traj_ref = remove_duplicates(traj_ref)
-    traj_est = remove_duplicates(traj_est)
+        speeds_ref = traj_ref.speeds
+        speeds_est = traj_est.speeds
 
-    speeds_ref = traj_ref.speeds
-    speeds_est = traj_est.speeds
-
-    smoothing_window_size = 40
-
-    # Smooth speeds
-    smoothed_speeds_ref = savgol_filter(
-        speeds_ref, smoothing_window_size, polyorder=2, mode="nearest"
-    )
-    smoothed_speeds_est = savgol_filter(
-        speeds_est, smoothing_window_size, polyorder=2, mode="nearest"
-    )
-
-    # Align timestamps with speeds arrays (speeds are typically one element shorter)
-    times_ref_smooth = traj_ref.timestamps[: len(smoothed_speeds_ref)]
-    times_est_smooth = traj_est.timestamps[: len(smoothed_speeds_est)]
-
-    # Find first index where speed > 0.5 m/s
-    idx_ref = np.argmax(smoothed_speeds_ref > 0.5)
-    idx_est = np.argmax(smoothed_speeds_est > 0.5)
-
-    time_interval = 100
-    time_ref_start = times_ref_smooth[idx_ref]
-    time_est_start = times_est_smooth[idx_est]
-    # Get indices for 30-second windows
-    mask_ref = (times_ref_smooth >= time_ref_start - 1) & (
-        times_ref_smooth < time_ref_start + time_interval
-    )
-    mask_est = (times_est_smooth >= time_est_start - 1) & (
-        times_est_smooth < time_est_start + time_interval
-    )
-
-    signal_ref = smoothed_speeds_ref[mask_ref]
-    signal_ref -= np.mean(signal_ref)
-    signal_est = smoothed_speeds_est[mask_est]
-    signal_est -= np.mean(signal_est)
-    times_ref_window = times_ref_smooth[mask_ref]
-    times_est_window = times_est_smooth[mask_est]
-
-    from matplotlib import pyplot as plt
-
-    plt.figure()
-    plt.plot(times_ref_window, signal_ref, label="Reference")
-    plt.plot(times_est_window, signal_est, label="Estimated")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Speed (m/s)")
-    plt.legend()
-    plt.show()
-
-    # Resample est signal to ref timestamps
-    # This puts both signals on the same time grid
-    interp_func = interpolate.interp1d(
-        times_est_window, signal_est, kind="linear", bounds_error=False, fill_value=0
-    )
-
-    # Create common time grid based on ref signal
-    common_times = times_ref_window
-    signal_est_resampled = interp_func(common_times)
-
-    # Now correlation works correctly - both on same time grid
-    corr = np.correlate(signal_ref, signal_est_resampled, "full")
-    idx_max = np.argmax(corr)
-
-    # Calculate lag in samples (now samples are at ref's sampling rate)
-    lag = idx_max - (len(signal_est_resampled) - 1)
-
-    # Convert to time using ref's timestamps
-    dt_ref = np.median(np.diff(times_ref_window))
-    total_time_shift = lag * dt_ref
-
-    print(f"Lag: {lag} samples (at ref sampling rate)")
-    print(f"Time shift: {total_time_shift:.3f} seconds")
-    print(
-        f"Est signal leads ref by {total_time_shift:.3f}s"
-        if total_time_shift < 0
-        else f"Ref signal leads est by {total_time_shift:.3f}s"
-    )
-    alignement_dict["time_sync"] = {
-        "lag": float(lag),
-        "total_time_shift": float(total_time_shift),
-        "smoothing_window_size": smoothing_window_size,
-        "est_corr_length": len(signal_est),
-        "ref_corr_length": len(signal_ref),
-    }
-    if plot:
-        from matplotlib import pyplot as plt
-
-        fig, ax = plt.subplots(3, 1, figsize=(12, 10))
-
-        # Plot 1: Original signals with correlation window highlighted
-        ax[0].vlines(
-            [
-                time_ref_start,
-                time_est_start,
-            ],
-            0,
-            2,
-            colors="gray",
-            linestyles="dashed",
-            label="Detected speed",
+        # 2. Smooth (Low-Pass) - Remove high-freq noise
+        smoothing_window_size = 31
+        smoothed_speeds_ref = savgol_filter(
+            speeds_ref, smoothing_window_size, polyorder=2, mode="nearest"
         )
-        ax[0].plot(
-            times_ref_smooth,
-            smoothed_speeds_ref,
-            label="Reference",
-            color="blue",
-            linewidth=1.5,
+        smoothed_speeds_est = savgol_filter(
+            speeds_est, smoothing_window_size, polyorder=2, mode="nearest"
         )
-        ax[0].plot(
-            times_est_smooth,
-            smoothed_speeds_est,
-            label="Estimate (original)",
-            color="red",
-            linewidth=1.5,
-        )
-        ax[0].plot(
-            times_est_smooth + total_time_shift,
-            smoothed_speeds_est,
-            label="Estimate (time-corrected)",
-            color="green",
-            linewidth=1.5,
-            linestyle="--",
-        )
-        # Highlight correlation windows
-        ax[0].axvspan(
-            times_ref_window[0],
-            times_ref_window[-1],
-            facecolor="blue",
-            alpha=0.15,
-            label="Ref correlation window",
-        )
-        ax[0].axvspan(
-            times_est_window[0],
-            times_est_window[-1],
-            facecolor="red",
-            alpha=0.15,
-            label="Est correlation window",
-        )
-        ax[0].set_xlabel("Time (s)")
-        ax[0].set_ylabel("Speed (m/s)")
-        ax[0].set_title("Full Trajectory - Original and Time-Corrected Signals")
-        ax[0].legend(loc="best")
-        ax[0].grid(True, alpha=0.3)
 
-        # Plot 2: Zoomed view of correlation windows
-        ax[1].plot(
-            times_ref_window,
-            signal_ref,
-            label="Reference",
-            color="blue",
-            linewidth=2,
-            marker="o",
-            markersize=3,
-        )
-        ax[1].plot(
-            times_est_window,
-            signal_est,
-            label="Estimate (original)",
-            color="red",
-            linewidth=2,
-            marker="s",
-            markersize=3,
-        )
-        ax[1].plot(
-            times_est_window + total_time_shift,
-            signal_est,
-            label="Estimate (time-corrected)",
-            color="green",
-            linewidth=2,
-            marker="^",
-            markersize=3,
-            linestyle="--",
-        )
-        ax[1].set_xlabel("Time (s)")
-        ax[1].set_ylabel("Speed (m/s)")
-        ax[1].set_title(
-            f"Correlation Window (Time shift: {total_time_shift:.3f}s, Lag: {lag} samples)"
-        )
-        ax[1].legend(loc="best")
-        ax[1].grid(True, alpha=0.3)
+        # Align timestamps
+        times_ref_smooth = traj_ref.timestamps[: len(smoothed_speeds_ref)]
+        times_est_smooth = traj_est.timestamps[: len(smoothed_speeds_est)]
 
-        # Plot 3: Correlation function
-        # Create time axis for correlation (centered at zero lag)
-        corr_time_axis = (
-            np.arange(len(corr)) - (len(signal_est_resampled) - 1)
-        ) * dt_ref
-        ax[2].plot(
-            corr_time_axis,
-            corr / np.max(corr),
-            label="Normalized Correlation",
-            color="black",
-            linewidth=2,
-        )
-        ax[2].axvline(
-            total_time_shift,
-            color="green",
-            linestyle="--",
-            linewidth=2,
-            label=f"Max correlation at {total_time_shift:.3f}s",
-        )
-        ax[2].axvline(0, color="gray", linestyle=":", linewidth=1, label="Zero lag")
-        ax[2].set_xlabel("Time lag (s)")
-        ax[2].set_ylabel("Normalized Correlation")
-        ax[2].set_title("Cross-Correlation Function")
-        ax[2].legend(loc="best")
-        ax[2].grid(True, alpha=0.3)
+        # 3. Detrend (High-Pass) - Remove the "plateaus"
+        # We calculate the trend (very low freq) and subtract it.
+        # sigma=50 corresponds to a window of roughly ~200-300 samples.
+        trend_ref = gaussian_filter1d(smoothed_speeds_ref, sigma=50)
+        trend_est = gaussian_filter1d(smoothed_speeds_est, sigma=50)
 
-        plt.tight_layout()
-        plt.show()
-        exit()
+        # "feat" signals are centered at 0 and contain only the distinctive bumps/turns
+        feat_ref = smoothed_speeds_ref - trend_ref
+        feat_est = smoothed_speeds_est - trend_est
 
-    traj_est.timestamps += total_time_shift
+        # 4. Window Selection
+        # We find where the *original* speed picks up, but we will correlate the *features*
+        idx_ref = np.argmax(smoothed_speeds_ref > 0.5)
+        idx_est = np.argmax(smoothed_speeds_est > 0.5)
+
+        if trajectory == Trajectory.RED:
+            time_interval = 10
+        elif trajectory == Trajectory.ORANGE:
+            time_interval = 100
+        else:
+            time_interval = 30
+        time_ref_start = times_ref_smooth[idx_ref]
+        time_est_start = times_est_smooth[idx_est]
+
+        # Create Masks
+        mask_ref = (times_ref_smooth >= time_ref_start - 1) & (
+            times_ref_smooth < time_ref_start + time_interval
+        )
+        mask_est = (times_est_smooth >= time_est_start - 1) & (
+            times_est_smooth < time_est_start + time_interval
+        )
+
+        # Define the signals explicitly for your snippet variables
+        # We use the DETRENDED features for 'signal_ref'/'signal_est' so Plot 2 shows what was actually correlated
+        signal_ref = feat_ref[mask_ref]
+        signal_est = feat_est[mask_est]
+
+        times_ref_window = times_ref_smooth[mask_ref]
+        times_est_window = times_est_smooth[mask_est]
+
+        # 5. Resample Estimate to Reference Time Grid (for correlation)
+        # Create relative time grids starting at 0 for the window
+        t_est_rel = times_est_window - times_est_window[0]
+        t_ref_rel = times_ref_window - times_ref_window[0]
+
+        interp_func = interpolate.interp1d(
+            t_est_rel, signal_est, kind="linear", bounds_error=False, fill_value=0
+        )
+        signal_est_resampled = interp_func(t_ref_rel)
+
+        # 6. Cross-Correlation
+        # Normalize for robust shape matching
+        sig_ref_norm = (signal_ref - np.mean(signal_ref)) / (np.std(signal_ref) + 1e-6)
+        sig_est_norm = (signal_est_resampled - np.mean(signal_est_resampled)) / (
+            np.std(signal_est_resampled) + 1e-6
+        )
+
+        corr = np.correlate(sig_ref_norm, sig_est_norm, "full")
+        idx_max = np.argmax(corr)
+
+        # Calculate lags
+        lag = idx_max - (len(signal_est_resampled) - 1)
+        dt_ref = np.median(np.diff(times_ref_window))
+
+        # 7. Total Time Shift Calculation
+        # Shift = (Difference in window starts) - (Correlation Lag)
+        window_start_diff = time_ref_start - time_est_start
+        time_shift_from_corr = lag * dt_ref
+        total_time_shift = window_start_diff - time_shift_from_corr
+
+        print(f"Lag: {lag} samples (at ref sampling rate)")
+        print(f"Time shift: {total_time_shift:.3f} seconds")
+        print(
+            f"Est signal leads ref by {total_time_shift:.3f}s"
+            if total_time_shift < 0
+            else f"Ref signal leads est by {total_time_shift:.3f}s"
+        )
+        alignement_dict["time_sync"] = {
+            "lag": float(lag),
+            "total_time_shift": float(total_time_shift),
+            "smoothing_window_size": smoothing_window_size,
+            "est_corr_length": len(signal_est),
+            "ref_corr_length": len(signal_ref),
+        }
+
+        if plot:
+            from matplotlib import pyplot as plt
+
+            fig, ax = plt.subplots(3, 1, figsize=(12, 10))
+
+            # Plot 1: Original signals with correlation window highlighted
+            ax[0].vlines(
+                [
+                    time_ref_start,
+                    time_est_start,
+                ],
+                0,
+                2,
+                colors="gray",
+                linestyles="dashed",
+                label="Detected speed",
+            )
+            ax[0].plot(
+                times_ref_smooth,
+                smoothed_speeds_ref,
+                label="Reference",
+                color="blue",
+                linewidth=1.5,
+            )
+            ax[0].plot(
+                times_est_smooth,
+                smoothed_speeds_est,
+                label="Estimate (original)",
+                color="red",
+                linewidth=1.5,
+            )
+            ax[0].plot(
+                times_est_smooth + total_time_shift,
+                smoothed_speeds_est,
+                label="Estimate (time-corrected)",
+                color="green",
+                linewidth=1.5,
+                linestyle="--",
+            )
+            # Highlight correlation windows
+            ax[0].axvspan(
+                times_ref_window[0],
+                times_ref_window[-1],
+                facecolor="blue",
+                alpha=0.15,
+                label="Ref correlation window",
+            )
+            ax[0].axvspan(
+                times_est_window[0],
+                times_est_window[-1],
+                facecolor="red",
+                alpha=0.15,
+                label="Est correlation window",
+            )
+            ax[0].set_xlabel("Time (s)")
+            ax[0].set_ylabel("Speed (m/s)")
+            ax[0].set_title("Full Trajectory - Original and Time-Corrected Signals")
+            ax[0].legend(loc="best")
+            ax[0].grid(True, alpha=0.3)
+
+            # Plot 2: Zoomed view of correlation windows
+            ax[1].plot(
+                times_ref_window,
+                signal_ref,
+                label="Reference",
+                color="blue",
+                linewidth=2,
+                marker="o",
+                markersize=3,
+            )
+            ax[1].plot(
+                times_est_window,
+                signal_est,
+                label="Estimate (original)",
+                color="red",
+                linewidth=2,
+                marker="s",
+                markersize=3,
+            )
+            ax[1].plot(
+                times_est_window + total_time_shift,
+                signal_est,
+                label="Estimate (time-corrected)",
+                color="green",
+                linewidth=2,
+                marker="^",
+                markersize=3,
+                linestyle="--",
+            )
+            ax[1].set_xlabel("Time (s)")
+            ax[1].set_ylabel("Speed (m/s)")
+            ax[1].set_title(
+                f"Correlation Window (Time shift: {total_time_shift:.3f}s, Lag: {lag} samples)"
+            )
+            ax[1].legend(loc="best")
+            ax[1].grid(True, alpha=0.3)
+
+            # Plot 3: Correlation function
+            # Create time axis for correlation (centered at zero lag)
+            corr_time_axis = (
+                np.arange(len(corr)) - (len(signal_est_resampled) - 1)
+            ) * dt_ref
+            ax[2].plot(
+                corr_time_axis,
+                corr / np.max(corr),
+                label="Normalized Correlation",
+                color="black",
+                linewidth=2,
+            )
+            ax[2].axvline(
+                total_time_shift,
+                color="green",
+                linestyle="--",
+                linewidth=2,
+                label=f"Max correlation at {total_time_shift:.3f}s",
+            )
+            ax[2].axvline(0, color="gray", linestyle=":", linewidth=1, label="Zero lag")
+            ax[2].set_xlabel("Time lag (s)")
+            ax[2].set_ylabel("Normalized Correlation")
+            ax[2].set_title("Cross-Correlation Function")
+            ax[2].legend(loc="best")
+            ax[2].grid(True, alpha=0.3)
+
+            plt.tight_layout()
+            plt.show()
+
+    if total_time_shift_orig is None:
+        total_time_shift_orig = total_time_shift
+        set_time_offset(deployment, trajectory.value, total_time_shift_orig)
+    traj_est.timestamps += total_time_shift_orig
     traj_ref_sync, traj_est_sync = synchronize_trajectories(traj_ref, traj_est)
 
     if traj_ref_sync.path_length < traj_ref.path_length * 0.9:
@@ -493,6 +520,8 @@ def evaluate(
     mapping_date: str,
     localization_date: str,
     slam: Slam,
+    trajectory: Trajectory,
+    deployment: str,
     move_to_origin: bool,
     export_yaml: bool,
     export_figure: bool,
@@ -506,7 +535,13 @@ def evaluate(
     output.mkdir(parents=True, exist_ok=True)
 
     traj_gt, traj_est, alignement_dict = process_trajectories(
-        gt, est, alignment, slam, plot=debug
+        gt,
+        est,
+        alignment,
+        slam,
+        plot=debug,
+        trajectory=trajectory,
+        deployment=deployment,
     )
     traj_pair = (traj_gt, traj_est)
 

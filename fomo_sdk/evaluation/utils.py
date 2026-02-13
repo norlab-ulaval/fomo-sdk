@@ -1,4 +1,5 @@
-from enum import Enum, auto
+import json
+from enum import Enum
 from pathlib import Path
 
 import numpy as np
@@ -355,3 +356,48 @@ def construct_matrix(
                             labels_locs.append(label)
 
     return matrix, add_marker_matrix, labels_maps, labels_locs
+
+
+def get_time_offset(deployment: str, trajectory: str):
+    fomo_sdk_dir = Path(__file__).parent.parent.resolve()
+    OFFSET_FILEPATH = fomo_sdk_dir / "data" / "calib" / "time_offset.json"
+    if not OFFSET_FILEPATH.exists():
+        json.dump({}, open(OFFSET_FILEPATH, "w"))
+
+    with open(OFFSET_FILEPATH, "r") as f:
+        data = json.load(f)
+
+    if deployment not in data:
+        return None
+
+    if trajectory not in data[deployment]:
+        return None
+
+    return data[deployment][trajectory]
+
+
+def set_time_offset(deployment: str, trajectory: str, offset: float):
+    fomo_sdk_dir = Path(__file__).parent.parent.resolve()
+    OFFSET_FILEPATH = fomo_sdk_dir / "data" / "calib" / "time_offset.json"
+    if not OFFSET_FILEPATH.exists():
+        json.dump({}, open(OFFSET_FILEPATH, "w"))
+
+    print(
+        "Setting time offset for deployment {} and trajectory {}".format(
+            deployment, trajectory
+        )
+    )
+    with open(OFFSET_FILEPATH, "r") as f:
+        data = json.load(f)
+
+    if deployment not in data:
+        data[deployment] = {}
+
+    user_input = input("Press Enter to confirm or type an alternative value: ")
+    if user_input == "":
+        data[deployment][trajectory] = offset
+    else:
+        data[deployment][trajectory] = float(user_input)
+
+    with open(OFFSET_FILEPATH, "w") as f:
+        json.dump(data, f)
