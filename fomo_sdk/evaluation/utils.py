@@ -246,7 +246,7 @@ class LocalDriftMetric(RPE):
 class Metric(Enum):
     RPE_METRIC = "RPE [%]"
     POINT_DISTANCE_METRIC = "Point Distance [m]"
-    LOCAL_DRIFT_METRIC = "Local Relative Drift [%]"
+    LOCAL_DRIFT_METRIC = "Local Rel. Drift [%]"
     APE = "APE [m]"
 
 

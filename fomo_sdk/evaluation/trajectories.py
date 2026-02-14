@@ -2,7 +2,6 @@ import copy
 from pathlib import Path
 
 import numpy as np
-import trajectopy
 from evo.core import lie_algebra as lie
 from evo.core import metrics, sync
 from evo.core.filters import FilterException
@@ -462,6 +461,10 @@ def process_trajectories(
     if total_time_shift_orig is None:
         total_time_shift_orig = total_time_shift
         set_time_offset(deployment, trajectory.value, total_time_shift_orig)
+
+    alignement_dict["time_sync"] = {
+        "total_time_shift": float(total_time_shift_orig),
+    }
     traj_est.timestamps += total_time_shift_orig
     traj_ref_sync, traj_est_sync = synchronize_trajectories(traj_ref, traj_est)
 
