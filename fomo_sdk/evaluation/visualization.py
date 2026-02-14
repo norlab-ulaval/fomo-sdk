@@ -453,9 +453,9 @@ def create_evaluation_figure(
     # ax_3d = fig.add_subplot(4, 2, 7, projection='3d')
     # plot_trajectory_3d(ax_3d, traj_ref, traj_est)
 
-    if plot_figure:
-        plt.show()
     if export_figure:
         plt.tight_layout()
         plt.savefig(f"{save_path}.jpg", format="jpg", dpi=300)
+    if plot_figure:
+        plt.show()
     plt.close()
