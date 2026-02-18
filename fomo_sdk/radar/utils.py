@@ -276,7 +276,7 @@ def KPeaks(
     static_threshold: float = 0.25,
 ):
     """
-    K-peaks radar extractor (Python)
+    Vectorized K-peaks radar extractor (NumPy)
     - raw_scan: 2D array [rows=azimuth, cols=range_bins] of float intensities
     - minr/maxr: meters
     - res: meters per bin (range resolution)
@@ -291,58 +291,84 @@ def KPeaks(
 
     # convert meter limits to column limits, clamp to [0, cols]
     mincol = int(minr / res)
-    if mincol > cols or mincol < 0:
-        mincol = 0
+    mincol = max(0, min(mincol, cols))
     maxcol = int(maxr / res)
-    if maxcol > cols or maxcol < 0:
-        maxcol = cols
+    maxcol = max(0, min(maxcol, cols))
+    
+    # 1. Thresholding
+    # Create mask for valid range and intensity
+    mask = (raw_scan[:, mincol:maxcol] >= static_threshold)
+    
+    # We need to identify peaks in each row.
+    # To vectorize row-wise peak finding, we look for rising and falling edges.
+    # Pad with False at start and end of columns to detect edges at boundaries
+    padded_mask = np.zeros((rows, (maxcol - mincol) + 2), dtype=bool)
+    padded_mask[:, 1:-1] = mask
+    
+    # Find edges: diff calculates x[n+1] - x[n]
+    # Rising edge: False -> True (+1)
+    # Falling edge: True -> False (-1)
+    diff = np.diff(padded_mask.astype(np.int8), axis=1)
+    
+    # Get indices of starts and ends
+    row_starts, col_starts = np.where(diff == 1)
+    row_ends, col_ends = np.where(diff == -1)
+    
+    # Shift column indices back to global scan coordinates
+    # padded_mask index 0 is before mincol. index 1 is mincol.
+    # diff index 0 is (padded[1] - padded[0]). If 1, it means padded[1] is True (start of peak at mincol).
+    # So col_start 0 corresponds to padded[1] being start, which is mincol.
+    # So mapping is simply: global_col = local_col + mincol.
+    global_start_cols = col_starts + mincol
+    global_end_cols = col_ends + mincol # end is exclusive
+    
+    num_peaks = len(global_start_cols)
+    if num_peaks == 0:
+        return np.empty((0, 2), dtype=np.float32)
 
-    targets_polar_pixels = []
-
-    for i in range(rows):
-        # 1) Collect (intensity, j) for bins above threshold in increasing j
-        intens = []
-        row_vals = raw_scan[i]
-        for j in range(mincol, maxcol):
-            v = row_vals[j]
-            if v >= static_threshold:
-                intens.append((v, j))
-
-        if not intens:
-            continue
-
-        # 2) Group adjacent bins into peaks, tracking each peak’s max intensity
-        peaks = []  # list of (peak_max_value, [bin_indices])
-        current_bins = [intens[0][1]]
-        current_max = intens[0][0]
-
-        for val, j in intens[1:]:
-            if j == current_bins[-1] + 1:
-                # continue the current peak
-                current_bins.append(j)
-                if val > current_max:
-                    current_max = val
-            else:
-                # finalize previous peak
-                peaks.append((current_max, current_bins))
-                # start new peak
-                current_bins = [j]
-                current_max = val
-
-        # add the last peak
-        peaks.append((current_max, current_bins))
-
-        # 3) Sort peaks by max intensity (desc)
-        peaks.sort(key=lambda x: x[0], reverse=True)
-
-        # 4) Take top-K peaks; use averaged column index for each peak
-        for p in range(min(K, len(peaks))):
-            _, bins = peaks[p]
-            avg_j = float(np.mean(bins))  # can be fractional
-            # (i, avg_j) mirrors your KStrong (row, col) output convention
-            targets_polar_pixels.append((i, avg_j))
-
-    return np.asarray(targets_polar_pixels, dtype=np.float32)
+    # We use `reduceat` to compute max intensity on intervals.
+    # We flatten the 2D scan to 1D.
+    # The start/end indices in flattened scan are: row * cols + col_index
+    n_cols = raw_scan.shape[1]
+    flat_starts = row_starts * n_cols + global_start_cols
+    flat_ends = row_ends * n_cols + global_end_cols
+    
+    flat_scan = raw_scan.ravel()
+    
+    # Construct indices for reduceat: [s0, e0, s1, e1, ...]
+    combined_indices = np.empty(len(flat_starts) * 2, dtype=int)
+    combined_indices[0::2] = flat_starts
+    combined_indices[1::2] = flat_ends
+    
+    # Compute Max Intensity per peak
+    # reduceat(array, indices) computes reductions on [indices[i], indices[i+1])
+    # We want slices [s, e). These correspond to even indices in the result.
+    peak_maxs_all = np.maximum.reduceat(flat_scan, combined_indices)[::2]
+    
+    # Compute Centroid (avg column index)
+    # Since peaks are contiguous segments, the mean column index is simply (start + end - 1) / 2
+    peak_centroids_all = (global_start_cols + (global_end_cols - 1)) / 2.0
+    
+    # Now keep Top K per row.
+    # We sort peaks so that for each row, the best peaks come first.
+    # Primary sort key: row (asc), Secondary: max_val (desc).
+    sort_indices = np.lexsort((-peak_maxs_all, row_starts)) 
+    
+    sorted_rows = row_starts[sort_indices]
+    sorted_centroids = peak_centroids_all[sort_indices]
+    
+    # We identify top K by computing rank within each row group
+    # run_starts gives the index where each row group starts
+    run_starts = np.searchsorted(sorted_rows, sorted_rows, side='left')
+    ranks = np.arange(len(sorted_rows)) - run_starts
+    
+    keep_mask = ranks < K
+    
+    final_rows = sorted_rows[keep_mask]
+    final_centroids = sorted_centroids[keep_mask]
+    
+    # Combine into result (N, 2)
+    return np.column_stack((final_rows, final_centroids)).astype(np.float32)
 
 
 def modifiedCACFAR(
