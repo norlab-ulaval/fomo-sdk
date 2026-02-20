@@ -14,7 +14,7 @@ def export_results_to_yaml(filename, ape_rmse, rpe_results, trajectories):
         "trajectories": trajectories,
     }
     for metric, stats in rpe_results.items():
-        data[metric.name.lower()] = {
+        data[metric] = {
             f"{delta}m": {
                 "rmse_meters": float(stats["rmse"]),
                 "std_meters": float(stats["std"]),

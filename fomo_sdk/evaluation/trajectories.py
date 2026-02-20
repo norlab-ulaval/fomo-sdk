@@ -103,7 +103,12 @@ def compute_ape(traj_pair):
     ), ape_metric.get_all_statistics()
 
 
-def compute_rpe_for_delta(traj_pair, delta_meters, metric: Metric, debug=False):
+def compute_rpe_for_delta(
+    traj_pair: tuple[PoseTrajectory3D, PoseTrajectory3D],
+    delta_meters,
+    metric: Metric,
+    debug=False,
+) -> dict | None:
     """
     Compute Relative Pose Error (RPE) for a given delta (in meters).
     Returns the computed statistics or None if processing fails.
@@ -162,11 +167,11 @@ def compute_rpe_set(traj_pair, delta_list, debug=False):
         Metric.RPE_METRIC,
         Metric.LOCAL_DRIFT_METRIC,
     ]:
-        results[metric] = {}
+        results[str(metric.name).lower()] = {}
         for delta in delta_list:
             stats = compute_rpe_for_delta(traj_pair, delta, metric, debug)
             if stats is not None:
-                results[metric][delta] = stats
+                results[str(metric.name).lower()][delta] = stats
             else:
                 print(f"Skipping delta {delta} due to processing error.")
                 break
@@ -192,7 +197,7 @@ def process_trajectories(
     trajectory: Trajectory,
     deployment: str,
     plot: bool = False,
-) -> tuple[PoseTrajectory3D, PoseTrajectory3D, dict[str, int | float]]:
+) -> tuple[PoseTrajectory3D, PoseTrajectory3D, dict]:
     if not gt_file.exists():
         print(f"File {gt_file} does not exist (gt_file)")
         raise FileNotFoundError(f"File {gt_file} does not exist")
@@ -561,6 +566,20 @@ def evaluate(
     if export_yaml:
         yaml_filename = output / f"{mapping_date}_{localization_date}.yaml"
         export_results_to_yaml(yaml_filename, ape_rmse, rpe_results, alignement_dict)
+
+        # export results to json
+        import json
+
+        json_filename = output / f"{mapping_date}_{localization_date}.json"
+        with open(json_filename, "w") as f:
+            json.dump(
+                {
+                    "ape_rmse": ape_rmse,
+                    "rpe_results": rpe_results,
+                    "alignement_dict": alignement_dict,
+                },
+                f,
+            )
 
     analysis_filename = output / f"{mapping_date}_{localization_date}"
     create_evaluation_figure(

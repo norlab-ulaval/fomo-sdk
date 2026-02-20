@@ -127,6 +127,10 @@ class Slam(Enum):
     @classmethod
     def from_string(cls, value: str):
         """Convert string value to Slam enum member"""
+        if ".offline" in value:
+            value = value.split(".")[0]
+        if ".fixed" in value:
+            value = value.split(".")[0]
         for member in cls:
             if member.value == value:
                 return member

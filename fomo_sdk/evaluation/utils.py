@@ -235,6 +235,7 @@ class LocalDriftMetric(RPE):
             self.rel_delta_tol,
             all_pairs=True,
         )
+        self.id_pairs = id_pairs
 
         # Store flat id list e.g. for plotting.
         self.delta_ids = [j for i, j in id_pairs]
