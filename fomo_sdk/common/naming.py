@@ -21,14 +21,6 @@ DEPLOYMENT_DATE_LABEL = {
 DEPLOYMENT_LABEL_DATE = {v: k for k, v in DEPLOYMENT_DATE_LABEL.items()}
 
 
-def construct_path_from_filename(filename: str | Path) -> Path:
-    if isinstance(filename, Path):
-        filename = filename.name
-    localization_date = construct_localization_recording(filename)
-    deployment = "-".join(localization_date.split("_")[1].split("-")[:3])
-    return Path(deployment) / Path(localization_date)
-
-
 def construct_path(
     dataset_base_path: str | Path, deployment: str, trajectory: str
 ) -> Path:
@@ -123,10 +115,17 @@ class Slam(Enum):
     ORB_SLAM3 = "orbslam3"
     KISS = "kissslam"
     NAVTECH_RADAR_SLAM = "navtechradarslam"
+    PYCUVSLAM = "pycuvslam"
 
     @classmethod
     def from_string(cls, value: str):
         """Convert string value to Slam enum member"""
+        if "norlabicpmapper" in value:
+            value = "norlabicpmapper"
+        if ".crossloc" in value:
+            value = value.split(".")[0]
+        if ".old" in value:
+            value = value.split(".")[0]
         if ".offline" in value:
             value = value.split(".")[0]
         if ".fixed" in value:
@@ -150,6 +149,8 @@ def get_slam_title(slam: Slam):
         return "KISS-ICP/SLAM"
     elif slam == Slam.NAVTECH_RADAR_SLAM.value:
         return "Kaist Radar SLAM"
+    elif slam == Slam.PYCUVSLAM.value:
+        return "PyCuVSLAM"
     else:
         return slam
 
