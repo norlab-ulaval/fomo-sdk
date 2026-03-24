@@ -485,7 +485,6 @@ def process_trajectories(
     traj_est.timestamps += total_time_shift_orig
     traj_ref_sync, traj_est_sync = synchronize_trajectories(traj_ref, traj_est)
 
-    if traj_ref_sync.path_length < traj_ref.path_length * 0.9:
     # get the window of last 5 % of reference trajectory timestamps
     last_5_percent_ref = traj_ref.timestamps[-int(len(traj_ref.timestamps) * 0.05)]
 
