@@ -44,7 +44,7 @@ def load_trajectories(
 
 
 def synchronize_trajectories(
-    traj_ref: PoseTrajectory3D, traj_est: PoseTrajectory3D, max_diff=0.05
+    traj_ref: PoseTrajectory3D, traj_est: PoseTrajectory3D, max_diff=1.0
 ):
     return sync.associate_trajectories(traj_ref, traj_est, max_diff)
 
@@ -148,7 +148,19 @@ def compute_rpe_for_delta(
 
     try:
         metric_class.process_data(traj_pair)
-        return metric_class.get_all_statistics()
+        res = []
+        for id_pair, error in zip(metric_class.id_pairs, metric_class.error):
+            res.append(
+                {
+                    "id_pair": id_pair,
+                    "timestamp_start_ref": traj_pair[0].timestamps[id_pair[0]],
+                    "timestamp_end_ref": traj_pair[0].timestamps[id_pair[1]],
+                    "error": error,
+                }
+            )
+        stats = metric_class.get_all_statistics()
+        stats["data"] = res
+        return stats
     except FilterException as e:
         print(f"Error processing '{metric.name.lower()}' for delta {delta_meters}: {e}")
         return None
@@ -474,8 +486,24 @@ def process_trajectories(
     traj_ref_sync, traj_est_sync = synchronize_trajectories(traj_ref, traj_est)
 
     if traj_ref_sync.path_length < traj_ref.path_length * 0.9:
+    # get the window of last 5 % of reference trajectory timestamps
+    last_5_percent_ref = traj_ref.timestamps[-int(len(traj_ref.timestamps) * 0.05)]
+
+    if traj_est.timestamps[-1] < last_5_percent_ref:
         print(
-            "Reference trajectory got shorten in the synchronization process. Labeling estimate."
+            f"First original: {traj_ref.timestamps[0]}. Last original: {traj_ref.timestamps[-1]}."
+        )
+        print(
+            f"First original: {traj_ref.timestamps[0]}. Last 5%: {last_5_percent_ref}."
+        )
+        print(
+            f"First sync: {traj_ref_sync.timestamps[0]}. Last sync: {traj_ref_sync.timestamps[-1]}"
+        )
+        print(
+            f"First est: {traj_est_sync.timestamps[0]}. Last est: {traj_est_sync.timestamps[-1]}"
+        )
+        print(
+            f"Estimate trajectory is shorter than the reference by {last_5_percent_ref - traj_est.timestamps[-1]:.2f} seconds. Labeling estimate."
         )
         alignement_dict["est"] = {
             "length": traj_est_sync.path_length,
@@ -505,7 +533,9 @@ def create_rpe_table(rpe_results):
     """
     table_data = []
     relative_rpe_values = []
-    for delta, stats in rpe_results[Metric.RPE_METRIC].items():
+    for delta, stats in rpe_results[
+        str(Metric.LOCAL_DRIFT_METRIC.name).lower()
+    ].items():
         rel_rpe = (stats["rmse"] / delta) * 100  # percentage
         relative_rpe_values.append(rel_rpe)
         table_data.append(
@@ -579,6 +609,7 @@ def evaluate(
                     "alignement_dict": alignement_dict,
                 },
                 f,
+                indent=4,
             )
 
     analysis_filename = output / f"{mapping_date}_{localization_date}"

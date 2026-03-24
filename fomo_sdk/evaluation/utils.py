@@ -17,11 +17,11 @@ from evo.core.trajectory import (
     se3_poses_to_xyz_quat_wxyz,
     xyz_quat_wxyz_to_se3_poses,
 )
-from tqdm import tqdm
 
 from fomo_sdk.common.naming import DEPLOYMENT_DATE_LABEL
 
-EVALUATION_DELTAS = [100, 200, 300, 400, 500, 600, 700, 800]
+EVALUATION_DELTAS_OLD = [100, 200, 300, 400, 500, 600, 700, 800]
+EVALUATION_DELTAS = [100, 150, 200, 250, 300]
 
 
 def kabsch_algorithm(
