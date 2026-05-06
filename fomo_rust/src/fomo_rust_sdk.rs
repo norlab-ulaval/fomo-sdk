@@ -644,6 +644,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
     sensors: &Vec<SensorType>,
     compress: bool,
     prec: &TimestampPrecision,
+    sequence_start: Timestamp,
+    sequence_end: Timestamp,
 ) -> Result<(), anyhow::Error> {
     io::check_ijrr_input_path(input.as_ref())?;
     let output_path = io::check_mcap_output_path(output.as_ref())?;
@@ -680,6 +682,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         VECTORANV_TOPIC.to_string(),
         VECTORNAV_FRAME_ID.to_string(),
         "csv",
+        sequence_start,
+        sequence_end,
     )
     .unwrap();
     let mut topics_with_timestamps: Vec<TopicWithMessageCountWithTimestamps> = vec![];
@@ -694,6 +698,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         XSENS_TOPIC.to_string(),
         XSENS_FRAME_ID.to_string(),
         "csv",
+        sequence_start,
+        sequence_end,
     )
     .unwrap();
     topics_with_timestamps.append(
@@ -706,6 +712,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         ODOM_TOPIC.to_string(),
         ODOM_FRAME_ID.to_string(),
         "csv",
+        sequence_start,
+        sequence_end,
     )
     .unwrap();
     topics_with_timestamps.append(
@@ -726,6 +734,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                     NAVTECH_NAMESPACE.to_string(),
                     NAVTECH_FRAME_ID.to_string(),
                     "png",
+                    sequence_start,
+                    sequence_end,
                 )
                 .unwrap();
                 topics_with_timestamps.append(
@@ -747,6 +757,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         ZEDXLEFT_NAMESPACE.to_string(),
                         ZEDXLEFT_FRAME_ID.to_string(),
                         "png",
+                        sequence_start,
+                        sequence_end,
                     )
                     .unwrap();
                 topics_with_timestamps.append(
@@ -768,6 +780,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         ZEDXRIGHT_NAMESPACE.to_string(),
                         ZEDXRIGHT_FRAME_ID.to_string(),
                         "png",
+                        sequence_start,
+                        sequence_end,
                     )
                     .unwrap();
                 topics_with_timestamps.append(
@@ -789,6 +803,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         BASLER_NAMESPACE.to_string(),
                         BASLER_FRAME_ID.to_string(),
                         "png",
+                        sequence_start,
+                        sequence_end,
                     )
                     .unwrap();
                 topics_with_timestamps.append(
@@ -809,6 +825,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         ROBOSENSE_TOPIC.to_string(),
                         ROBOSENSE_FRAME_ID.to_string(),
                         "bin",
+                        sequence_start,
+                        sequence_end,
                     )
                     .unwrap();
                 topics_with_timestamps.append(
@@ -829,6 +847,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         LEISHEN_TOPIC.to_string(),
                         LEISHEN_FRAME_ID.to_string(),
                         "bin",
+                        sequence_start,
+                        sequence_end,
                     )
                     .unwrap();
                 topics_with_timestamps.append(
@@ -850,6 +870,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         AUDIOLEFT_TOPIC.to_string(),
                         AUDIOLEFT_FRAME_ID.to_string(),
                         "wav",
+                        sequence_start,
+                        sequence_end,
                     )
                     .unwrap();
                 topics_with_timestamps.append(
@@ -869,6 +891,8 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         AUDIORIGHT_TOPIC.to_string(),
                         AUDIORIGHT_FRAME_ID.to_string(),
                         "wav",
+                        sequence_start,
+                        sequence_end,
                     )
                     .unwrap();
                 topics_with_timestamps.append(

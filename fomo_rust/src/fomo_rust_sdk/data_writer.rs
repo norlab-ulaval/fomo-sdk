@@ -30,6 +30,8 @@ pub(super) trait DataLoader: Iterator {
     fn new<P: AsRef<Utf8Path>>(
         directory_path: P,
         extension: &str,
+        start: Timestamp,
+        end: Timestamp,
     ) -> Result<Self, Box<dyn std::error::Error>>
     where
         Self: Sized;
@@ -44,6 +46,8 @@ impl DataLoader for DirectoryLoader {
     fn new<P: AsRef<Utf8Path>>(
         directory_path: P,
         extension: &str,
+        start: Timestamp,
+        end: Timestamp,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let mut files = Vec::new();
 
@@ -63,7 +67,18 @@ impl DataLoader for DirectoryLoader {
                     .eq(extension)
             {
                 let utf8_buf = Utf8PathBuf::from_path_buf(path).unwrap();
-                files.push(utf8_buf);
+                let file_timestamp = utf8_buf.file_stem().unwrap();
+                let file_timestamp = Timestamp::new(
+                    file_timestamp
+                        .parse()
+                        .expect("Filename is not a timestamp."),
+                    &TimestampPrecision::MicroSecond,
+                );
+                if start < file_timestamp && file_timestamp < end {
+                    files.push(utf8_buf);
+                } else {
+                    // println!("Discarting:\n {:?} {:?} {:?}", start, file_timestamp, end);
+                }
             }
         }
 
@@ -93,12 +108,16 @@ impl Iterator for DirectoryLoader {
 
 pub(super) struct CsvLoader {
     reader: BufReader<File>,
+    start: Timestamp,
+    end: Timestamp,
 }
 
 impl DataLoader for CsvLoader {
     fn new<P: AsRef<Utf8Path>>(
         path: P,
         extension: &str,
+        start: Timestamp,
+        end: Timestamp,
     ) -> Result<CsvLoader, Box<dyn std::error::Error>> {
         if path.as_ref().extension().unwrap().ne(extension) {
             return Err(format!(
@@ -116,7 +135,7 @@ impl DataLoader for CsvLoader {
         let mut buf = String::new();
         reader.read_line(&mut buf)?;
 
-        Ok(Self { reader })
+        Ok(Self { reader, start, end })
     }
 }
 
@@ -124,21 +143,32 @@ impl Iterator for CsvLoader {
     type Item = String;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut line = String::new();
+        loop {
+            let mut line = String::new();
 
-        match self.reader.read_line(&mut line) {
-            Ok(0) => None, // EOF
-            Ok(_) => {
-                // Remove trailing newline
-                if line.ends_with('\n') {
-                    line.pop();
-                    if line.ends_with('\r') {
+            match self.reader.read_line(&mut line) {
+                Ok(0) => return None, // EOF
+                Ok(_) => {
+                    // Remove trailing newline
+                    if line.ends_with('\n') {
                         line.pop();
+                        if line.ends_with('\r') {
+                            line.pop();
+                        }
+                    }
+                    let timestamp = line.split(',').next().unwrap().trim();
+                    let timestamp = Timestamp::new(
+                        timestamp
+                            .parse()
+                            .expect("This csv line does not contain a valid timestamp."),
+                        &TimestampPrecision::MicroSecond,
+                    );
+                    if self.start < timestamp && timestamp < self.end {
+                        return Some(line);
                     }
                 }
-                Some(line)
-            }
-            Err(_) => todo!(),
+                Err(_) => todo!(),
+            };
         }
     }
 }
@@ -228,9 +258,11 @@ impl<T, L: DataLoader> MsgMcapWriter<T, L> {
         topic: String,
         frame_id: String,
         extension: &str,
+        start: Timestamp,
+        end: Timestamp,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         // Todo check that path is extension
-        let loader = L::new(file_path.as_ref().to_path_buf(), extension)?;
+        let loader = L::new(file_path.as_ref().to_path_buf(), extension, start, end)?;
         Ok(Self {
             loader,
             topic,
@@ -322,9 +354,11 @@ impl<T, L: DataLoader> MsgWithInfoMcapWriter<T, L> {
         topic: String,
         frame_id: String,
         extension: &str,
+        start: Timestamp,
+        end: Timestamp,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         // Todo check that path is extension
-        let loader = L::new(file_path.as_ref().to_path_buf(), extension)?;
+        let loader = L::new(file_path.as_ref().to_path_buf(), extension, start, end)?;
         Ok(Self {
             loader,
             topic,
