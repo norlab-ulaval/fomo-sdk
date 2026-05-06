@@ -1,12 +1,11 @@
 use crate::fomo_rust_sdk::sensors::utils::ImageData;
+use crate::DATA_DIR;
 use configparser::ini::Ini;
 use opencv::{calib3d, core::Mat, imgproc, prelude::*, Result};
 use std::fs;
 
 use serde::{Deserialize, Serialize};
 use serde_json;
-
-const CALIBRATION_PATH: &str = "../data/calib_to_ijrr";
 
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct CameraCalibration {
@@ -209,9 +208,13 @@ pub fn stereo_calib_mat(
     left_img: &Mat,
     right_img: &Mat,
 ) -> Result<(Mat, Mat), Box<dyn std::error::Error>> {
-    // Path to .conf file
-    let config_path = format!("{}/zedx_SN41705768.conf", CALIBRATION_PATH);
-    let (k_left, k_right, d_left, d_right, t, rvec) = get_calib_params(&config_path)?;
+    let config_file = DATA_DIR
+        .get_file("calib_to_ijrr/zedx_SN41705768.conf")
+        .ok_or("Stereo camera config file not found")?;
+    let config_content = config_file
+        .contents_utf8()
+        .ok_or("Stereo camera config file contains invalid UTF-8")?;
+    let (k_left, k_right, d_left, d_right, t, rvec) = get_calib_params(config_content)?;
 
     let mut r = Mat::default();
     calib3d::rodrigues_def(&rvec, &mut r)?;
@@ -316,13 +319,12 @@ pub fn stereo_calib(
 }
 
 pub fn mono_calib_mat(img: &Mat) -> Result<Mat, Box<dyn std::error::Error>> {
-    let camera_file_path = format!("{}/basler.json", CALIBRATION_PATH);
-    let data = fs::read_to_string(&camera_file_path).map_err(|e| {
-        format!(
-            "Failed to read calibration file '{}': {}",
-            &camera_file_path, e
-        )
-    })?;
+    let camera_file = DATA_DIR
+        .get_file("calib_to_ijrr/basler.json")
+        .ok_or("Basler camera calibration file not found")?;
+    let data = camera_file
+        .contents_utf8()
+        .ok_or("Basler camera config file contains invalid UTF-8")?;
     let calib: CameraCalibration = serde_json::from_str(&data)?;
     let k = Mat::from_slice(&calib.k)?;
     let k = k.reshape(1, 3)?;
