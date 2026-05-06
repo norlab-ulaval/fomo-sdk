@@ -44,10 +44,42 @@ impl Timestamp {
         }
     }
 
-    pub(crate) fn new(timestamp: u64, prec: &TimestampPrecision) -> Self {
+    pub fn new(timestamp: u64, prec: &TimestampPrecision) -> Self {
         Self {
             timestamp,
             prec: prec.clone(),
+        }
+    }
+}
+
+impl PartialOrd for Timestamp {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (&self.prec, &other.prec) {
+            (TimestampPrecision::NanoSecond, TimestampPrecision::NanoSecond)
+            | (TimestampPrecision::MicroSecond, TimestampPrecision::MicroSecond)
+            | (TimestampPrecision::MiliSecond, TimestampPrecision::MiliSecond) => {
+                Some(self.timestamp.cmp(&other.timestamp))
+            }
+
+            (TimestampPrecision::NanoSecond, TimestampPrecision::MicroSecond) => {
+                Some((self.timestamp / 1_000).cmp(&other.timestamp))
+            }
+
+            (TimestampPrecision::NanoSecond, TimestampPrecision::MiliSecond) => {
+                Some((self.timestamp / 1_000_000).cmp(&other.timestamp))
+            }
+            (TimestampPrecision::MicroSecond, TimestampPrecision::NanoSecond) => {
+                Some(self.timestamp.cmp(&(other.timestamp / 1_000)))
+            }
+            (TimestampPrecision::MicroSecond, TimestampPrecision::MiliSecond) => {
+                Some((self.timestamp / 1_000).cmp(&other.timestamp))
+            }
+            (TimestampPrecision::MiliSecond, TimestampPrecision::NanoSecond) => {
+                Some(self.timestamp.cmp(&(other.timestamp / 1_000_000)))
+            }
+            (TimestampPrecision::MiliSecond, TimestampPrecision::MicroSecond) => {
+                Some(self.timestamp.cmp(&(other.timestamp / 1_000)))
+            }
         }
     }
 }
