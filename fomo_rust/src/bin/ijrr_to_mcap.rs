@@ -31,12 +31,13 @@ fn main() -> Result<()> {
     let prec = &TimestampPrecision::MicroSecond;
     let sequence_start = Timestamp::new(args.start, prec);
     let sequence_end = Timestamp::new(args.end, prec);
-    let (input, output, sensors) = args.common.flatten_sensors();
+    let (input, output, overwrite, sensors) = args.common.flatten_sensors();
     process_folder(
         &input,
         &output,
         &sensors,
         compress,
+        overwrite,
         prec,
         sequence_start,
         sequence_end,
