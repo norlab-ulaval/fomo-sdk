@@ -71,6 +71,7 @@ pub(crate) fn check_ijrr_input_path<P: AsRef<Utf8Path>>(input: P) -> Result<(), 
 
 pub(crate) fn check_mcap_output_path<P: AsRef<Utf8Path>>(
     output: P,
+    overwrite: bool,
 ) -> Result<Utf8PathBuf, anyhow::Error> {
     let output_path: Utf8PathBuf = output.as_ref().to_path_buf();
     let extension = output.as_ref().extension();
@@ -105,8 +106,13 @@ pub(crate) fn check_mcap_output_path<P: AsRef<Utf8Path>>(
             ))
         }
     };
+
     if output_path.exists() {
-        return Err(anyhow!("Output path {} already exists", output_path));
+        if overwrite {
+            fs::remove_file(&output_path);
+        } else {
+            return Err(anyhow!("Output path {} already exists", output_path));
+        }
     }
 
     Ok(output_path)

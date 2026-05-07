@@ -1,5 +1,6 @@
 use include_dir::{include_dir, Dir};
 
+pub static MESSAGE_QUEUE_SIZE: usize = 50;
 pub static DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/../fomo_sdk/data");
 
 pub mod fomo_rust_sdk;

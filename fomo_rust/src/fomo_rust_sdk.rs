@@ -2,20 +2,29 @@ pub mod calib;
 pub mod cli_common;
 pub mod data_writer;
 pub mod io;
+pub mod message_heap;
 pub mod metadata;
 pub mod qos;
 pub mod rosbag;
 pub mod sensors;
 pub mod utils;
 
+use crossbeam_channel::{bounded, Receiver};
+
 use byteorder::LittleEndian;
+use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
 use opencv::core::Vector;
 use rosbag::{Duration, RosbagInfo, StartingTime, TopicWithMessageCountWithTimestamps};
+use std::collections::BinaryHeap;
 use std::fmt::Debug;
 
 use cdr_encoding::from_bytes;
 use clap::ValueEnum;
+use std::thread;
 
+use message_heap::HeapItem;
+
+use crate::MESSAGE_QUEUE_SIZE;
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
 use metadata::{
@@ -54,8 +63,8 @@ use tqdm::tqdm;
 use mcap::{read, Compression};
 
 use data_writer::{
-    write_sensor_data, write_tf_data, CsvLoader, DirectoryLoader, MsgMcapWriter,
-    MsgWithInfoMcapWriter,
+    produce_sensor_data, write_tf_data, CsvLoader, DirectoryLoader, McapLogMessage, MsgMcapWriter,
+    MsgWithInfoMcapWriter, SensorMcapWriter,
 };
 use mcap;
 use sensors::audio;
@@ -66,11 +75,8 @@ use sensors::point_cloud;
 use sensors::radar;
 use sensors::stereo;
 use sensors::timestamp::{Timestamp, TimestampPrecision};
+use std::fs::{self};
 use std::time::Instant;
-use std::{
-    cmp,
-    fs::{self},
-};
 use std::{io::BufWriter, u64};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -82,6 +88,8 @@ pub enum SensorType {
     RoboSense,
     Leishen,
     Audio,
+    AudioRight,
+    AudioLeft,
 }
 impl SensorType {
     const fn as_str(&self) -> &'static str {
@@ -93,6 +101,8 @@ impl SensorType {
             Self::RoboSense => ROBOSENSE_FRAME_ID,
             Self::Leishen => LEISHEN_FRAME_ID,
             Self::Audio => "audio",
+            Self::AudioLeft => "audio_left",
+            Self::AudioRight => "audio_right",
         }
     }
 
@@ -643,12 +653,13 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
     output: P,
     sensors: &Vec<SensorType>,
     compress: bool,
+    overwrite: bool,
     prec: &TimestampPrecision,
     sequence_start: Timestamp,
     sequence_end: Timestamp,
 ) -> Result<(), anyhow::Error> {
     io::check_ijrr_input_path(input.as_ref())?;
-    let output_path = io::check_mcap_output_path(output.as_ref())?;
+    let output_path = io::check_mcap_output_path(output.as_ref(), overwrite)?;
 
     let calib_path = input.as_ref().join("calib");
     let mut compression = None;
@@ -669,14 +680,21 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         .emit_message_indexes(true);
 
     let mut mcap_writer = write_options
-        .create(BufWriter::new(fs::File::create(&output_path).map_err(
-            |e| anyhow!("Failed to create output file {}: {}", &output_path, e),
-        )?))
+        .create(BufWriter::with_capacity(
+            1024 * 1024,
+            fs::File::create(&output_path)
+                .map_err(|e| anyhow!("Failed to create output file {}: {}", &output_path, e))?,
+        ))
         .map_err(|e| anyhow!("Failed to create write_options: {}", e))?;
 
     let start = Instant::now();
+    let multi_progress = indicatif::MultiProgress::new();
+
+    let mut receivers: Vec<Receiver<McapLogMessage>> = Vec::new();
+    let mut handles = vec![];
 
     // all output mcaps contain the IMU, odom and TF data
+    // VECTORNAV
     let mut imu_mcap_writer: MsgMcapWriter<imu::Imu, CsvLoader> = MsgMcapWriter::new(
         input.as_ref().join(format!("{}.csv", VECTORNAV_FRAME_ID)),
         VECTORANV_TOPIC.to_string(),
@@ -686,13 +704,35 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         sequence_end,
     )
     .unwrap();
-    let mut topics_with_timestamps: Vec<TopicWithMessageCountWithTimestamps> = vec![];
 
-    topics_with_timestamps.append(
-        &mut write_sensor_data(&mut mcap_writer, &mut imu_mcap_writer, prec, VECTORNAV_RATE)
-            .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", VECTORNAV_FRAME_ID, e))
-            .unwrap(),
+    let (tx, rx) = bounded::<McapLogMessage>(MESSAGE_QUEUE_SIZE);
+    receivers.push(rx);
+    let channels = imu_mcap_writer.create_channels(&mut mcap_writer).unwrap();
+
+    let prec_clone = *prec; // TODO why is this needed
+    let pb = multi_progress.add(ProgressBar::new(0));
+    pb.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
     );
+
+    handles.push(thread::spawn(move || {
+        produce_sensor_data(
+            &mut imu_mcap_writer,
+            channels,
+            &prec_clone,
+            tx,
+            VECTORNAV_RATE,
+            pb,
+        )
+        .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", VECTORNAV_FRAME_ID, e))
+        .unwrap()
+    }));
+
+    // XSENS
     let mut imu_mcap_writer: MsgMcapWriter<imu::Imu, CsvLoader> = MsgMcapWriter::new(
         input.as_ref().join(format!("{}.csv", XSENS_FRAME_ID)),
         XSENS_TOPIC.to_string(),
@@ -702,11 +742,36 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         sequence_end,
     )
     .unwrap();
-    topics_with_timestamps.append(
-        &mut write_sensor_data(&mut mcap_writer, &mut imu_mcap_writer, prec, XSENS_RATE)
-            .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", XSENS_FRAME_ID, e))
-            .unwrap(),
+
+    let (tx, rx) = bounded::<McapLogMessage>(MESSAGE_QUEUE_SIZE);
+    receivers.push(rx);
+    let mut topics_with_timestamps: Vec<TopicWithMessageCountWithTimestamps> = vec![];
+    let channels = imu_mcap_writer.create_channels(&mut mcap_writer).unwrap();
+
+    let prec_clone = *prec;
+    let pb = multi_progress.add(ProgressBar::new(0));
+    pb.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
     );
+
+    handles.push(thread::spawn(move || {
+        produce_sensor_data(
+            &mut imu_mcap_writer,
+            channels,
+            &prec_clone,
+            tx,
+            XSENS_RATE,
+            pb,
+        )
+        .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", VECTORNAV_FRAME_ID, e))
+        .unwrap()
+    }));
+
+    // ODOM
     let mut odom_mcap_writer: MsgMcapWriter<odom::Odom, CsvLoader> = MsgMcapWriter::new(
         input.as_ref().join(format!("{}.csv", ODOM_FRAME_ID)),
         ODOM_TOPIC.to_string(),
@@ -716,16 +781,52 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
         sequence_end,
     )
     .unwrap();
-    topics_with_timestamps.append(
-        &mut write_sensor_data(&mut mcap_writer, &mut odom_mcap_writer, prec, ODOM_RATE)
-            .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", ODOM_FRAME_ID, e))
-            .unwrap(),
+    let (tx, rx) = bounded::<McapLogMessage>(MESSAGE_QUEUE_SIZE);
+    receivers.push(rx);
+    let channels = odom_mcap_writer.create_channels(&mut mcap_writer).unwrap();
+
+    let prec_clone = *prec;
+    let pb = multi_progress.add(ProgressBar::new(0));
+    pb.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
     );
+
+    handles.push(thread::spawn(move || {
+        produce_sensor_data(
+            &mut odom_mcap_writer,
+            channels,
+            &prec_clone,
+            tx,
+            ODOM_RATE,
+            pb,
+        )
+        .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", VECTORNAV_FRAME_ID, e))
+        .unwrap()
+    }));
+
+    // OTHER SENSORS
     for sensor_type in sensors {
+        let (tx, rx) = bounded::<McapLogMessage>(MESSAGE_QUEUE_SIZE);
+        receivers.push(rx);
+        let prec_clone = *prec;
+        let pb = multi_progress.add(ProgressBar::new(0));
+        pb.set_style(
+            ProgressStyle::with_template(
+                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
+            )
+            .unwrap()
+            .progress_chars("#>-"),
+        );
+
         let path = input.as_ref().join(sensor_type.get_folder().unwrap());
         match sensor_type {
+            SensorType::Audio => {} // this should not happen
             SensorType::Navtech => {
-                let mut navtech_mcap_writer: MsgWithInfoMcapWriter<
+                let mut sensor_mcap_writer: MsgWithInfoMcapWriter<
                     radar::RadarScan,
                     DirectoryLoader,
                 > = MsgWithInfoMcapWriter::new(
@@ -738,19 +839,24 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                     sequence_end,
                 )
                 .unwrap();
-                topics_with_timestamps.append(
-                    &mut write_sensor_data(
-                        &mut mcap_writer,
-                        &mut navtech_mcap_writer,
-                        prec,
+                let channels = sensor_mcap_writer
+                    .create_channels(&mut mcap_writer)
+                    .unwrap();
+                handles.push(thread::spawn(move || {
+                    produce_sensor_data(
+                        &mut sensor_mcap_writer,
+                        channels,
+                        &prec_clone,
+                        tx,
                         NAVTECH_RATE,
+                        pb,
                     )
-                    .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
-                    .unwrap(),
-                );
+                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
+                    .unwrap()
+                }));
             }
             SensorType::ZedXLeft => {
-                let mut navtech_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
+                let mut sensor_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
                     MsgWithInfoMcapWriter::new(
                         path,
                         calib_path.clone(),
@@ -761,19 +867,24 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         sequence_end,
                     )
                     .unwrap();
-                topics_with_timestamps.append(
-                    &mut write_sensor_data(
-                        &mut mcap_writer,
-                        &mut navtech_mcap_writer,
-                        prec,
+                let channels = sensor_mcap_writer
+                    .create_channels(&mut mcap_writer)
+                    .unwrap();
+                handles.push(thread::spawn(move || {
+                    produce_sensor_data(
+                        &mut sensor_mcap_writer,
+                        channels,
+                        &prec_clone,
+                        tx,
                         ZEDX_RATE,
+                        pb,
                     )
-                    .inspect_err(|e| eprintln!("Failed to process zedx_left data: {}", e))
-                    .unwrap(),
-                );
+                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
+                    .unwrap()
+                }));
             }
             SensorType::ZedXRight => {
-                let mut navtech_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
+                let mut sensor_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
                     MsgWithInfoMcapWriter::new(
                         path,
                         calib_path.clone(),
@@ -784,19 +895,24 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         sequence_end,
                     )
                     .unwrap();
-                topics_with_timestamps.append(
-                    &mut write_sensor_data(
-                        &mut mcap_writer,
-                        &mut navtech_mcap_writer,
-                        prec,
+                let channels = sensor_mcap_writer
+                    .create_channels(&mut mcap_writer)
+                    .unwrap();
+                handles.push(thread::spawn(move || {
+                    produce_sensor_data(
+                        &mut sensor_mcap_writer,
+                        channels,
+                        &prec_clone,
+                        tx,
                         ZEDX_RATE,
+                        pb,
                     )
-                    .inspect_err(|e| eprintln!("Failed to process zedx_right data: {}", e))
-                    .unwrap(),
-                );
+                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
+                    .unwrap()
+                }));
             }
             SensorType::Basler => {
-                let mut basler_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
+                let mut sensor_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
                     MsgWithInfoMcapWriter::new(
                         path,
                         calib_path.clone(),
@@ -807,66 +923,84 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         sequence_end,
                     )
                     .unwrap();
-                topics_with_timestamps.append(
-                    &mut write_sensor_data(
-                        &mut mcap_writer,
-                        &mut basler_mcap_writer,
-                        prec,
+                let channels = sensor_mcap_writer
+                    .create_channels(&mut mcap_writer)
+                    .unwrap();
+                handles.push(thread::spawn(move || {
+                    produce_sensor_data(
+                        &mut sensor_mcap_writer,
+                        channels,
+                        &prec_clone,
+                        tx,
                         BASLER_RATE,
+                        pb,
                     )
-                    .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
-                    .unwrap(),
-                );
+                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
+                    .unwrap()
+                }));
             }
             SensorType::RoboSense => {
-                let mut lidar_mcap_writer: MsgMcapWriter<point_cloud::PointCloud, DirectoryLoader> =
-                    MsgMcapWriter::new(
-                        path,
-                        ROBOSENSE_TOPIC.to_string(),
-                        ROBOSENSE_FRAME_ID.to_string(),
-                        "bin",
-                        sequence_start,
-                        sequence_end,
-                    )
+                let mut sensor_mcap_writer: MsgMcapWriter<
+                    point_cloud::PointCloud,
+                    DirectoryLoader,
+                > = MsgMcapWriter::new(
+                    path,
+                    ROBOSENSE_TOPIC.to_string(),
+                    ROBOSENSE_FRAME_ID.to_string(),
+                    "bin",
+                    sequence_start,
+                    sequence_end,
+                )
+                .unwrap();
+                let channels = sensor_mcap_writer
+                    .create_channels(&mut mcap_writer)
                     .unwrap();
-                topics_with_timestamps.append(
-                    &mut write_sensor_data(
-                        &mut mcap_writer,
-                        &mut lidar_mcap_writer,
-                        prec,
+                handles.push(thread::spawn(move || {
+                    produce_sensor_data(
+                        &mut sensor_mcap_writer,
+                        channels,
+                        &prec_clone,
+                        tx,
                         ROBOSENSE_RATE,
+                        pb,
                     )
-                    .inspect_err(|e| eprintln!("Failed to process lidar data: {}", e))
-                    .unwrap(),
-                );
+                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
+                    .unwrap()
+                }));
             }
             SensorType::Leishen => {
-                let mut lidar_mcap_writer: MsgMcapWriter<point_cloud::PointCloud, DirectoryLoader> =
+                let mut sensor_mcap_writer: MsgMcapWriter<
+                    point_cloud::PointCloud,
+                    DirectoryLoader,
+                > = MsgMcapWriter::new(
+                    path,
+                    LEISHEN_TOPIC.to_string(),
+                    LEISHEN_FRAME_ID.to_string(),
+                    "bin",
+                    sequence_start,
+                    sequence_end,
+                )
+                .unwrap();
+                let channels = sensor_mcap_writer
+                    .create_channels(&mut mcap_writer)
+                    .unwrap();
+                handles.push(thread::spawn(move || {
+                    produce_sensor_data(
+                        &mut sensor_mcap_writer,
+                        channels,
+                        &prec_clone,
+                        tx,
+                        LEISHEN_RATE,
+                        pb,
+                    )
+                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
+                    .unwrap()
+                }));
+            }
+            SensorType::AudioLeft => {
+                let mut sensor_mcap_writer: MsgMcapWriter<audio::Audio, DirectoryLoader> =
                     MsgMcapWriter::new(
                         path,
-                        LEISHEN_TOPIC.to_string(),
-                        LEISHEN_FRAME_ID.to_string(),
-                        "bin",
-                        sequence_start,
-                        sequence_end,
-                    )
-                    .unwrap();
-                topics_with_timestamps.append(
-                    &mut write_sensor_data(
-                        &mut mcap_writer,
-                        &mut lidar_mcap_writer,
-                        prec,
-                        LEISHEN_RATE,
-                    )
-                    .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
-                    .unwrap(),
-                );
-            }
-            SensorType::Audio => {
-                let path_left = Utf8PathBuf::from(format!("{}_left", path));
-                let mut audio_mcap_writer: MsgMcapWriter<audio::Audio, DirectoryLoader> =
-                    MsgMcapWriter::new(
-                        path_left,
                         AUDIOLEFT_TOPIC.to_string(),
                         AUDIOLEFT_FRAME_ID.to_string(),
                         "wav",
@@ -874,20 +1008,27 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         sequence_end,
                     )
                     .unwrap();
-                topics_with_timestamps.append(
-                    &mut write_sensor_data(
-                        &mut mcap_writer,
-                        &mut audio_mcap_writer,
-                        prec,
+                let channels = sensor_mcap_writer
+                    .create_channels(&mut mcap_writer)
+                    .unwrap();
+                handles.push(thread::spawn(move || {
+                    produce_sensor_data(
+                        &mut sensor_mcap_writer,
+                        channels,
+                        &prec_clone,
+                        tx,
                         AUDIO_RATE,
+                        pb,
                     )
-                    .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
-                    .unwrap(),
-                );
-                let path_right = Utf8PathBuf::from(format!("{}_right", path));
-                let mut audio_mcap_writer: MsgMcapWriter<audio::Audio, DirectoryLoader> =
+                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
+                    .unwrap()
+                }));
+            }
+
+            SensorType::AudioRight => {
+                let mut sensor_mcap_writer: MsgMcapWriter<audio::Audio, DirectoryLoader> =
                     MsgMcapWriter::new(
-                        path_right,
+                        path,
                         AUDIORIGHT_TOPIC.to_string(),
                         AUDIORIGHT_FRAME_ID.to_string(),
                         "wav",
@@ -895,18 +1036,65 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
                         sequence_end,
                     )
                     .unwrap();
-                topics_with_timestamps.append(
-                    &mut write_sensor_data(
-                        &mut mcap_writer,
-                        &mut audio_mcap_writer,
-                        prec,
+                let channels = sensor_mcap_writer
+                    .create_channels(&mut mcap_writer)
+                    .unwrap();
+                handles.push(thread::spawn(move || {
+                    produce_sensor_data(
+                        &mut sensor_mcap_writer,
+                        channels,
+                        &prec_clone,
+                        tx,
                         AUDIO_RATE,
+                        pb,
                     )
-                    .inspect_err(|e| eprintln!("Failed to process audio data: {}", e))
-                    .unwrap(),
-                );
+                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
+                    .unwrap()
+                }));
             }
+        };
+    }
+
+    let mut min_heap = BinaryHeap::new();
+
+    for (index, rx) in receivers.iter().enumerate() {
+        if let Ok(msg) = rx.recv() {
+            min_heap.push(HeapItem {
+                timestamp: msg.publish_time,
+                receiver_index: index,
+                message: msg,
+            })
         }
+    }
+
+    while let Some(oldest_item) = min_heap.pop() {
+        let receiver_index = oldest_item.receiver_index;
+        let msg = oldest_item.message;
+
+        let msg_header = mcap::records::MessageHeader {
+            channel_id: msg.channel_id,
+            sequence: msg.sequence,
+            log_time: msg.log_time,
+            publish_time: msg.publish_time,
+        };
+
+        mcap_writer
+            .write_to_known_channel(&msg_header, &msg.data)
+            .unwrap();
+
+        if let Ok(next_msg) = receivers[receiver_index].recv() {
+            min_heap.push(HeapItem {
+                timestamp: next_msg.publish_time,
+                receiver_index,
+                message: next_msg,
+            })
+        }
+    }
+
+    // Wait for all producer threads to finish gracefully
+    let mut topics_with_timestamps: Vec<TopicWithMessageCountWithTimestamps> = vec![];
+    for handle in handles {
+        topics_with_timestamps.append(&mut handle.join().unwrap());
     }
 
     let (start_time, end_time, mut message_count, mut topics_with_msg_count) =
