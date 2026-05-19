@@ -16,7 +16,7 @@ struct Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let (input, output, sensors) = args.common.flatten_sensors();
+    let (input, output, overwrite, sensors) = args.common.flatten_sensors();
     process_rosbag(
         &input,
         &output,

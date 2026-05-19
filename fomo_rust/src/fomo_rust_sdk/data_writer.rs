@@ -47,6 +47,7 @@ pub(super) trait DataLoader: Iterator {
         Self: Sized;
 }
 
+#[derive(Debug)]
 pub(super) struct DirectoryLoader {
     files: Vec<Utf8PathBuf>,
     pub(super) current_index: usize,
@@ -114,6 +115,7 @@ impl Iterator for DirectoryLoader {
     }
 }
 
+#[derive(Debug)]
 pub(super) struct CsvLoader {
     reader: BufReader<File>,
     start: Timestamp,

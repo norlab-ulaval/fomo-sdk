@@ -109,7 +109,8 @@ pub(crate) fn check_mcap_output_path<P: AsRef<Utf8Path>>(
 
     if output_path.exists() {
         if overwrite {
-            fs::remove_file(&output_path);
+            fs::remove_file(&output_path)
+                .expect(format!("File {} could not be removed", output_path).as_str());
         } else {
             return Err(anyhow!("Output path {} already exists", output_path));
         }
