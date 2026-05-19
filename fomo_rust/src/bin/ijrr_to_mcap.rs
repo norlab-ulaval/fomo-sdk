@@ -1,5 +1,3 @@
-use std::u32;
-
 use anyhow::Result;
 use clap::Parser;
 use fomo_rust_sdk::fomo_rust_sdk::{
