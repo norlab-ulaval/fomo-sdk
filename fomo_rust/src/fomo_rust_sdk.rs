@@ -12,9 +12,9 @@ pub mod utils;
 use crossbeam_channel::{bounded, Receiver};
 
 use byteorder::LittleEndian;
-use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
-use opencv::core::Vector;
-use rosbag::{Duration, RosbagInfo, StartingTime, TopicWithMessageCountWithTimestamps};
+use indicatif::{ProgressBar, ProgressStyle};
+use rosbag::{RosbagInfo, TopicWithMessageCountWithTimestamps};
+use sensors::utils::{ToRosMsg, ToRosMsgWithInfo};
 use std::collections::BinaryHeap;
 use std::fmt::Debug;
 
@@ -63,8 +63,8 @@ use tqdm::tqdm;
 use mcap::{read, Compression};
 
 use data_writer::{
-    produce_sensor_data, write_tf_data, CsvLoader, DirectoryLoader, McapLogMessage, MsgMcapWriter,
-    MsgWithInfoMcapWriter, SensorMcapWriter,
+    produce_sensor_data, write_tf_data, CsvLoader, DataLoader, DirectoryLoader, McapLogMessage,
+    MsgMcapWriter, MsgWithInfoMcapWriter, SensorMcapWriter,
 };
 use mcap;
 use sensors::audio;
@@ -648,6 +648,111 @@ pub fn process_rosbag<P: AsRef<Utf8Path>>(
     Ok(())
 }
 
+fn get_progress_bar(multi_progress: &indicatif::MultiProgress) -> ProgressBar {
+    let pb = multi_progress.add(ProgressBar::new(0));
+    pb.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
+    pb
+}
+
+fn process_sensor_folder<
+    P: AsRef<Utf8Path>,
+    T: ToRosMsg<L::Item> + Debug + Send + Sync + 'static,
+    L: DataLoader + Debug + Send + Sync + 'static,
+>(
+    multi_progress: &indicatif::MultiProgress,
+    mcap_writer: &mut mcap::Writer<BufWriter<std::fs::File>>,
+    path: &Utf8PathBuf,
+    receivers: &mut Vec<Receiver<McapLogMessage>>,
+    handles: &mut Vec<std::thread::JoinHandle<Vec<TopicWithMessageCountWithTimestamps>>>,
+    prec: &TimestampPrecision,
+    sequence_start: Timestamp,
+    sequence_end: Timestamp,
+    topic: &str,
+    frame_id: &str,
+    extension: &str,
+    rate: u16,
+) where
+    L::Item: Debug + Send + Sync,
+{
+    let mut sensor_mcap_writer: MsgMcapWriter<T, L> = MsgMcapWriter::new(
+        path,
+        topic.to_string(),
+        frame_id.to_string(),
+        extension,
+        sequence_start,
+        sequence_end,
+    )
+    .unwrap();
+
+    let (tx, rx) = bounded::<McapLogMessage>(MESSAGE_QUEUE_SIZE);
+    receivers.push(rx);
+    let channels = sensor_mcap_writer.create_channels(mcap_writer).unwrap();
+
+    let prec_clone = prec.clone();
+    let pb = get_progress_bar(multi_progress);
+
+    let fid = frame_id.to_string();
+
+    handles.push(thread::spawn(move || {
+        produce_sensor_data(&mut sensor_mcap_writer, channels, &prec_clone, tx, rate, pb)
+            .inspect_err(|e| eprintln!("Failed to process {}: {}", fid, e))
+            .unwrap()
+    }));
+}
+
+fn process_sensor_folder_with_info<
+    T: ToRosMsgWithInfo<L::Item> + Debug + Send + Sync + 'static,
+    L: DataLoader + Debug + Send + Sync + 'static,
+>(
+    multi_progress: &indicatif::MultiProgress,
+    mcap_writer: &mut mcap::Writer<BufWriter<std::fs::File>>,
+    path: &Utf8PathBuf,
+    calib_path: &Utf8PathBuf,
+    receivers: &mut Vec<Receiver<McapLogMessage>>,
+    handles: &mut Vec<std::thread::JoinHandle<Vec<TopicWithMessageCountWithTimestamps>>>,
+    prec: &TimestampPrecision,
+    sequence_start: Timestamp,
+    sequence_end: Timestamp,
+    topic: &str,
+    frame_id: &str,
+    extension: &str,
+    rate: u16,
+) where
+    L::Item: Debug + Send + Sync,
+{
+    let mut sensor_mcap_writer: MsgWithInfoMcapWriter<T, L> = MsgWithInfoMcapWriter::new(
+        path,
+        calib_path,
+        topic.to_string(),
+        frame_id.to_string(),
+        extension,
+        sequence_start,
+        sequence_end,
+    )
+    .unwrap();
+
+    let (tx, rx) = bounded::<McapLogMessage>(MESSAGE_QUEUE_SIZE);
+    receivers.push(rx);
+    let channels = sensor_mcap_writer.create_channels(mcap_writer).unwrap();
+
+    let prec_clone = prec.clone();
+    let pb = get_progress_bar(multi_progress);
+
+    let fid = frame_id.to_string();
+
+    handles.push(thread::spawn(move || {
+        produce_sensor_data(&mut sensor_mcap_writer, channels, &prec_clone, tx, rate, pb)
+            .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", fid, e))
+            .unwrap()
+    }));
+}
+
 pub fn process_folder<P: AsRef<Utf8Path>>(
     input: P,
     output: P,
@@ -695,362 +800,190 @@ pub fn process_folder<P: AsRef<Utf8Path>>(
 
     // all output mcaps contain the IMU, odom and TF data
     // VECTORNAV
-    let mut imu_mcap_writer: MsgMcapWriter<imu::Imu, CsvLoader> = MsgMcapWriter::new(
-        input.as_ref().join(format!("{}.csv", VECTORNAV_FRAME_ID)),
-        VECTORANV_TOPIC.to_string(),
-        VECTORNAV_FRAME_ID.to_string(),
-        "csv",
+    process_sensor_folder::<&P, imu::Imu, CsvLoader>(
+        &multi_progress,
+        &mut mcap_writer,
+        &input.as_ref().join(format!("{}.csv", VECTORNAV_FRAME_ID)),
+        &mut receivers,
+        &mut handles,
+        &prec,
         sequence_start,
         sequence_end,
-    )
-    .unwrap();
-
-    let (tx, rx) = bounded::<McapLogMessage>(MESSAGE_QUEUE_SIZE);
-    receivers.push(rx);
-    let channels = imu_mcap_writer.create_channels(&mut mcap_writer).unwrap();
-
-    let prec_clone = *prec; // TODO why is this needed
-    let pb = multi_progress.add(ProgressBar::new(0));
-    pb.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
-        )
-        .unwrap()
-        .progress_chars("#>-"),
+        VECTORANV_TOPIC,
+        VECTORNAV_FRAME_ID,
+        "csv",
+        VECTORNAV_RATE,
     );
-
-    handles.push(thread::spawn(move || {
-        produce_sensor_data(
-            &mut imu_mcap_writer,
-            channels,
-            &prec_clone,
-            tx,
-            VECTORNAV_RATE,
-            pb,
-        )
-        .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", VECTORNAV_FRAME_ID, e))
-        .unwrap()
-    }));
 
     // XSENS
-    let mut imu_mcap_writer: MsgMcapWriter<imu::Imu, CsvLoader> = MsgMcapWriter::new(
-        input.as_ref().join(format!("{}.csv", XSENS_FRAME_ID)),
-        XSENS_TOPIC.to_string(),
-        XSENS_FRAME_ID.to_string(),
-        "csv",
+    process_sensor_folder::<&P, imu::Imu, CsvLoader>(
+        &multi_progress,
+        &mut mcap_writer,
+        &input.as_ref().join(format!("{}.csv", XSENS_FRAME_ID)),
+        &mut receivers,
+        &mut handles,
+        &prec,
         sequence_start,
         sequence_end,
-    )
-    .unwrap();
-
-    let (tx, rx) = bounded::<McapLogMessage>(MESSAGE_QUEUE_SIZE);
-    receivers.push(rx);
-    let mut topics_with_timestamps: Vec<TopicWithMessageCountWithTimestamps> = vec![];
-    let channels = imu_mcap_writer.create_channels(&mut mcap_writer).unwrap();
-
-    let prec_clone = *prec;
-    let pb = multi_progress.add(ProgressBar::new(0));
-    pb.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
-        )
-        .unwrap()
-        .progress_chars("#>-"),
+        XSENS_TOPIC,
+        XSENS_FRAME_ID,
+        "csv",
+        XSENS_RATE,
     );
-
-    handles.push(thread::spawn(move || {
-        produce_sensor_data(
-            &mut imu_mcap_writer,
-            channels,
-            &prec_clone,
-            tx,
-            XSENS_RATE,
-            pb,
-        )
-        .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", VECTORNAV_FRAME_ID, e))
-        .unwrap()
-    }));
 
     // ODOM
-    let mut odom_mcap_writer: MsgMcapWriter<odom::Odom, CsvLoader> = MsgMcapWriter::new(
-        input.as_ref().join(format!("{}.csv", ODOM_FRAME_ID)),
-        ODOM_TOPIC.to_string(),
-        ODOM_FRAME_ID.to_string(),
-        "csv",
+    process_sensor_folder::<&P, odom::Odom, CsvLoader>(
+        &multi_progress,
+        &mut mcap_writer,
+        &input.as_ref().join(format!("{}.csv", ODOM_FRAME_ID)),
+        &mut receivers,
+        &mut handles,
+        &prec,
         sequence_start,
         sequence_end,
-    )
-    .unwrap();
-    let (tx, rx) = bounded::<McapLogMessage>(MESSAGE_QUEUE_SIZE);
-    receivers.push(rx);
-    let channels = odom_mcap_writer.create_channels(&mut mcap_writer).unwrap();
-
-    let prec_clone = *prec;
-    let pb = multi_progress.add(ProgressBar::new(0));
-    pb.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
-        )
-        .unwrap()
-        .progress_chars("#>-"),
+        ODOM_TOPIC,
+        ODOM_FRAME_ID,
+        "csv",
+        ODOM_RATE,
     );
-
-    handles.push(thread::spawn(move || {
-        produce_sensor_data(
-            &mut odom_mcap_writer,
-            channels,
-            &prec_clone,
-            tx,
-            ODOM_RATE,
-            pb,
-        )
-        .inspect_err(|e| eprintln!("Failed to process {}.csv: {}", VECTORNAV_FRAME_ID, e))
-        .unwrap()
-    }));
 
     // OTHER SENSORS
     for sensor_type in sensors {
-        let (tx, rx) = bounded::<McapLogMessage>(MESSAGE_QUEUE_SIZE);
-        receivers.push(rx);
-        let prec_clone = *prec;
-        let pb = multi_progress.add(ProgressBar::new(0));
-        pb.set_style(
-            ProgressStyle::with_template(
-                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
-            )
-            .unwrap()
-            .progress_chars("#>-"),
-        );
-
         let path = input.as_ref().join(sensor_type.get_folder().unwrap());
+
         match sensor_type {
             SensorType::Audio => {} // this should not happen
             SensorType::Navtech => {
-                let mut sensor_mcap_writer: MsgWithInfoMcapWriter<
-                    radar::RadarScan,
-                    DirectoryLoader,
-                > = MsgWithInfoMcapWriter::new(
-                    path,
-                    calib_path.clone(),
-                    NAVTECH_NAMESPACE.to_string(),
-                    NAVTECH_FRAME_ID.to_string(),
-                    "png",
+                process_sensor_folder_with_info::<radar::RadarScan, DirectoryLoader>(
+                    &multi_progress,
+                    &mut mcap_writer,
+                    &path,
+                    &calib_path,
+                    &mut receivers,
+                    &mut handles,
+                    &prec,
                     sequence_start,
                     sequence_end,
-                )
-                .unwrap();
-                let channels = sensor_mcap_writer
-                    .create_channels(&mut mcap_writer)
-                    .unwrap();
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(
-                        &mut sensor_mcap_writer,
-                        channels,
-                        &prec_clone,
-                        tx,
-                        NAVTECH_RATE,
-                        pb,
-                    )
-                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
-                    .unwrap()
-                }));
+                    NAVTECH_NAMESPACE,
+                    NAVTECH_FRAME_ID,
+                    "png",
+                    NAVTECH_RATE,
+                );
             }
             SensorType::ZedXLeft => {
-                let mut sensor_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
-                    MsgWithInfoMcapWriter::new(
-                        path,
-                        calib_path.clone(),
-                        ZEDXLEFT_NAMESPACE.to_string(),
-                        ZEDXLEFT_FRAME_ID.to_string(),
-                        "png",
-                        sequence_start,
-                        sequence_end,
-                    )
-                    .unwrap();
-                let channels = sensor_mcap_writer
-                    .create_channels(&mut mcap_writer)
-                    .unwrap();
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(
-                        &mut sensor_mcap_writer,
-                        channels,
-                        &prec_clone,
-                        tx,
-                        ZEDX_RATE,
-                        pb,
-                    )
-                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
-                    .unwrap()
-                }));
+                process_sensor_folder_with_info::<image::Image, DirectoryLoader>(
+                    &multi_progress,
+                    &mut mcap_writer,
+                    &path,
+                    &calib_path,
+                    &mut receivers,
+                    &mut handles,
+                    &prec,
+                    sequence_start,
+                    sequence_end,
+                    ZEDXLEFT_NAMESPACE,
+                    ZEDXLEFT_FRAME_ID,
+                    "png",
+                    ZEDX_RATE,
+                );
             }
             SensorType::ZedXRight => {
-                let mut sensor_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
-                    MsgWithInfoMcapWriter::new(
-                        path,
-                        calib_path.clone(),
-                        ZEDXRIGHT_NAMESPACE.to_string(),
-                        ZEDXRIGHT_FRAME_ID.to_string(),
-                        "png",
-                        sequence_start,
-                        sequence_end,
-                    )
-                    .unwrap();
-                let channels = sensor_mcap_writer
-                    .create_channels(&mut mcap_writer)
-                    .unwrap();
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(
-                        &mut sensor_mcap_writer,
-                        channels,
-                        &prec_clone,
-                        tx,
-                        ZEDX_RATE,
-                        pb,
-                    )
-                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
-                    .unwrap()
-                }));
+                process_sensor_folder_with_info::<image::Image, DirectoryLoader>(
+                    &multi_progress,
+                    &mut mcap_writer,
+                    &path,
+                    &calib_path,
+                    &mut receivers,
+                    &mut handles,
+                    &prec,
+                    sequence_start,
+                    sequence_end,
+                    ZEDXRIGHT_NAMESPACE,
+                    ZEDXRIGHT_FRAME_ID,
+                    "png",
+                    ZEDX_RATE,
+                );
             }
             SensorType::Basler => {
-                let mut sensor_mcap_writer: MsgWithInfoMcapWriter<image::Image, DirectoryLoader> =
-                    MsgWithInfoMcapWriter::new(
-                        path,
-                        calib_path.clone(),
-                        BASLER_NAMESPACE.to_string(),
-                        BASLER_FRAME_ID.to_string(),
-                        "png",
-                        sequence_start,
-                        sequence_end,
-                    )
-                    .unwrap();
-                let channels = sensor_mcap_writer
-                    .create_channels(&mut mcap_writer)
-                    .unwrap();
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(
-                        &mut sensor_mcap_writer,
-                        channels,
-                        &prec_clone,
-                        tx,
-                        BASLER_RATE,
-                        pb,
-                    )
-                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
-                    .unwrap()
-                }));
+                process_sensor_folder_with_info::<image::Image, DirectoryLoader>(
+                    &multi_progress,
+                    &mut mcap_writer,
+                    &path,
+                    &calib_path,
+                    &mut receivers,
+                    &mut handles,
+                    &prec,
+                    sequence_start,
+                    sequence_end,
+                    BASLER_NAMESPACE,
+                    BASLER_FRAME_ID,
+                    "png",
+                    BASLER_RATE,
+                );
             }
             SensorType::RoboSense => {
-                let mut sensor_mcap_writer: MsgMcapWriter<
-                    point_cloud::PointCloud,
-                    DirectoryLoader,
-                > = MsgMcapWriter::new(
-                    path,
-                    ROBOSENSE_TOPIC.to_string(),
-                    ROBOSENSE_FRAME_ID.to_string(),
-                    "bin",
+                process_sensor_folder::<&P, point_cloud::PointCloud, DirectoryLoader>(
+                    &multi_progress,
+                    &mut mcap_writer,
+                    &path,
+                    &mut receivers,
+                    &mut handles,
+                    &prec,
                     sequence_start,
                     sequence_end,
-                )
-                .unwrap();
-                let channels = sensor_mcap_writer
-                    .create_channels(&mut mcap_writer)
-                    .unwrap();
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(
-                        &mut sensor_mcap_writer,
-                        channels,
-                        &prec_clone,
-                        tx,
-                        ROBOSENSE_RATE,
-                        pb,
-                    )
-                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
-                    .unwrap()
-                }));
+                    ROBOSENSE_TOPIC,
+                    ROBOSENSE_FRAME_ID,
+                    "bin",
+                    ROBOSENSE_RATE,
+                );
             }
             SensorType::Leishen => {
-                let mut sensor_mcap_writer: MsgMcapWriter<
-                    point_cloud::PointCloud,
-                    DirectoryLoader,
-                > = MsgMcapWriter::new(
-                    path,
-                    LEISHEN_TOPIC.to_string(),
-                    LEISHEN_FRAME_ID.to_string(),
-                    "bin",
+                process_sensor_folder::<&P, point_cloud::PointCloud, DirectoryLoader>(
+                    &multi_progress,
+                    &mut mcap_writer,
+                    &path,
+                    &mut receivers,
+                    &mut handles,
+                    &prec,
                     sequence_start,
                     sequence_end,
-                )
-                .unwrap();
-                let channels = sensor_mcap_writer
-                    .create_channels(&mut mcap_writer)
-                    .unwrap();
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(
-                        &mut sensor_mcap_writer,
-                        channels,
-                        &prec_clone,
-                        tx,
-                        LEISHEN_RATE,
-                        pb,
-                    )
-                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
-                    .unwrap()
-                }));
+                    LEISHEN_TOPIC,
+                    LEISHEN_FRAME_ID,
+                    "bin",
+                    LEISHEN_RATE,
+                );
             }
             SensorType::AudioLeft => {
-                let mut sensor_mcap_writer: MsgMcapWriter<audio::Audio, DirectoryLoader> =
-                    MsgMcapWriter::new(
-                        path,
-                        AUDIOLEFT_TOPIC.to_string(),
-                        AUDIOLEFT_FRAME_ID.to_string(),
-                        "wav",
-                        sequence_start,
-                        sequence_end,
-                    )
-                    .unwrap();
-                let channels = sensor_mcap_writer
-                    .create_channels(&mut mcap_writer)
-                    .unwrap();
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(
-                        &mut sensor_mcap_writer,
-                        channels,
-                        &prec_clone,
-                        tx,
-                        AUDIO_RATE,
-                        pb,
-                    )
-                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
-                    .unwrap()
-                }));
+                process_sensor_folder::<&P, audio::Audio, DirectoryLoader>(
+                    &multi_progress,
+                    &mut mcap_writer,
+                    &path,
+                    &mut receivers,
+                    &mut handles,
+                    &prec,
+                    sequence_start,
+                    sequence_end,
+                    AUDIOLEFT_TOPIC,
+                    AUDIOLEFT_FRAME_ID,
+                    "wav",
+                    AUDIO_RATE,
+                );
             }
-
             SensorType::AudioRight => {
-                let mut sensor_mcap_writer: MsgMcapWriter<audio::Audio, DirectoryLoader> =
-                    MsgMcapWriter::new(
-                        path,
-                        AUDIORIGHT_TOPIC.to_string(),
-                        AUDIORIGHT_FRAME_ID.to_string(),
-                        "wav",
-                        sequence_start,
-                        sequence_end,
-                    )
-                    .unwrap();
-                let channels = sensor_mcap_writer
-                    .create_channels(&mut mcap_writer)
-                    .unwrap();
-                handles.push(thread::spawn(move || {
-                    produce_sensor_data(
-                        &mut sensor_mcap_writer,
-                        channels,
-                        &prec_clone,
-                        tx,
-                        AUDIO_RATE,
-                        pb,
-                    )
-                    .inspect_err(|e| eprintln!("Failed to process data {}", e))
-                    .unwrap()
-                }));
+                process_sensor_folder::<&P, audio::Audio, DirectoryLoader>(
+                    &multi_progress,
+                    &mut mcap_writer,
+                    &path,
+                    &mut receivers,
+                    &mut handles,
+                    &prec,
+                    sequence_start,
+                    sequence_end,
+                    AUDIORIGHT_FRAME_ID,
+                    AUDIORIGHT_TOPIC,
+                    "wav",
+                    AUDIO_RATE,
+                );
             }
         };
     }
