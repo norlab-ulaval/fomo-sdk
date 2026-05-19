@@ -7,7 +7,6 @@ use std::sync::LazyLock;
 use super::sensors::odom::Drivetrain;
 
 static SENSOR_HELP: LazyLock<String> = LazyLock::new(|| {
-    // same logic as above
     let mut valid_options: Vec<String> = SensorType::value_variants()
         .iter()
         .filter_map(|v| {
@@ -25,7 +24,6 @@ static SENSOR_HELP: LazyLock<String> = LazyLock::new(|| {
 });
 
 pub static DRIVETRAIN_HELP: LazyLock<String> = LazyLock::new(|| {
-    // same logic as above
     let valid_options: Vec<String> = Drivetrain::value_variants()
         .iter()
         .filter_map(|v| {

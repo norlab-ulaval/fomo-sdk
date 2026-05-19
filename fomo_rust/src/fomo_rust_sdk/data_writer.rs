@@ -549,7 +549,6 @@ where
     let items: Vec<_> = sensor_writer.collect();
     let message_count = items.len();
 
-    // TODO what is this doing?
     let writer_ref = &*sensor_writer;
 
     pb.set_length(message_count as u64);

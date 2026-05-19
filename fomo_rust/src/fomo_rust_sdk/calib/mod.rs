@@ -2,7 +2,6 @@ use crate::fomo_rust_sdk::sensors::utils::ImageData;
 use crate::DATA_DIR;
 use configparser::ini::Ini;
 use opencv::{calib3d, core::Mat, imgproc, prelude::*, Result};
-use std::fs;
 
 use serde::{Deserialize, Serialize};
 use serde_json;
