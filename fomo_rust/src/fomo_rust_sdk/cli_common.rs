@@ -7,7 +7,6 @@ use std::sync::LazyLock;
 use super::sensors::odom::Drivetrain;
 
 static SENSOR_HELP: LazyLock<String> = LazyLock::new(|| {
-    // same logic as above
     let mut valid_options: Vec<String> = SensorType::value_variants()
         .iter()
         .filter_map(|v| {
@@ -25,7 +24,6 @@ static SENSOR_HELP: LazyLock<String> = LazyLock::new(|| {
 });
 
 pub static DRIVETRAIN_HELP: LazyLock<String> = LazyLock::new(|| {
-    // same logic as above
     let valid_options: Vec<String> = Drivetrain::value_variants()
         .iter()
         .filter_map(|v| {
@@ -103,6 +101,10 @@ pub struct CommonArgs {
     #[arg(short, long)]
     pub output: Utf8PathBuf,
 
+    /// Overwrite an existing output file. Default is false
+    #[arg(long, action = clap::ArgAction::SetTrue)]
+    pub overwrite: bool,
+
     #[arg(short, long,
         value_parser = parse_sensors,
         help = SENSOR_HELP.as_str()
@@ -111,8 +113,17 @@ pub struct CommonArgs {
 }
 
 impl CommonArgs {
-    pub fn flatten_sensors(self) -> (Utf8PathBuf, Utf8PathBuf, Vec<SensorType>) {
+    pub fn flatten_sensors(self) -> (Utf8PathBuf, Utf8PathBuf, bool, Vec<SensorType>) {
         let sensors: Vec<SensorType> = self.sensors.into_iter().flatten().collect();
-        (self.input, self.output, sensors)
+        let mut sensors_out = Vec::new();
+        for sensor in sensors {
+            if sensor == SensorType::Audio {
+                sensors_out.push(SensorType::AudioLeft);
+                sensors_out.push(SensorType::AudioRight);
+            } else {
+                sensors_out.push(sensor);
+            }
+        }
+        (self.input, self.output, self.overwrite, sensors_out)
     }
 }
