@@ -399,7 +399,6 @@ def skip_or_write(
             # Deserialize the message
             msgtype = connection.msgtype
             msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
-            print(msg)
 
             # Modify header timestamp(s) in the message to match start time
             # tf_static contains TFMessage with an array of TransformStamped

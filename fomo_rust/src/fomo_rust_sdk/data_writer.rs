@@ -3,11 +3,12 @@ use crate::fomo_rust_sdk::qos::create_tf_qos_metadata_string;
 use super::rosbag::{TopicMetadata, TopicWithMessageCount, TopicWithMessageCountWithTimestamps};
 use super::sensors::utils::{HasHeader, ToRosMsg, ToRosMsgWithInfo};
 use super::utils::create_schema_channel;
+use crossbeam_channel::Sender;
+use indicatif::ProgressBar;
 use std::marker::PhantomData;
 
 use anyhow::Result;
 use camino::{Utf8Path, Utf8PathBuf};
-use tqdm::tqdm;
 
 use super::sensors::tf::{self, TFMessage};
 use super::sensors::timestamp::{Timestamp, TimestampPrecision};
@@ -26,15 +27,27 @@ use std::{
 };
 use std::{io::BufWriter, u64};
 
+#[derive(Debug)]
+pub(super) struct McapLogMessage {
+    pub channel_id: u16,
+    pub sequence: u32,
+    pub log_time: u64,
+    pub publish_time: u64,
+    pub data: Vec<u8>,
+}
+
 pub(super) trait DataLoader: Iterator {
     fn new<P: AsRef<Utf8Path>>(
         directory_path: P,
         extension: &str,
+        start: Timestamp,
+        end: Timestamp,
     ) -> Result<Self, Box<dyn std::error::Error>>
     where
         Self: Sized;
 }
 
+#[derive(Debug)]
 pub(super) struct DirectoryLoader {
     files: Vec<Utf8PathBuf>,
     pub(super) current_index: usize,
@@ -44,6 +57,8 @@ impl DataLoader for DirectoryLoader {
     fn new<P: AsRef<Utf8Path>>(
         directory_path: P,
         extension: &str,
+        start: Timestamp,
+        end: Timestamp,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let mut files = Vec::new();
 
@@ -63,7 +78,16 @@ impl DataLoader for DirectoryLoader {
                     .eq(extension)
             {
                 let utf8_buf = Utf8PathBuf::from_path_buf(path).unwrap();
-                files.push(utf8_buf);
+                let file_timestamp = utf8_buf.file_stem().unwrap();
+                let file_timestamp = Timestamp::new(
+                    file_timestamp
+                        .parse()
+                        .expect("Filename is not a timestamp."),
+                    &TimestampPrecision::MicroSecond,
+                );
+                if start < file_timestamp && file_timestamp < end {
+                    files.push(utf8_buf);
+                }
             }
         }
 
@@ -91,14 +115,19 @@ impl Iterator for DirectoryLoader {
     }
 }
 
+#[derive(Debug)]
 pub(super) struct CsvLoader {
     reader: BufReader<File>,
+    start: Timestamp,
+    end: Timestamp,
 }
 
 impl DataLoader for CsvLoader {
     fn new<P: AsRef<Utf8Path>>(
         path: P,
         extension: &str,
+        start: Timestamp,
+        end: Timestamp,
     ) -> Result<CsvLoader, Box<dyn std::error::Error>> {
         if path.as_ref().extension().unwrap().ne(extension) {
             return Err(format!(
@@ -116,7 +145,7 @@ impl DataLoader for CsvLoader {
         let mut buf = String::new();
         reader.read_line(&mut buf)?;
 
-        Ok(Self { reader })
+        Ok(Self { reader, start, end })
     }
 }
 
@@ -124,21 +153,32 @@ impl Iterator for CsvLoader {
     type Item = String;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut line = String::new();
+        loop {
+            let mut line = String::new();
 
-        match self.reader.read_line(&mut line) {
-            Ok(0) => None, // EOF
-            Ok(_) => {
-                // Remove trailing newline
-                if line.ends_with('\n') {
-                    line.pop();
-                    if line.ends_with('\r') {
+            match self.reader.read_line(&mut line) {
+                Ok(0) => return None, // EOF
+                Ok(_) => {
+                    // Remove trailing newline
+                    if line.ends_with('\n') {
                         line.pop();
+                        if line.ends_with('\r') {
+                            line.pop();
+                        }
+                    }
+                    let timestamp = line.split(',').next().unwrap().trim();
+                    let timestamp = Timestamp::new(
+                        timestamp
+                            .parse()
+                            .expect("This csv line does not contain a valid timestamp."),
+                        &TimestampPrecision::MicroSecond,
+                    );
+                    if self.start < timestamp && timestamp < self.end {
+                        return Some(line);
                     }
                 }
-                Some(line)
-            }
-            Err(_) => todo!(),
+                Err(_) => todo!(),
+            };
         }
     }
 }
@@ -151,6 +191,7 @@ pub(super) trait SensorMcapWriter: Iterator {
         mcap_writer: &mut Writer<BufWriter<File>>,
     ) -> Result<Vec<u16>, Box<dyn std::error::Error>>;
 
+    /// returns a vector because it might be a message + info message
     fn get_topic_metadatas(&self) -> Result<Vec<TopicMetadata>, Box<dyn std::error::Error>>;
 
     fn process_item(
@@ -167,6 +208,15 @@ pub(super) trait SensorMcapWriter: Iterator {
         sequence: u32,
         timestamp: &Timestamp,
     ) -> Result<(), Box<dyn std::error::Error>>;
+
+    fn serialize_message(
+        &self,
+        data: Self::DataType,
+        channels: &Vec<u16>,
+        sequence: u32,
+        timestamp: &Timestamp,
+    ) -> Result<Vec<McapLogMessage>, Box<dyn std::error::Error>>;
+
     fn get_topic(&self) -> &str;
 }
 
@@ -228,9 +278,11 @@ impl<T, L: DataLoader> MsgMcapWriter<T, L> {
         topic: String,
         frame_id: String,
         extension: &str,
+        start: Timestamp,
+        end: Timestamp,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         // Todo check that path is extension
-        let loader = L::new(file_path.as_ref().to_path_buf(), extension)?;
+        let loader = L::new(file_path.as_ref().to_path_buf(), extension, start, end)?;
         Ok(Self {
             loader,
             topic,
@@ -271,6 +323,24 @@ impl<T: ToRosMsg<L::Item>, L: DataLoader> SensorMcapWriter for MsgMcapWriter<T, 
         prec: &TimestampPrecision,
     ) -> Result<Self::DataType, Box<dyn std::error::Error>> {
         Self::DataType::from_item(item, self.frame_id.clone(), prec)
+    }
+
+    fn serialize_message(
+        &self,
+        data: Self::DataType,
+        channels: &Vec<u16>,
+        sequence: u32,
+        timestamp: &Timestamp,
+    ) -> Result<Vec<McapLogMessage>, Box<dyn std::error::Error>> {
+        let mut buffer: Vec<u8> = Vec::new();
+        Self::DataType::construct_msg(data, &mut buffer).unwrap();
+        Ok(vec![McapLogMessage {
+            channel_id: channels[0],
+            sequence,
+            log_time: timestamp.timestamp,
+            publish_time: timestamp.timestamp,
+            data: buffer,
+        }])
     }
 
     fn write_message(
@@ -322,9 +392,11 @@ impl<T, L: DataLoader> MsgWithInfoMcapWriter<T, L> {
         topic: String,
         frame_id: String,
         extension: &str,
+        start: Timestamp,
+        end: Timestamp,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         // Todo check that path is extension
-        let loader = L::new(file_path.as_ref().to_path_buf(), extension)?;
+        let loader = L::new(file_path.as_ref().to_path_buf(), extension, start, end)?;
         Ok(Self {
             loader,
             topic,
@@ -382,6 +454,38 @@ impl<T: ToRosMsgWithInfo<L::Item>, L: DataLoader> SensorMcapWriter for MsgWithIn
         Self::DataType::from_item(item, self.frame_id.clone(), prec)
     }
 
+    fn serialize_message(
+        &self,
+        data: Self::DataType,
+        channels: &Vec<u16>,
+        sequence: u32,
+        timestamp: &Timestamp,
+    ) -> Result<Vec<McapLogMessage>, Box<dyn std::error::Error>> {
+        let mut messages = Vec::new();
+        let mut info_buffer: Vec<u8> = Vec::new();
+        Self::DataType::construct_info_msg(&data, &mut info_buffer, self.calib_path.as_path())
+            .unwrap();
+        messages.push(McapLogMessage {
+            channel_id: channels[0],
+            sequence,
+            log_time: timestamp.timestamp,
+            publish_time: timestamp.timestamp,
+            data: info_buffer,
+        });
+
+        let mut data_buffer: Vec<u8> = Vec::new();
+        Self::DataType::construct_msg(data, &mut data_buffer).unwrap();
+        messages.push(McapLogMessage {
+            channel_id: channels[1],
+            sequence,
+            log_time: timestamp.timestamp,
+            publish_time: timestamp.timestamp,
+            data: data_buffer,
+        });
+
+        Ok(messages)
+    }
+
     fn write_message(
         &self,
         data: Self::DataType,
@@ -431,36 +535,29 @@ impl<T, L: DataLoader> Iterator for MsgWithInfoMcapWriter<T, L> {
     }
 }
 
-pub(super) fn write_sensor_data<W: SensorMcapWriter>(
-    mcap_writer: &mut Writer<BufWriter<File>>,
+pub(super) fn produce_sensor_data<W: SensorMcapWriter + Sync>(
     sensor_writer: &mut W,
+    channels: Vec<u16>,
     prec: &TimestampPrecision,
+    tx: Sender<McapLogMessage>,
     rate: u16,
+    pb: ProgressBar,
 ) -> Result<Vec<TopicWithMessageCountWithTimestamps>, Box<dyn std::error::Error>>
 where
-    <W as Iterator>::Item: Debug,
+    <W as Iterator>::Item: Debug + Send + Sync,
 {
-    let mut start_time = u64::MAX;
-    let mut end_time = u64::MIN;
-
-    let channels = sensor_writer.create_channels(mcap_writer).unwrap();
+    // Collect all items first
+    // sequentially load all file paths / lines
     let items: Vec<_> = sensor_writer.collect();
     let message_count = items.len();
-    let items = items.into_iter();
 
-    let description = format!("Processiong {}", sensor_writer.get_topic());
+    let writer_ref = &*sensor_writer;
 
-    let is_tty = atty::is(atty::Stream::Stdout);
+    pb.set_length(message_count as u64);
+    pb.set_message(format!("Processiong {}", sensor_writer.get_topic()));
 
-    let iter: Box<dyn Iterator<Item = _>> = if is_tty {
-        Box::new(
-            tqdm(items)
-                .desc(Some(description))
-                .total(Some(message_count)),
-        )
-    } else {
-        Box::new(items)
-    };
+    let mut start_time = u64::MAX;
+    let mut end_time = u64::MIN;
 
     let mut printed_timejump = false;
     let period = Timestamp::new(
@@ -468,50 +565,62 @@ where
         &TimestampPrecision::NanoSecond,
     );
     let mut prev_timestamp: Option<Timestamp> = None;
-    for (seq, item) in iter.enumerate() {
-        let data = sensor_writer.process_item(&item, &prec).inspect_err(|e| {
-            eprintln!(
-                "{}: Failed to process {} data with seq {}: {:?}",
-                e,
-                sensor_writer.get_topic(),
-                seq,
-                item,
+
+    for (seq, item) in items.into_iter().enumerate() {
+        let data = writer_ref.process_item(&item, &prec).map_err(|e| {
+            format!(
+                "{}: Failed to process sensor data with seq {}: {:?}",
+                e, seq, item
             )
         })?;
+
+        // we are building a rosbag, therefore the desired precision is nanoseconds
         let mut timestamp = data
             .get_header()
             .get_timestamp(&TimestampPrecision::NanoSecond);
+
         match prev_timestamp {
             None => prev_timestamp = Some(timestamp),
             Some(prev) => {
                 if timestamp.is_before(&prev) {
                     if !printed_timejump {
-                        println!(
+                        pb.println(format!(
                         "Detected jump back in time between previous timestamp: {} and current {}. Switching to rate-based timestamping with rate {}...",
                         prev.timestamp, timestamp.timestamp, rate
-                    );
+                    ));
                     }
                     timestamp = Timestamp::new(prev.timestamp + period.timestamp, &prev.prec);
                     if !printed_timejump {
-                        println!(
+                        pb.println(format!(
                             "Corrected timestamp: {} after adding period {}",
                             timestamp.timestamp, period.timestamp
-                        );
+                        ));
                         printed_timejump = true;
                     }
                 }
                 prev_timestamp = Some(timestamp);
             }
         }
-        start_time = cmp::min(timestamp.timestamp, start_time);
-        end_time = cmp::max(timestamp.timestamp, end_time);
-        sensor_writer
-            .write_message(data, &channels, mcap_writer, seq as u32, &timestamp)
-            .unwrap();
+
+        let messages = writer_ref
+            .serialize_message(data, &channels, seq as u32, &timestamp)
+            .map_err(|e| format!("Serialization failed: {}", e))?;
+
+        for msg in messages {
+            tx.send(msg).expect("Failed to send message to channel");
+        }
+
+        pb.inc(1);
+        start_time = cmp::min(start_time, timestamp.timestamp);
+        end_time = cmp::max(end_time, timestamp.timestamp);
     }
-    let topic_metadatas = sensor_writer.get_topic_metadatas().unwrap();
+
+    pb.finish_with_message("Done");
+
+    // iterate because the message might come with its info message
+    let topics_metadatas = writer_ref.get_topic_metadatas()?;
     let mut topics_with_timestamps: Vec<TopicWithMessageCountWithTimestamps> = vec![];
-    for topic_metadata in topic_metadatas {
+    for topic_metadata in topics_metadatas {
         let topic_with_msg_count = TopicWithMessageCount {
             topic_metadata,
             message_count: message_count as u64,
@@ -520,7 +629,7 @@ where
             topic_with_msg_count,
             start_time,
             end_time,
-        });
+        })
     }
 
     Ok(topics_with_timestamps)
