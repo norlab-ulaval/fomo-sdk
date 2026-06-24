@@ -466,7 +466,7 @@ impl<T: ToRosMsgWithInfo<L::Item>, L: DataLoader> SensorMcapWriter for MsgWithIn
         Self::DataType::construct_info_msg(&data, &mut info_buffer, self.calib_path.as_path())
             .unwrap();
         messages.push(McapLogMessage {
-            channel_id: channels[0],
+            channel_id: channels[1],
             sequence,
             log_time: timestamp.timestamp,
             publish_time: timestamp.timestamp,
@@ -476,7 +476,7 @@ impl<T: ToRosMsgWithInfo<L::Item>, L: DataLoader> SensorMcapWriter for MsgWithIn
         let mut data_buffer: Vec<u8> = Vec::new();
         Self::DataType::construct_msg(data, &mut data_buffer).unwrap();
         messages.push(McapLogMessage {
-            channel_id: channels[1],
+            channel_id: channels[0],
             sequence,
             log_time: timestamp.timestamp,
             publish_time: timestamp.timestamp,
