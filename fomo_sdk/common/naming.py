@@ -114,15 +114,21 @@ class Slam(Enum):
     DROIDSLAM = "droidslam"
     ORB_SLAM3 = "orbslam3"
     KISS = "kissslam"
+    KISS_NODESKEW = "kissslam_nodeskew"
     NAVTECH_RADAR_SLAM = "navtechradarslam"
     PYCUVSLAM = "pycuvslam"
+    PYCUVSLAM_NO_IMU = "pycuvslam_no_imu"
 
     @classmethod
     def from_string(cls, value: str):
         """Convert string value to Slam enum member"""
         if "norlabicpmapper" in value:
             value = "norlabicpmapper"
+        if "kissslam" in value:
+            value = "kissslam"
         if ".crossloc" in value:
+            value = value.split(".")[0]
+        if ".self" in value:
             value = value.split(".")[0]
         if ".old" in value:
             value = value.split(".")[0]
@@ -147,9 +153,13 @@ def get_slam_title(slam: Slam):
         return "ORB-SLAM3"
     elif slam == Slam.KISS.value:
         return "KISS-ICP/SLAM"
+    elif slam == Slam.KISS_NODESKEW.value:
+        return "KISS-ICP/SLAM"
     elif slam == Slam.NAVTECH_RADAR_SLAM.value:
         return "Kaist Radar SLAM"
     elif slam == Slam.PYCUVSLAM.value:
+        return "PyCuVSLAM (inertial)"
+    elif Slam.PYCUVSLAM_NO_IMU.value:
         return "PyCuVSLAM"
     else:
         return slam

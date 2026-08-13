@@ -17,6 +17,7 @@ from fomo_sdk.evaluation.utils import (
     EVALUATION_DELTAS,
     LocalDriftMetric,
     Metric,
+    TraveledDistanceMetric,
     get_time_offset,
     kabsch_algorithm,
     set_time_offset,
@@ -143,6 +144,17 @@ def compute_rpe_for_delta(
             alignment_frac=0.5,
             debug=debug and delta_meters == 100,
         )
+    elif metric == Metric.TRAVELED_DISTANCE_METRIC:
+        pose_relation = metrics.PoseRelation.translation_part
+        metric_class = TraveledDistanceMetric(
+            pose_relation,
+            delta_meters,
+            delta_unit,
+            all_pairs=False,
+            pairs_from_reference=True,
+            debug=debug,
+        )
+
     else:
         return None
 
@@ -176,8 +188,9 @@ def compute_rpe_set(traj_pair, delta_list, debug=False):
     results = {}
     for metric in [
         Metric.POINT_DISTANCE_METRIC,
-        Metric.RPE_METRIC,
+        # Metric.RPE_METRIC,
         Metric.LOCAL_DRIFT_METRIC,
+        Metric.TRAVELED_DISTANCE_METRIC,
     ]:
         results[str(metric.name).lower()] = {}
         for delta in delta_list:

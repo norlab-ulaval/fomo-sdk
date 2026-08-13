@@ -72,6 +72,108 @@ def kabsch_algorithm(
     return target_len, r_a, t_a
 
 
+class TraveledDistanceMetric(RPE):
+    def __init__(
+        self,
+        pose_relation: PoseRelation = PoseRelation.translation_part,
+        delta: float = 1.0,
+        delta_unit: Unit = Unit.frames,
+        rel_delta_tol: float = 0.1,
+        all_pairs: bool = False,
+        pairs_from_reference: bool = False,
+        debug: bool = False,
+    ):
+        super().__init__(
+            pose_relation,
+            delta,
+            delta_unit,
+            rel_delta_tol,
+            all_pairs,
+            pairs_from_reference,
+        )
+        self.debug = debug
+
+    def compute_aligned_rpe(self, data: PathPair, id_pairs: list[tuple[int, int]]):
+        """
+        data: Reference, Estimate
+        id_pairs: list of (i, j) pairs of indices into the distance arrays
+        """
+        E = []
+        ref_distances = []
+        est_distances = []
+
+        if self.debug:
+            from matplotlib import pyplot as plt
+
+            fig = plt.figure(figsize=(12, 6))
+            plt.plot(data[0].distances, "b", label="Reference distances")
+            plt.plot(data[1].distances, "r", label="Estimate distances")
+            plt.legend()
+            plt.show()
+
+        i_idx, j_idx = np.array(id_pairs).T  # shape (N,), (N,)
+
+        ref_dist_arr = np.asarray(data[0].distances)
+        est_dist_arr = np.asarray(data[1].distances)
+
+        ref_segs = ref_dist_arr[j_idx] - ref_dist_arr[i_idx]
+        est_segs = est_dist_arr[j_idx] - est_dist_arr[i_idx]
+
+        E.extend(np.abs(ref_segs - est_segs).tolist())
+        ref_distances.extend(ref_segs.tolist())
+        est_distances.extend(est_segs.tolist())
+        if self.debug:
+            fig, ax = plt.subplots(nrows=2, figsize=(12, 6))
+            ax[0].plot(ref_distances, color="b", label="Reference distances")
+            ax[0].plot(est_distances, color="r", label="Estimate distances")
+            ax[0].set_title(f"Window is {self.delta} {self.unit}")
+
+            ax[1].plot(
+                data[0].positions_xyz[:, 0],
+                data[0].positions_xyz[:, 1],
+                color="b",
+                label="Reference",
+            )
+            ax[1].plot(
+                data[1].positions_xyz[:, 0],
+                data[1].positions_xyz[:, 1],
+                color="r",
+                label="Estimate",
+            )
+
+            plt.legend()
+            plt.show()
+        return E
+
+    def process_data(self, data: PathPair) -> None:
+        """
+        Calculates the RPE on a batch of SE(3) poses from trajectories.
+        :param data: tuple (traj_ref, traj_est) with:
+        traj_ref: reference evo.trajectory.PosePath or derived
+        traj_est: estimated evo.trajectory.PosePath or derived
+        """
+        if len(data) != 2:
+            raise MetricsException("please provide data tuple as: (traj_ref, traj_est)")
+        traj_ref, traj_est = data
+        if traj_ref.num_poses != traj_est.num_poses:
+            raise MetricsException("trajectories must have same number of poses")
+
+        id_pairs = id_pairs_from_delta(
+            (traj_ref.poses_se3 if self.pairs_from_reference else traj_est.poses_se3),
+            self.delta,
+            self.delta_unit,
+            self.rel_delta_tol,
+            all_pairs=self.all_pairs,
+        )
+        self.id_pairs = id_pairs
+
+        # Store flat id list e.g. for plotting.
+        self.delta_ids = [j for i, j in id_pairs]
+
+        self.E = self.compute_aligned_rpe(data, id_pairs)
+        self.error = np.copy(self.E)
+
+
 class LocalDriftMetric(RPE):
     def __init__(
         self,
@@ -247,8 +349,10 @@ class LocalDriftMetric(RPE):
 class Metric(Enum):
     RPE_METRIC = "RPE [%]"
     POINT_DISTANCE_METRIC = "Point Distance [m]"
-    LOCAL_DRIFT_METRIC = "Local Rel. Drift [%]"
+    TRAVELED_DISTANCE_METRIC = "RTDE (\\%)"
+    LOCAL_DRIFT_METRIC = "SARTE [\\%]"
     APE = "APE [m]"
+    LFR = "Localization failure ratio [\\%]"
 
 
 def parse_evaluation_file_name(file_name: Path | str):
